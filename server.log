@@ -408,3 +408,15 @@ INFO:     127.0.0.1:61672 - "GET /api/jobs HTTP/1.1" 200 OK
 INFO:     127.0.0.1:61674 - "GET /api/stats HTTP/1.1" 200 OK
 INFO:     127.0.0.1:61673 - "GET /api/jobs HTTP/1.1" 200 OK
 INFO:     127.0.0.1:61672 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61712 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61711 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61715 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61714 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61715 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61712 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61734 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61733 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61733 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61735 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61734 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61733 - "GET /api/jobs HTTP/1.1" 200 OK
