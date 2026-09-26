@@ -1,0 +1,50 @@
+{
+  "personal": {
+    "first_name": "Aditya",
+    "last_name": "Kumar",
+    "email": "aditya.example@gmail.com",
+    "phone": "+91 9876543210",
+    "current_city": "Bangalore",
+    "current_country": "India",
+    "linkedin_url": "https://www.linkedin.com/in/adityakumar",
+    "github_url": "https://github.com/adityakumar",
+    "portfolio_url": ""
+  },
+  "professional": {
+    "years_of_experience": 5.0,
+    "current_title": "Senior Software Engineer",
+    "target_roles": [
+      "Senior Backend Engineer",
+      "Software Development Engineer 2",
+      "SDE-2",
+      "SDE II",
+      "Senior Software Engineer - Backend"
+    ],
+    "primary_skills": [
+      "Java",
+      "Spring Boot",
+      "Microservices",
+      "Distributed Systems",
+      "PostgreSQL",
+      "Redis",
+      "Kafka",
+      "AWS",
+      "Docker",
+      "System Design"
+    ],
+    "notice_period_days": 30,
+    "current_ctc_lpa": 32.0,
+    "expected_ctc_lpa": 55.0,
+    "open_to_relocation": true,
+    "work_preference": "Hybrid or Remote"
+  },
+  "resume": {
+    "file_path": "resume.pdf"
+  },
+  "custom_answers": {
+    "sponsorship_needed": "No",
+    "authorized_to_work_in_india": "Yes",
+    "gender": "Male",
+    "summary_for_recruiter": "Backend Engineer with 5 years of experience building high-throughput distributed systems, event-driven microservices in Java/Spring, and cloud infrastructure on AWS."
+  }
+}
