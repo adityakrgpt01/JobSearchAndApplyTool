@@ -1,8 +1,7 @@
 """
-Partitioned LinkedIn 24h & Amazon Jobs Discovery Engine.
-Bypasses LinkedIn's 250-result pagination cap by splitting searches into
-multi-query partitions across tech stacks (Java, Go, Python, Distributed Systems)
-and tech hubs (Bengaluru, Hyderabad, Pune, Remote).
+Partitioned LinkedIn 24h & Big Tech Discovery Engine.
+Includes dedicated company search partitions for Google, Microsoft, Meta, Apple,
+and Amazon Jobs official API to ensure zero Big Tech backend openings are missed.
 Strictly enforces f_TPR=r86400 (last 24 hours).
 """
 
@@ -12,12 +11,23 @@ import urllib.parse
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Set
-from database import save_job, get_company_intelligence
+from database import save_job
 from smart_due_diligence import perform_smart_due_diligence
 from salary_classifier import classify_salary
 
-# Tech Stack & Title Partitions (each yields < 200 jobs, safely below LinkedIn's cap)
-LINKEDIN_QUERY_PARTITIONS = [
+# Dedicated Big Tech Company Partitions
+BIG_TECH_PARTITIONS = [
+    ("Microsoft", "Senior Software Engineer Backend"),
+    ("Microsoft", "Software Engineer II Azure"),
+    ("Google", "Software Engineer Backend"),
+    ("Google", "Senior Software Engineer"),
+    ("Apple", "Software Engineer Backend"),
+    ("Meta", "Software Engineer"),
+    ("Netflix", "Senior Software Engineer")
+]
+
+# Tech Stack & Title Partitions
+TECH_STACK_PARTITIONS = [
     "Senior Java Backend",
     "SDE 2 Java Spring Boot",
     "Senior Software Engineer Go Golang",
@@ -29,20 +39,12 @@ LINKEDIN_QUERY_PARTITIONS = [
     "Senior Nodejs Backend Engineer"
 ]
 
-LOCATION_PARTITIONS = [
-    "India",
-    "Bengaluru, Karnataka, India",
-    "Hyderabad, Telangana, India",
-    "Pune, Maharashtra, India",
-    "Remote"
-]
-
 async def fetch_linkedin_page(session: aiohttp.ClientSession, query: str, location: str, start: int = 0) -> List[Dict[str, Any]]:
     base_url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
     params = {
         "keywords": query,
         "location": location,
-        "f_TPR": "r86400",  # Strict: Past 24 hours (86400 seconds)
+        "f_TPR": "r86400",  # Strict: Past 24 hours
         "start": str(start)
     }
     url = f"{base_url}?{urllib.parse.urlencode(params)}"
@@ -73,13 +75,12 @@ async def fetch_linkedin_page(session: aiohttp.ClientSession, query: str, locati
                 title = title_elem.text.strip()
                 company_name = comp_elem.text.strip()
                 loc = loc_elem.text.strip() if loc_elem else location
-                apply_url = link_elem["href"].split("?")[0]  # clean tracking params
+                apply_url = link_elem["href"].split("?")[0]
                 job_id = f"li_{apply_url.split('-')[-1]}" if "-" in apply_url else f"li_{abs(hash(apply_url))}"
                 posted_time = time_elem.text.strip() if time_elem else "Within 24h"
 
-                # Filter out obvious non-backend / junior roles
                 t_low = title.lower()
-                if any(neg in t_low for neg in ["frontend", "front-end", "intern", "qa", "sdet", "android", "ios"]):
+                if any(neg in t_low for neg in ["frontend", "front-end", "intern", "qa", "sdet"]):
                     continue
 
                 tier, est_ctc = classify_salary(company_name, title)
@@ -146,26 +147,29 @@ async def scan_amazon_jobs(session: aiohttp.ClientSession) -> List[Dict[str, Any
         print(f"Error scanning Amazon jobs: {e}")
     return discovered
 
-async def run_partitioned_linkedin_crawler(max_pages_per_partition: int = 4) -> List[Dict[str, Any]]:
-    """Crawls all partitioned search buckets concurrently with jittered delay."""
+async def run_partitioned_linkedin_crawler(max_pages: int = 3) -> List[Dict[str, Any]]:
     all_jobs = []
     seen_ids: Set[str] = set()
 
-    conn = aiohttp.TCPConnector(limit=15, ttl_dns_cache=300)
+    conn = aiohttp.TCPConnector(limit=20, ttl_dns_cache=300)
     async with aiohttp.ClientSession(connector=conn) as session:
-        # First scan Amazon Jobs official API
+        # 1. Direct Amazon Jobs API
         amz_jobs = await scan_amazon_jobs(session)
         all_jobs.extend(amz_jobs)
 
-        # Then scan partitioned LinkedIn queries
         tasks = []
-        for q in LINKEDIN_QUERY_PARTITIONS:
-            for loc in ["India", "Bengaluru, Karnataka, India"]:
-                for page in range(max_pages_per_partition):
-                    start = page * 25
-                    tasks.append(fetch_linkedin_page(session, q, loc, start))
+        # 2. Dedicated Big Tech Partitions (Google, Microsoft, Meta, Apple)
+        for comp, query in BIG_TECH_PARTITIONS:
+            for p in range(2):
+                tasks.append(fetch_linkedin_page(session, f"{comp} {query}", "India", p * 25))
 
-        print(f"🌐 Firing {len(tasks)} partitioned LinkedIn queries (Strict 24h: f_TPR=r86400)...")
+        # 3. Broad Tech Stack Partitions
+        for q in TECH_STACK_PARTITIONS:
+            for loc in ["India", "Bengaluru, Karnataka, India"]:
+                for p in range(max_pages):
+                    tasks.append(fetch_linkedin_page(session, q, loc, p * 25))
+
+        print(f"🌐 Firing {len(tasks)} targeted queries (including dedicated Google & Microsoft feeds)...")
         results = await asyncio.gather(*tasks)
         for r in results:
             for j in r:
@@ -173,10 +177,10 @@ async def run_partitioned_linkedin_crawler(max_pages_per_partition: int = 4) -> 
                     seen_ids.add(j["job_id"])
                     all_jobs.append(j)
 
-    print(f"✅ Partitioned crawl finished! Discovered {len(all_jobs)} distinct opportunities across LinkedIn & Amazon.")
+    print(f"✅ Crawl finished! Discovered {len(all_jobs)} distinct opportunities.")
     return all_jobs
 
 if __name__ == "__main__":
     from database import init_db
     init_db()
-    asyncio.run(run_partitioned_linkedin_crawler(max_pages_per_partition=3))
+    asyncio.run(run_partitioned_linkedin_crawler(max_pages=3))
