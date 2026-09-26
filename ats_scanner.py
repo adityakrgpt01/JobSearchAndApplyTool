@@ -1,9 +1,11 @@
 """
-High-Throughput ATS Discovery Scanner.
-Reads all 1,000+ companies from companies_intelligence / companies_1000.json,
-scans their Greenhouse APIs concurrently with rate-limiting & connection pooling,
-filters for Senior Backend / SDE-2 (4-6 YoE), performs on-demand due diligence,
-and saves matching roles to SQLite.
+Unified Multi-ATS High-Throughput Scanner.
+Scans across 2,000+ companies hosted on:
+- Greenhouse (boards-api.greenhouse.io)
+- Lever (api.lever.co)
+- Ashby (api.ashbyhq.com)
+Filters strictly for Senior Backend / SDE-2 (4-6 YoE), India/Remote eligibility,
+and evaluates jobs posted within the last 72 hours.
 """
 
 import aiohttp
@@ -27,59 +29,46 @@ def is_senior_backend_or_sde2(title: str) -> bool:
         return False
     return any(k in t for k in BACKEND_KEYWORDS)
 
-def get_all_target_companies() -> List[Dict[str, str]]:
-    """Loads all companies from companies_intelligence table or companies_1000.json."""
-    try:
-        conn = sqlite3.connect("jobs.db")
-        c = conn.cursor()
-        c.execute("SELECT company_name, normalized_name FROM companies_intelligence")
-        rows = c.fetchall()
-        conn.close()
-        if rows:
-            return [{"name": r[0], "token": r[1]} for r in rows]
-    except Exception:
-        pass
+def load_all_target_companies() -> Dict[str, List[Dict[str, str]]]:
+    """Loads all companies grouped by ATS: greenhouse, lever, ashby."""
+    conn = sqlite3.connect("jobs.db")
+    c = conn.cursor()
+    c.execute("SELECT company_name, normalized_name, raw_metadata FROM companies_intelligence")
+    rows = c.fetchall()
+    conn.close()
 
-    try:
-        with open("companies_1000.json", "r") as f:
-            data = json.load(f)
-            return [{"name": d["company_name"], "token": d["greenhouse_token"]} for d in data]
-    except Exception:
-        return []
+    grouped = {"greenhouse": [], "lever": [], "ashby": []}
+    for name, norm, meta in rows:
+        if norm.startswith("lever_"):
+            tok = norm.replace("lever_", "")
+            grouped["lever"].append({"name": name.replace(" (Lever)", ""), "token": tok})
+        elif norm.startswith("ashby_"):
+            tok = norm.replace("ashby_", "")
+            grouped["ashby"].append({"name": name.replace(" (Ashby)", ""), "token": tok})
+        else:
+            grouped["greenhouse"].append({"name": name, "token": norm})
+    return grouped
 
-async def scan_single_company(
-    session: aiohttp.ClientSession,
-    company: Dict[str, str],
-    semaphore: asyncio.Semaphore,
-    max_age_hours: int = 72
-) -> List[Dict[str, Any]]:
-    token = company["token"]
-    name = company["name"]
-    url = f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true"
+# --- 1. Greenhouse Scanner ---
+async def scan_greenhouse_job(session: aiohttp.ClientSession, comp: Dict[str, str], sem: asyncio.Semaphore, max_age_hours: int = 72) -> List[Dict[str, Any]]:
+    url = f"https://boards-api.greenhouse.io/v1/boards/{comp['token']}/jobs?content=true"
     discovered = []
-
-    async with semaphore:
+    async with sem:
         try:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
                 if resp.status != 200:
                     return []
                 data = await resp.json()
                 jobs = data.get("jobs", [])
                 now = datetime.now(timezone.utc)
-
                 for j in jobs:
                     title = j.get("title", "")
                     if not is_senior_backend_or_sde2(title):
                         continue
-
-                    location = j.get("location", {}).get("name", "Remote / Multiple")
-                    loc_lower = location.lower()
-
-                    # Filter for India or Remote eligibility
-                    is_india_or_remote = "india" in loc_lower or "bengaluru" in loc_lower or "bangalore" in loc_lower or "remote" in loc_lower
-                    if not is_india_or_remote:
+                    loc = j.get("location", {}).get("name", "Remote / Multiple")
+                    loc_low = loc.lower()
+                    if not ("india" in loc_low or "bengaluru" in loc_low or "bangalore" in loc_low or "remote" in loc_low):
                         continue
-
                     updated_at_str = j.get("updated_at")
                     if updated_at_str:
                         try:
@@ -89,56 +78,146 @@ async def scan_single_company(
                         except Exception:
                             pass
 
-                    apply_url = j.get("absolute_url", "")
-                    jd_text = j.get("content", "")
-
-                    # Classify salary tier
-                    tier, est_ctc = classify_salary(name, jd_text)
-
-                    # Trigger on-demand due diligence
-                    await perform_smart_due_diligence(name, token)
-
-                    job_record = {
-                        "job_id": f"gh_{token}_{j['id']}",
-                        "company_name": name,
-                        "title": title,
-                        "location": location,
-                        "is_remote": "remote" in loc_lower,
-                        "ats_platform": "greenhouse",
-                        "apply_url": apply_url,
-                        "jd_content": jd_text[:2000],
+                    tier, est_ctc = classify_salary(comp["name"], j.get("content", ""))
+                    await perform_smart_due_diligence(comp["name"], comp["token"])
+                    rec = {
+                        "job_id": f"gh_{comp['token']}_{j['id']}",
+                        "company_name": comp["name"],
+                        "title": title, "location": loc, "is_remote": "remote" in loc_low,
+                        "ats_platform": "greenhouse", "apply_url": j.get("absolute_url", ""),
+                        "jd_content": j.get("content", "")[:2000],
                         "posted_at": updated_at_str or datetime.utcnow().isoformat(),
                         "experience_required": "4-6 Years (SDE-2 / Senior)",
-                        "salary_tier": tier,
-                        "estimated_ctc": est_ctc,
-                        "status": "DISCOVERED"
+                        "salary_tier": tier, "estimated_ctc": est_ctc, "status": "DISCOVERED"
                     }
-                    save_job(job_record)
-                    discovered.append(job_record)
+                    save_job(rec)
+                    discovered.append(rec)
         except Exception:
             pass
-
     return discovered
 
-async def run_discovery_pipeline(hours: int = 72, concurrency: int = 40) -> List[Dict[str, Any]]:
-    companies = get_all_target_companies()
-    print(f"🚀 Launching high-throughput scan across {len(companies)} Greenhouse companies (Concurrency: {concurrency})...")
+# --- 2. Lever Scanner ---
+async def scan_lever_job(session: aiohttp.ClientSession, comp: Dict[str, str], sem: asyncio.Semaphore, max_age_hours: int = 72) -> List[Dict[str, Any]]:
+    url = f"https://api.lever.co/v0/postings/{comp['token']}?mode=json"
+    discovered = []
+    async with sem:
+        try:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                if resp.status != 200:
+                    return []
+                jobs = await resp.json()
+                now = datetime.now(timezone.utc)
+                for j in jobs:
+                    title = j.get("text", "")
+                    if not is_senior_backend_or_sde2(title):
+                        continue
+                    loc = j.get("categories", {}).get("location", "Remote")
+                    loc_low = loc.lower()
+                    if not ("india" in loc_low or "bengaluru" in loc_low or "bangalore" in loc_low or "remote" in loc_low):
+                        continue
+                    created_at_ms = j.get("createdAt")
+                    if created_at_ms:
+                        created_at = datetime.fromtimestamp(created_at_ms / 1000.0, timezone.utc)
+                        if (now - created_at).total_seconds() > max_age_hours * 3600:
+                            continue
 
-    semaphore = asyncio.Semaphore(concurrency)
-    headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
-    all_jobs = []
+                    tier, est_ctc = classify_salary(comp["name"], j.get("descriptionPlain", ""))
+                    await perform_smart_due_diligence(comp["name"], f"lever_{comp['token']}")
+                    rec = {
+                        "job_id": f"lever_{comp['token']}_{j['id']}",
+                        "company_name": comp["name"],
+                        "title": title, "location": loc, "is_remote": "remote" in loc_low,
+                        "ats_platform": "lever", "apply_url": j.get("applyUrl", ""),
+                        "jd_content": j.get("descriptionPlain", "")[:2000],
+                        "posted_at": datetime.fromtimestamp(created_at_ms / 1000.0).isoformat() if created_at_ms else datetime.utcnow().isoformat(),
+                        "experience_required": "4-6 Years (SDE-2 / Senior)",
+                        "salary_tier": tier, "estimated_ctc": est_ctc, "status": "DISCOVERED"
+                    }
+                    save_job(rec)
+                    discovered.append(rec)
+        except Exception:
+            pass
+    return discovered
 
+# --- 3. Ashby Scanner ---
+async def scan_ashby_job(session: aiohttp.ClientSession, comp: Dict[str, str], sem: asyncio.Semaphore, max_age_hours: int = 72) -> List[Dict[str, Any]]:
+    url = f"https://api.ashbyhq.com/posting-api/job-board/{comp['token']}"
+    discovered = []
+    async with sem:
+        try:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                if resp.status != 200:
+                    return []
+                data = await resp.json()
+                jobs = data.get("jobs", [])
+                now = datetime.now(timezone.utc)
+                for j in jobs:
+                    title = j.get("title", "")
+                    if not is_senior_backend_or_sde2(title):
+                        continue
+                    loc = j.get("location", "Remote")
+                    loc_low = loc.lower()
+                    if not ("india" in loc_low or "bengaluru" in loc_low or "bangalore" in loc_low or "remote" in loc_low):
+                        continue
+                    published_str = j.get("publishedDate")
+                    if published_str:
+                        try:
+                            published = datetime.fromisoformat(published_str.replace("Z", "+00:00"))
+                            if (now - published).total_seconds() > max_age_hours * 3600:
+                                continue
+                        except Exception:
+                            pass
+
+                    # Direct salary detection from Ashby JSON!
+                    comp_summary = j.get("compensation", {}).get("compensationTierSummary", "")
+                    tier, est_ctc = classify_salary(comp["name"], comp_summary or title)
+                    if comp_summary:
+                        est_ctc = f"{comp_summary} (Disclosed)"
+
+                    await perform_smart_due_diligence(comp["name"], f"ashby_{comp['token']}")
+                    rec = {
+                        "job_id": f"ashby_{comp['token']}_{j['id']}",
+                        "company_name": comp["name"],
+                        "title": title, "location": loc, "is_remote": "remote" in loc_low,
+                        "ats_platform": "ashby", "apply_url": j.get("jobUrl", ""),
+                        "jd_content": comp_summary or title,
+                        "posted_at": published_str or datetime.utcnow().isoformat(),
+                        "experience_required": "4-6 Years (SDE-2 / Senior)",
+                        "salary_tier": tier, "estimated_ctc": est_ctc, "status": "DISCOVERED"
+                    }
+                    save_job(rec)
+                    discovered.append(rec)
+        except Exception:
+            pass
+    return discovered
+
+async def run_discovery_pipeline(hours: int = 72, concurrency: int = 60) -> List[Dict[str, Any]]:
+    grouped = load_all_target_companies()
+    total_comps = len(grouped["greenhouse"]) + len(grouped["lever"]) + len(grouped["ashby"])
+    print(f"🚀 Scanning {total_comps} companies across Greenhouse ({len(grouped['greenhouse'])}), Lever ({len(grouped['lever'])}), & Ashby ({len(grouped['ashby'])}) (Concurrency: {concurrency})...")
+
+    sem = asyncio.Semaphore(concurrency)
     conn = aiohttp.TCPConnector(limit=concurrency + 10, ttl_dns_cache=300)
+    headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
+
+    all_jobs = []
     async with aiohttp.ClientSession(connector=conn, headers=headers) as session:
-        tasks = [scan_single_company(session, c, semaphore, hours) for c in companies]
+        tasks = []
+        for c in grouped["greenhouse"]:
+            tasks.append(scan_greenhouse_job(session, c, sem, hours))
+        for c in grouped["lever"]:
+            tasks.append(scan_lever_job(session, c, sem, hours))
+        for c in grouped["ashby"]:
+            tasks.append(scan_ashby_job(session, c, sem, hours))
+
         results = await asyncio.gather(*tasks)
         for r in results:
             all_jobs.extend(r)
 
-    print(f"✅ Full 1,000+ company scan complete! Found {len(all_jobs)} eligible Senior Backend / SDE-2 opportunities.")
+    print(f"✅ Multi-ATS scan complete! Discovered {len(all_jobs)} eligible Senior Backend / SDE-2 opportunities across all 3 platforms.")
     return all_jobs
 
 if __name__ == "__main__":
     from database import init_db
     init_db()
-    asyncio.run(run_discovery_pipeline(72, concurrency=50))
+    asyncio.run(run_discovery_pipeline(72, concurrency=60))

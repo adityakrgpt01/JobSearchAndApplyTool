@@ -1,0 +1,122 @@
+/Users/noody/Downloads/JobSearchAndApplyTool/server.py:25: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+INFO:     Started server process [79419]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:60517 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60520 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60520 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60521 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60521 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60520 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60524 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60523 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60527 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60526 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60530 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60529 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60532 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60533 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60535 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60536 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60539 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60538 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60538 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60539 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60550 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60551 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60550 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60552 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60557 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60558 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60557 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60562 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60561 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60590 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60591 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60591 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60590 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60591 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60594 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60591 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60594 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60606 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60607 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60614 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60613 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60616 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60617 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60619 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60620 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60624 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60625 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60624 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60626 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60625 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60627 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60641 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60640 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60641 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60643 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60640 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60641 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60651 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60652 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60651 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60653 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60652 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60651 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60661 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60662 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60661 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60663 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60662 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60661 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60675 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60674 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60676 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60677 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60675 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60676 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60689 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60690 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60689 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60690 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60692 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60691 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60702 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60703 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60704 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60702 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60703 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60704 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60716 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60715 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60715 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60717 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60716 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60715 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60718 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60735 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60718 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60736 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60735 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60736 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60737 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60753 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60737 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60754 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60753 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60754 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60755 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60973 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60755 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60974 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60973 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60755 - "GET /api/stats HTTP/1.1" 200 OK
