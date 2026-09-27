@@ -486,3 +486,11 @@ INFO:     127.0.0.1:63441 - "GET /api/jobs HTTP/1.1" 200 OK
 INFO:     127.0.0.1:63440 - "GET /api/stats HTTP/1.1" 200 OK
 INFO:     127.0.0.1:63791 - "GET /api/stats HTTP/1.1" 200 OK
 INFO:     127.0.0.1:63792 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64793 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64794 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64802 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64801 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64811 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64810 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64826 - "GET /api/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64825 - "GET /api/stats HTTP/1.1" 200 OK
