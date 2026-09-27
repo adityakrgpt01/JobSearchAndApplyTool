@@ -15,8 +15,9 @@ import asyncio
 import os
 import json
 from typing import Optional
-from database import list_jobs, get_company_intelligence, init_db
+from database import list_jobs, get_company_intelligence, init_db, get_failures_summary, get_unresolved_failures
 from unified_pipeline import run_unified_discovery, audit_and_clean_database_links
+from workday_resilient_scanner import rerun_failed_endpoints
 from stealth_applier import StealthApplier
 
 app = FastAPI(title="JobSearchAndApplyTool - Command Center")
@@ -70,6 +71,18 @@ async def trigger_scan(background_tasks: BackgroundTasks, hours: Optional[int] =
 async def trigger_audit():
     report = await audit_and_clean_database_links()
     return {"status": "Audit complete", "report": report}
+
+@app.get("/api/failures")
+def list_failures():
+    return {
+        "summary": get_failures_summary(),
+        "unresolved": get_unresolved_failures()
+    }
+
+@app.post("/api/failures/retry")
+async def retry_failures(background_tasks: BackgroundTasks):
+    background_tasks.add_task(rerun_failed_endpoints)
+    return {"status": "Adaptive retry initiated for failed endpoints"}
 
 @app.post("/api/apply/{job_id}")
 async def apply_single_job(job_id: str, background_tasks: BackgroundTasks, dry_run: bool = True):

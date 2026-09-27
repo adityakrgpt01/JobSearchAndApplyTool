@@ -14,7 +14,7 @@ import sqlite3
 import json
 from datetime import datetime, timezone
 from typing import List, Dict, Any
-from database import save_job, get_company_intelligence
+from database import save_job, get_company_intelligence, log_failure
 from smart_due_diligence import perform_smart_due_diligence
 from salary_classifier import classify_salary
 
@@ -57,6 +57,7 @@ async def scan_greenhouse_job(session: aiohttp.ClientSession, comp: Dict[str, st
         try:
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
                 if resp.status != 200:
+                    log_failure("greenhouse", comp["name"], url, f"HTTP {resp.status}", resp.status)
                     return []
                 data = await resp.json()
                 jobs = data.get("jobs", [])
@@ -104,6 +105,7 @@ async def scan_lever_job(session: aiohttp.ClientSession, comp: Dict[str, str], s
         try:
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
                 if resp.status != 200:
+                    log_failure("lever", comp["name"], url, f"HTTP {resp.status}", resp.status)
                     return []
                 jobs = await resp.json()
                 now = datetime.now(timezone.utc)
@@ -147,6 +149,7 @@ async def scan_ashby_job(session: aiohttp.ClientSession, comp: Dict[str, str], s
         try:
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
                 if resp.status != 200:
+                    log_failure("ashby", comp["name"], url, f"HTTP {resp.status}", resp.status)
                     return []
                 data = await resp.json()
                 jobs = data.get("jobs", [])

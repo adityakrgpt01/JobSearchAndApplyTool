@@ -62,29 +62,81 @@ def is_qualified_job(title: str, location: str) -> bool:
 
     return True
 
-async def verify_link_active(session: aiohttp.ClientSession, url: str, platform: str) -> bool:
-    """Verifies that a job posting link is structurally valid and active."""
-    if not url or not url.startswith("http"):
-        return False
+async def heal_job_url(session: aiohttp.ClientSession, job: Dict[str, Any]) -> Tuple[bool, str, str]:
+    """
+    Attempts to verify and heal a job's apply_url using canonical ATS fallbacks.
+    Returns: (is_valid, final_url, status_note)
+    """
+    url = job.get("apply_url", "").strip()
+    platform = job.get("ats_platform", "")
+    comp = job.get("company_name", "")
 
-    # LinkedIn & Instahyre: structural verification + public slug check
+    headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
+
+    # 1. Structural check for protected platforms
     if platform in ["linkedin", "instahyre"]:
-        return len(url) > 30 and ("jobs/view/" in url or "job-" in url)
+        if len(url) > 25 and ("jobs/view/" in url or "job-" in url):
+            return True, url, "DIRECT_VALID"
+        return False, url, "INVALID_SYNTAX"
 
-    # Greenhouse, Ashby, Lever, Workday, Amazon: Live HTTP HEAD/GET verification
+    # 2. Probe primary URL
     try:
-        headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
-        async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=6), allow_redirects=True) as resp:
-            if resp.status in [200, 202, 301, 302]:
-                if "error=true" in str(resp.url):
-                    return False
-                return True
-            return False
+        async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=5), allow_redirects=True) as resp:
+            if resp.status in [200, 202, 301, 302] and "error=true" not in str(resp.url):
+                return True, url, "DIRECT_VALID"
     except Exception:
-        return False
+        pass
+
+    # 3. Level 1: Canonical ATS Auto-Healing
+    fallbacks = []
+    if platform == "greenhouse":
+        m_id = re.search(r'(?:jobs/|gh_jid=)(\d+)', url)
+        if m_id:
+            jid = m_id.group(1)
+            norm = comp.lower().replace(" ", "").replace("-", "")
+            fallbacks.append(f"https://job-boards.greenhouse.io/{norm}/jobs/{jid}")
+            fallbacks.append(f"https://boards.greenhouse.io/{norm}/jobs/{jid}")
+
+    elif platform == "workday":
+        m_wd = re.match(r'https://([^/]+)(?:/[^/]+)?(/job/.+)', url)
+        if m_wd:
+            host, path = m_wd.group(1), m_wd.group(2)
+            norm = comp.lower().replace(" ", "")
+            fallbacks.append(f"https://{host}/{norm}{path}")
+            fallbacks.append(f"https://{host}/en-US/{norm}{path}")
+            fallbacks.append(f"https://{host}/en-US/Careers{path}")
+
+    elif platform == "lever":
+        m_lev = re.search(r'lever\.co/([^/]+)/([a-f0-9\-]+)', url)
+        if m_lev:
+            fallbacks.append(f"https://jobs.lever.co/{m_lev.group(1)}/{m_lev.group(2)}")
+
+    for fb in fallbacks:
+        try:
+            async with session.get(fb, headers=headers, timeout=aiohttp.ClientTimeout(total=4), allow_redirects=True) as resp:
+                if resp.status in [200, 202, 301, 302] and "error=true" not in str(resp.url):
+                    return True, fb, "HEALED_CANONICAL"
+        except Exception:
+            continue
+
+    # 4. Level 2: Company Career Portal Fallback (Never Miss Strategy)
+    portal_fallback = None
+    if platform == "greenhouse":
+        portal_fallback = f"https://job-boards.greenhouse.io/{comp.lower().replace(' ', '')}"
+    elif platform == "workday":
+        m = re.match(r'https://([^/]+)', url)
+        if m:
+            portal_fallback = f"https://{m.group(1)}"
+    elif platform == "ashby":
+        portal_fallback = f"https://jobs.ashbyhq.com/{comp.lower().replace(' ', '')}"
+
+    if portal_fallback:
+        return True, portal_fallback, "PORTAL_FALLBACK"
+
+    return False, url, "DEAD_UNRESOLVABLE"
 
 async def audit_and_clean_database_links(max_concurrent: int = 30) -> Dict[str, int]:
-    """Audits existing job postings and removes/flags any whose links are dead (404/broken)."""
+    """Audits existing job postings, auto-heals broken links, and falls back to career portals so no company is missed."""
     conn = sqlite3.connect("jobs.db")
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
@@ -94,32 +146,40 @@ async def audit_and_clean_database_links(max_concurrent: int = 30) -> Dict[str, 
 
     sem = asyncio.Semaphore(max_concurrent)
     conn_obj = aiohttp.TCPConnector(limit=max_concurrent + 10, ssl=False)
-    
+
+    healed_updates = []
     dead_job_ids = []
     active_count = 0
+    healed_count = 0
 
     async with aiohttp.ClientSession(connector=conn_obj) as session:
         async def check(j):
-            nonlocal active_count
+            nonlocal active_count, healed_count
             async with sem:
-                is_ok = await verify_link_active(session, j["apply_url"], j["ats_platform"])
+                is_ok, final_url, note = await heal_job_url(session, j)
                 if is_ok:
                     active_count += 1
+                    if note in ["HEALED_CANONICAL", "PORTAL_FALLBACK"]:
+                        healed_count += 1
+                        healed_updates.append((final_url, j["job_id"]))
                 else:
                     dead_job_ids.append(j["job_id"])
 
         await asyncio.gather(*[check(j) for j in jobs])
 
+    conn = sqlite3.connect("jobs.db")
+    c = conn.cursor()
+    if healed_updates:
+        c.executemany("UPDATE job_postings SET apply_url = ? WHERE job_id = ?", healed_updates)
     if dead_job_ids:
-        conn = sqlite3.connect("jobs.db")
-        c = conn.cursor()
         c.executemany("DELETE FROM job_postings WHERE job_id = ?", [(jid,) for jid in dead_job_ids])
-        conn.commit()
-        conn.close()
+    conn.commit()
+    conn.close()
 
     return {
         "total_audited": len(jobs),
         "active_verified": active_count,
+        "healed_or_portal_fallback": healed_count,
         "dead_removed": len(dead_job_ids)
     }
 

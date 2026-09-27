@@ -281,5 +281,58 @@ def update_job_status(job_id: str, status: str, apply_log: str = "", screenshot_
     conn.commit()
     conn.close()
 
+def log_failure(source: str, company_name: str, target_url: str, failure_reason: str, http_status: int = 0, db_path: str = DB_PATH):
+    """Logs an endpoint or URL error into the scraper_failures dead-letter queue."""
+    try:
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        c.execute("""
+        INSERT INTO scraper_failures (source, company_name, target_url, failure_reason, http_status, retry_count, last_attempted)
+        VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+        """, (source, company_name, target_url, failure_reason, http_status))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+def mark_failure_resolved(target_url: str, db_path: str = DB_PATH):
+    """Marks an endpoint failure as resolved after a successful retry."""
+    try:
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        c.execute("UPDATE scraper_failures SET resolved = 1 WHERE target_url = ?", (target_url,))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+def get_unresolved_failures(db_path: str = DB_PATH) -> List[Dict[str, Any]]:
+    """Fetches all active failures that need retry."""
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("""
+    SELECT source, company_name, target_url, failure_reason, http_status, retry_count, last_attempted
+    FROM scraper_failures
+    WHERE resolved = 0 AND retry_count < 5
+    ORDER BY last_attempted DESC
+    """)
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
+def get_failures_summary(db_path: str = DB_PATH) -> Dict[str, Any]:
+    """Summary of scraper errors for health monitoring."""
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM scraper_failures WHERE resolved = 0")
+    unresolved = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM scraper_failures WHERE resolved = 1")
+    resolved = c.fetchone()[0]
+    c.execute("SELECT source, COUNT(*) FROM scraper_failures WHERE resolved = 0 GROUP BY source")
+    by_source = dict(c.fetchall())
+    conn.close()
+    return {"unresolved_count": unresolved, "resolved_count": resolved, "by_source": by_source}
+
 if __name__ == "__main__":
     init_db()
