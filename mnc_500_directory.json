@@ -1,0 +1,4402 @@
+[
+  {
+    "company_name": "Google",
+    "industry": "Big Tech & Cloud",
+    "locations": "Bengaluru, Hyderabad, Gurgaon, Pune",
+    "ats_platform": "direct",
+    "direct_career_url": "https://careers.google.com/jobs/results/?location=India",
+    "salary_tier": "60-70LPA"
+  },
+  {
+    "company_name": "Microsoft",
+    "industry": "Big Tech & Cloud",
+    "locations": "Bengaluru, Hyderabad, Noida, Pune",
+    "ats_platform": "direct",
+    "direct_career_url": "https://careers.microsoft.com/professionals/us/en/search-results?q=India",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Amazon",
+    "industry": "Big Tech & Cloud",
+    "locations": "Bengaluru, Hyderabad, Chennai, Pune, Delhi NCR",
+    "ats_platform": "direct",
+    "direct_career_url": "https://www.amazon.jobs/en/locations/bangalore-india",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Meta (Facebook)",
+    "industry": "Big Tech & Cloud",
+    "locations": "Bengaluru, Gurgaon, Remote",
+    "ats_platform": "direct",
+    "direct_career_url": "https://www.metacareers.com/jobs?locations[0]=Bengaluru%2C%20India",
+    "salary_tier": "70+LPA"
+  },
+  {
+    "company_name": "Apple",
+    "industry": "Big Tech & Cloud",
+    "locations": "Bengaluru, Hyderabad",
+    "ats_platform": "direct",
+    "direct_career_url": "https://jobs.apple.com/en-in/search?location=india-INDC",
+    "salary_tier": "60-70LPA"
+  },
+  {
+    "company_name": "Netflix",
+    "industry": "Big Tech & Streaming",
+    "locations": "Mumbai, Remote",
+    "ats_platform": "lever",
+    "direct_career_url": "https://jobs.netflix.com",
+    "salary_tier": "70+LPA"
+  },
+  {
+    "company_name": "Uber",
+    "industry": "Mobility & Tech",
+    "locations": "Bengaluru, Hyderabad",
+    "ats_platform": "direct",
+    "direct_career_url": "https://www.uber.com/in/en/careers/list/?location=IND--Bangalore",
+    "salary_tier": "60-70LPA"
+  },
+  {
+    "company_name": "Salesforce",
+    "industry": "Enterprise Cloud & SaaS",
+    "locations": "Bengaluru, Hyderabad, Pune, Mumbai, Gurgaon",
+    "ats_platform": "workday",
+    "direct_career_url": "https://salesforce.wd1.myworkdayjobs.com/External_Career_Site",
+    "salary_tier": "60-70LPA"
+  },
+  {
+    "company_name": "Adobe",
+    "industry": "Creative & Cloud Tech",
+    "locations": "Bengaluru, Noida",
+    "ats_platform": "workday",
+    "direct_career_url": "https://adobe.wd5.myworkdayjobs.com/external_experienced",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "ServiceNow",
+    "industry": "Enterprise Cloud & SaaS",
+    "locations": "Bengaluru, Hyderabad",
+    "ats_platform": "workday",
+    "direct_career_url": "https://servicenow.wd1.myworkdayjobs.com/Careers",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Oracle",
+    "industry": "Database & Cloud Infrastructure",
+    "locations": "Bengaluru, Hyderabad, Pune, Mumbai, Noida",
+    "ats_platform": "direct",
+    "direct_career_url": "https://careers.oracle.com/jobs/#en/sites/jobsearch/requisitions?location=India",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Cisco",
+    "industry": "Networking & Cloud",
+    "locations": "Bengaluru, Chennai, Pune",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jobs.cisco.com",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Intuit",
+    "industry": "Fintech & SaaS",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://intuit.wd5.myworkdayjobs.com/Careers",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Atlassian",
+    "industry": "Collaboration & Developer Tools",
+    "locations": "Bengaluru, Remote",
+    "ats_platform": "lever",
+    "direct_career_url": "https://www.atlassian.com/company/careers/all-jobs?location=India",
+    "salary_tier": "60-70LPA"
+  },
+  {
+    "company_name": "VMware by Broadcom",
+    "industry": "Virtualization & Cloud",
+    "locations": "Bengaluru, Pune",
+    "ats_platform": "workday",
+    "direct_career_url": "https://broadcom.wd1.myworkdayjobs.com/External_Career",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "SAP",
+    "industry": "Enterprise Software",
+    "locations": "Bengaluru, Gurgaon, Pune",
+    "ats_platform": "direct",
+    "direct_career_url": "https://jobs.sap.com/search/?createNewAlert=false&q=&locationsearch=India",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Workday",
+    "industry": "Enterprise Cloud & HCM",
+    "locations": "Bengaluru, Pune",
+    "ats_platform": "workday",
+    "direct_career_url": "https://workday.wd5.myworkdayjobs.com/workday",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "IBM Cloud & Software",
+    "industry": "Cloud & AI",
+    "locations": "Bengaluru, Hyderabad, Pune, Kochi",
+    "ats_platform": "direct",
+    "direct_career_url": "https://www.ibm.com/careers/search?field_keyword_08[0]=India",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Goldman Sachs",
+    "industry": "Investment Banking Tech",
+    "locations": "Bengaluru, Hyderabad",
+    "ats_platform": "direct",
+    "direct_career_url": "https://www.goldmansachs.com/careers/index.html",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Morgan Stanley",
+    "industry": "Investment Banking Tech",
+    "locations": "Bengaluru, Mumbai",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ms.wd5.myworkdayjobs.com/External",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "JPMorgan Chase & Co.",
+    "industry": "Investment Banking Tech",
+    "locations": "Bengaluru, Hyderabad, Mumbai",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions?location=India",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Barclays Global Service Centre",
+    "industry": "Banking Tech",
+    "locations": "Pune, Chennai, Noida",
+    "ats_platform": "workday",
+    "direct_career_url": "https://search.jobs.barclays",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Deutsche Bank Group",
+    "industry": "Banking Tech",
+    "locations": "Pune, Bengaluru, Jaipur",
+    "ats_platform": "workday",
+    "direct_career_url": "https://db.wd3.myworkdayjobs.com/DBWebsite",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "UBS",
+    "industry": "Banking Tech & Wealth Management",
+    "locations": "Pune, Mumbai, Hyderabad",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ubs.wd3.myworkdayjobs.com/UBSCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "BNY Mellon",
+    "industry": "Custody Banking Tech",
+    "locations": "Pune, Chennai",
+    "ats_platform": "workday",
+    "direct_career_url": "https://bnymellon.wd5.myworkdayjobs.com/BNY_Mellon_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Standard Chartered Bank (GBS)",
+    "industry": "Banking Tech",
+    "locations": "Bengaluru, Chennai",
+    "ats_platform": "direct",
+    "direct_career_url": "https://www.sc.com/en/careers/",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Citigroup (Citi)",
+    "industry": "Banking Tech",
+    "locations": "Bengaluru, Pune, Chennai, Mumbai",
+    "ats_platform": "workday",
+    "direct_career_url": "https://citi.wd5.myworkdayjobs.com/2",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Wells Fargo India Solutions",
+    "industry": "Banking Tech",
+    "locations": "Bengaluru, Hyderabad, Chennai",
+    "ats_platform": "workday",
+    "direct_career_url": "https://wellsfargo.wd1.myworkdayjobs.com/WellsFargoJobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "American Express (Amex)",
+    "industry": "Fintech & Payments",
+    "locations": "Gurgaon, Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://aexp.wd5.myworkdayjobs.com/en-US/AmericanExpressCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Fidelity Investments",
+    "industry": "Asset Management & Tech",
+    "locations": "Bengaluru, Chennai",
+    "ats_platform": "workday",
+    "direct_career_url": "https://fidelity.wd1.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "BlackRock",
+    "industry": "Asset Management & Aladdin Tech",
+    "locations": "Gurgaon, Mumbai, Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://blackrock.wd1.myworkdayjobs.com/BlackRock_Professional",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "State Street",
+    "industry": "Financial Services Tech",
+    "locations": "Bengaluru, Hyderabad",
+    "ats_platform": "workday",
+    "direct_career_url": "https://statestreet.wd1.myworkdayjobs.com/Global",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Mastercard",
+    "industry": "Payments & Security Tech",
+    "locations": "Pune, Gurugram, Vadodara",
+    "ats_platform": "workday",
+    "direct_career_url": "https://mastercard.wd1.myworkdayjobs.com/CorporateCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Visa",
+    "industry": "Payments & Global Network Tech",
+    "locations": "Bengaluru, Mumbai",
+    "ats_platform": "workday",
+    "direct_career_url": "https://visa.wd1.myworkdayjobs.com/VisaJobs",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "PayPal",
+    "industry": "Fintech & Global Payments",
+    "locations": "Bengaluru, Chennai",
+    "ats_platform": "workday",
+    "direct_career_url": "https://paypal.wd1.myworkdayjobs.com/jobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Tower Research Capital",
+    "industry": "Quantitative HFT",
+    "locations": "Gurugram, Bengaluru",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://job-boards.greenhouse.io/towerresearchcapital",
+    "salary_tier": "70+LPA"
+  },
+  {
+    "company_name": "Graviton Research Capital",
+    "industry": "Quantitative HFT",
+    "locations": "Gurugram, Bengaluru",
+    "ats_platform": "direct",
+    "direct_career_url": "https://www.gravitoncapital.com/careers/",
+    "salary_tier": "70+LPA"
+  },
+  {
+    "company_name": "D. E. Shaw India",
+    "industry": "Quantitative Investment Tech",
+    "locations": "Hyderabad, Bengaluru",
+    "ats_platform": "direct",
+    "direct_career_url": "https://www.deshawindia.com/careers",
+    "salary_tier": "70+LPA"
+  },
+  {
+    "company_name": "WorldQuant",
+    "industry": "Quantitative Finance",
+    "locations": "Mumbai, Bengaluru",
+    "ats_platform": "direct",
+    "direct_career_url": "https://www.worldquant.com/careers/",
+    "salary_tier": "70+LPA"
+  },
+  {
+    "company_name": "Optiver",
+    "industry": "Market Maker & HFT",
+    "locations": "Mumbai, Remote",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://job-boards.greenhouse.io/optiver",
+    "salary_tier": "70+LPA"
+  },
+  {
+    "company_name": "Jane Street",
+    "industry": "Quantitative Trading",
+    "locations": "Remote / Global",
+    "ats_platform": "direct",
+    "direct_career_url": "https://www.janestreet.com/join-jane-street/open-roles/",
+    "salary_tier": "70+LPA"
+  },
+  {
+    "company_name": "Jump Trading",
+    "industry": "HFT & Algorithmic Trading",
+    "locations": "Bengaluru, Mumbai",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://job-boards.greenhouse.io/jumptrading",
+    "salary_tier": "70+LPA"
+  },
+  {
+    "company_name": "Nvidia",
+    "industry": "AI Compute & GPU",
+    "locations": "Bengaluru, Pune, Hyderabad",
+    "ats_platform": "workday",
+    "direct_career_url": "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite",
+    "salary_tier": "70+LPA"
+  },
+  {
+    "company_name": "Qualcomm",
+    "industry": "Wireless & Mobile Chips",
+    "locations": "Bengaluru, Hyderabad, Chennai, Noida",
+    "ats_platform": "workday",
+    "direct_career_url": "https://qualcomm.wd5.myworkdayjobs.com/External",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Broadcom",
+    "industry": "Semiconductors & Infrastructure",
+    "locations": "Bengaluru, Pune",
+    "ats_platform": "workday",
+    "direct_career_url": "https://broadcom.wd1.myworkdayjobs.com/External_Career",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "AMD (Advanced Micro Devices)",
+    "industry": "Processors & GPUs",
+    "locations": "Bengaluru, Hyderabad",
+    "ats_platform": "workday",
+    "direct_career_url": "https://amd.wd1.myworkdayjobs.com/AMD_Careers",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Intel",
+    "industry": "Compute & Silicon",
+    "locations": "Bengaluru, Hyderabad",
+    "ats_platform": "workday",
+    "direct_career_url": "https://intel.wd1.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Texas Instruments (TI)",
+    "industry": "Analog & Embedded Chips",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ti.wd1.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "ARM",
+    "industry": "Semiconductor Architecture",
+    "locations": "Bengaluru, Noida",
+    "ats_platform": "workday",
+    "direct_career_url": "https://arm.wd3.myworkdayjobs.com/arm",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Micron Technology",
+    "industry": "Memory & Storage",
+    "locations": "Hyderabad, Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://micron.eightfold.ai/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Synopsys",
+    "industry": "EDA & Chip Design Software",
+    "locations": "Bengaluru, Hyderabad, Noida",
+    "ats_platform": "workday",
+    "direct_career_url": "https://synopsys.wd1.myworkdayjobs.com/Synopsys_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Cadence Design Systems",
+    "industry": "EDA & Silicon Design",
+    "locations": "Bengaluru, Noida, Pune, Hyderabad",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cadence.wd1.myworkdayjobs.com/External_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Applied Materials",
+    "industry": "Semiconductor Equipment",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://appliedmaterials.wd5.myworkdayjobs.com/Applied_Materials_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Lam Research",
+    "industry": "Semiconductor Fab Equipment",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://lamresearch.wd1.myworkdayjobs.com/lam_external_career_site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Western Digital",
+    "industry": "Data Storage Tech",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://westerndigital.wd1.myworkdayjobs.com/WDC_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Marvell Technology",
+    "industry": "Data Infrastructure Chips",
+    "locations": "Bengaluru, Pune, Hyderabad",
+    "ats_platform": "workday",
+    "direct_career_url": "https://marvell.wd1.myworkdayjobs.com/MarvellCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "MediaTek",
+    "industry": "Mobile Processors",
+    "locations": "Bengaluru, Noida",
+    "ats_platform": "direct",
+    "direct_career_url": "https://careers.mediatek.com/",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "NXP Semiconductors",
+    "industry": "Automotive & IoT Chips",
+    "locations": "Noida, Bengaluru, Hyderabad, Pune",
+    "ats_platform": "workday",
+    "direct_career_url": "https://nxp.wd3.myworkdayjobs.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Databricks",
+    "industry": "Data & AI Platform",
+    "locations": "Bengaluru, Remote",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://job-boards.greenhouse.io/databricks",
+    "salary_tier": "70+LPA"
+  },
+  {
+    "company_name": "Snowflake",
+    "industry": "Cloud Data Warehousing",
+    "locations": "Bengaluru, Pune",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://careers.snowflake.com",
+    "salary_tier": "70+LPA"
+  },
+  {
+    "company_name": "Stripe",
+    "industry": "Financial Infrastructure",
+    "locations": "Bengaluru, Remote",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://job-boards.greenhouse.io/stripe",
+    "salary_tier": "70+LPA"
+  },
+  {
+    "company_name": "Rubrik",
+    "industry": "Zero Trust Data Security",
+    "locations": "Bengaluru",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://job-boards.greenhouse.io/rubrik",
+    "salary_tier": "70+LPA"
+  },
+  {
+    "company_name": "Cohesity",
+    "industry": "Data Security & Management",
+    "locations": "Bengaluru, Pune",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://www.cohesity.com/company/careers/",
+    "salary_tier": "60-70LPA"
+  },
+  {
+    "company_name": "NetApp",
+    "industry": "Intelligent Data Infrastructure",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://netapp.wd1.myworkdayjobs.com/CareersatNetApp",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Nutanix",
+    "industry": "Hybrid Multicloud Platform",
+    "locations": "Bengaluru, Pune",
+    "ats_platform": "workday",
+    "direct_career_url": "https://www.nutanix.com/company/careers",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Pure Storage",
+    "industry": "All-Flash Storage Solutions",
+    "locations": "Bengaluru",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://job-boards.greenhouse.io/purestorage",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Confluent",
+    "industry": "Data Streaming & Kafka",
+    "locations": "Bengaluru, Remote",
+    "ats_platform": "ashby",
+    "direct_career_url": "https://jobs.ashbyhq.com/confluent",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "MongoDB",
+    "industry": "Modern Database Platform",
+    "locations": "Bengaluru, Gurgaon",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://job-boards.greenhouse.io/mongodb",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Elastic",
+    "industry": "Search & Observability",
+    "locations": "Bengaluru, Remote",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://job-boards.greenhouse.io/elastic",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Splunk (Cisco)",
+    "industry": "Cybersecurity & Observability",
+    "locations": "Bengaluru, Hyderabad",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jobs.cisco.com",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Dynatrace",
+    "industry": "Observability & AIOps",
+    "locations": "Bengaluru, Remote",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://careers.dynatrace.com",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "New Relic",
+    "industry": "Observability Platform",
+    "locations": "Bengaluru, Hyderabad",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://job-boards.greenhouse.io/newrelic",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Twilio",
+    "industry": "Customer Engagement Platform",
+    "locations": "Bengaluru, Remote",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://job-boards.greenhouse.io/twilio",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Teradata",
+    "industry": "Connected Multi-Cloud Data Platform",
+    "locations": "Hyderabad, Pune, Mumbai",
+    "ats_platform": "workday",
+    "direct_career_url": "https://careers.teradata.com",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Palo Alto Networks",
+    "industry": "Cybersecurity Leader",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://paloaltonetworks.wd1.myworkdayjobs.com/Palo_Alto_Networks_Careers",
+    "salary_tier": "60-70LPA"
+  },
+  {
+    "company_name": "CrowdStrike",
+    "industry": "Cloud-Native Endpoint Security",
+    "locations": "Pune, Bengaluru, Remote",
+    "ats_platform": "workday",
+    "direct_career_url": "https://crowdstrike.wd5.myworkdayjobs.com/crowdstrikecareers",
+    "salary_tier": "60-70LPA"
+  },
+  {
+    "company_name": "Zscaler",
+    "industry": "Zero Trust Cloud Security",
+    "locations": "Bengaluru, Chandigarh, Pune",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://job-boards.greenhouse.io/zscaler",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Fortinet",
+    "industry": "Cybersecurity Solutions",
+    "locations": "Bengaluru, Pune",
+    "ats_platform": "workday",
+    "direct_career_url": "https://fortinet.wd1.myworkdayjobs.com/Fortinet_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Cloudflare",
+    "industry": "Web Performance & Security",
+    "locations": "Bengaluru, Remote",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://job-boards.greenhouse.io/cloudflare",
+    "salary_tier": "60-70LPA"
+  },
+  {
+    "company_name": "Akamai Technologies",
+    "industry": "Cloud & CDN Edge",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://akamai.wd1.myworkdayjobs.com/Akamai_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "F5 Networks",
+    "industry": "Application Security & Delivery",
+    "locations": "Hyderabad",
+    "ats_platform": "workday",
+    "direct_career_url": "https://f5.wd5.myworkdayjobs.com/F5_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Juniper Networks (HPE)",
+    "industry": "AI-Native Networking",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://juniper.wd1.myworkdayjobs.com/JuniperCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Arista Networks",
+    "industry": "Client to Cloud Networking",
+    "locations": "Bengaluru, Pune",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://www.arista.com/en/careers",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "SentinelOne",
+    "industry": "Autonomous Cybersecurity",
+    "locations": "Bengaluru",
+    "ats_platform": "greenhouse",
+    "direct_career_url": "https://www.sentinelone.com/careers/",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Walmart Global Tech",
+    "industry": "Retail Tech GCC",
+    "locations": "Bengaluru, Chennai, Gurgaon",
+    "ats_platform": "workday",
+    "direct_career_url": "https://walmart.wd5.myworkdayjobs.com/WalmartExternal",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Target in India",
+    "industry": "Retail Tech GCC",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://target.wd5.myworkdayjobs.com/targetcareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Lowe's India",
+    "industry": "Home Improvement Tech GCC",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jobs.lowes.com",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "The Home Depot (THD India)",
+    "industry": "Retail & Supply Chain Tech",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://careers.homedepot.com",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Nike Technology",
+    "industry": "Digital Sport & Retail Tech",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jobs.nike.com",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Tesco Technology",
+    "industry": "Grocery Retail Tech",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://tesco.wd3.myworkdayjobs.com/Tesco_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Rakuten India",
+    "industry": "E-Commerce & Fintech Tech Hub",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://rakuten.today/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "eBay",
+    "industry": "Global Commerce",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jobs.ebayinc.com",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Expedia Group",
+    "industry": "Travel Tech & Marketplaces",
+    "locations": "Gurugram, Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://expedia.wd108.myworkdayjobs.com/search",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Booking Holdings (Booking.com)",
+    "industry": "Travel Tech GCC",
+    "locations": "Bengaluru, Mumbai",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jobs.booking.com",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Mercedes-Benz R&D India (MBRDI)",
+    "industry": "Autonomous & Connected Vehicles",
+    "locations": "Bengaluru, Pune",
+    "ats_platform": "workday",
+    "direct_career_url": "https://mercedes-benz.wd3.myworkdayjobs.com/Daimler_Career",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "BMW TechWorks India",
+    "industry": "Next-Gen Automotive Software",
+    "locations": "Pune, Bengaluru",
+    "ats_platform": "direct",
+    "direct_career_url": "https://www.bmwtechworks.in/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Bosch Global Software Technologies (BGSW)",
+    "industry": "Automotive & Industrial AI",
+    "locations": "Bengaluru, Coimbatore, Hyderabad, Pune",
+    "ats_platform": "direct",
+    "direct_career_url": "https://www.bosch.in/careers/",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Boeing India",
+    "industry": "Aerospace & Defense Tech",
+    "locations": "Bengaluru, Chennai",
+    "ats_platform": "workday",
+    "direct_career_url": "https://boeing.wd1.myworkdayjobs.com/EXTERNAL_CAREERS",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Airbus India",
+    "industry": "Aviation Software & Digital",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://airbus.wd3.myworkdayjobs.com/Airbus",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Honeywell Technology Solutions (HTS)",
+    "industry": "Industrial IoT & Automation",
+    "locations": "Bengaluru, Hyderabad, Madurai, Pune",
+    "ats_platform": "workday",
+    "direct_career_url": "https://honeywell.wd1.myworkdayjobs.com/Honeywell_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Schneider Electric",
+    "industry": "Energy Management & Software",
+    "locations": "Bengaluru, Gurugram, Pune",
+    "ats_platform": "workday",
+    "direct_career_url": "https://schneider.wd3.myworkdayjobs.com/SchneiderCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Siemens Technology India",
+    "industry": "Digital Industry & Healthcare",
+    "locations": "Bengaluru, Pune, Chennai, Gurugram",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jobs.siemens.com",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "GE Healthcare Tech Center",
+    "industry": "Medical Tech & Imaging Software",
+    "locations": "Bengaluru",
+    "ats_platform": "workday",
+    "direct_career_url": "https://gehealthcare.wd5.myworkdayjobs.com/GE_Healthcare",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Philips Innovation Campus",
+    "industry": "Healthtech Software",
+    "locations": "Bengaluru, Pune",
+    "ats_platform": "workday",
+    "direct_career_url": "https://philips.wd3.myworkdayjobs.com/jobs-and-careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "HARMAN International (Samsung)",
+    "industry": "Connected Car & Audio Tech",
+    "locations": "Bengaluru, Pune",
+    "ats_platform": "workday",
+    "direct_career_url": "https://harman.wd3.myworkdayjobs.com/HARMAN",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Samsung R&D Institute (SRI-B)",
+    "industry": "Mobile & AI R&D",
+    "locations": "Bengaluru, Noida",
+    "ats_platform": "direct",
+    "direct_career_url": "https://research.samsung.com/sri-b",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Target",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://corporate.target.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "JPMorgan Chase",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jpmc.wd5.myworkdayjobs.com/jpmc",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "American Express",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://amex.wd5.myworkdayjobs.com/amex",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Wells Fargo",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://wellsfargo.wd1.myworkdayjobs.com/wellsfargo",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Barclays",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://search.jobs.barclays",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Deutsche Bank",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://careers.db.com",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "AMD",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://amd.wd1.myworkdayjobs.com/amd",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Micron",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://micron.eightfold.ai/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Texas Instruments",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ti.wd1.myworkdayjobs.com/ti",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Cadence",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://www.cadence.com/en_US/home/company/careers.html",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Autodesk",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://www.autodesk.com/careers",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Splunk",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://splunk.wd1.myworkdayjobs.com/splunk",
+    "salary_tier": "60-70LPA"
+  },
+  {
+    "company_name": "VMware",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://vmware.wd1.myworkdayjobs.com/vmware",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Citrix",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://citrix.wd1.myworkdayjobs.com/citrix",
+    "salary_tier": "50-60LPA"
+  },
+  {
+    "company_name": "Lowe's",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jobs.lowes.com",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Home Depot",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://careers.homedepot.com",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Nike",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jobs.nike.com",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Optum",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://optum.wd1.myworkdayjobs.com/optum",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Philips",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://www.careers.philips.com",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "GE Healthcare",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://gehealthcare.wd5.myworkdayjobs.com/gehealthcare",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Medtronic",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://www.medtronic.com/in-en/about/careers.html",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Stryker",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://careers.stryker.com",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "University of Texas - Austin",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://utaustin.wd1.myworkdayjobs.com/UTstaff",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "iHeartMedia",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://iheartmedia.wd5.myworkdayjobs.com/External_iHM",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Hewlett Packard Enterprise",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://hpe.wd5.myworkdayjobs.com/Jobsathpe",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Bank of Montreal",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://bmo.wd3.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Baker Hughes",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://bakerhughes.wd5.myworkdayjobs.com/BakerHughes",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Fiserv",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://fiserv.wd5.myworkdayjobs.com/ext",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "The Walt Disney Company",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://disney.wd5.myworkdayjobs.com/disneycareer",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Stanley Black & Decker",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://sbdinc.wd1.myworkdayjobs.com/en-US/Stanley_Black_Decker_Career_Site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Genuine Parts Company",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://genpt.wd1.myworkdayjobs.com/Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Hewlett Packard",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://hp.wd5.myworkdayjobs.com/ExternalCareerSite",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "RTX",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://globalhr.wd5.myworkdayjobs.com/rec_rtx_ext_gateway",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Argonne National Laboratory",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://argonne.wd1.myworkdayjobs.com/Argonne_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Ultra",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ultra.wd3.myworkdayjobs.com/ultra-careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Horizon media",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://horizonmedia.wd1.myworkdayjobs.com/en-US/CareerOpportunities",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Allied Solutions",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://alliedsolutions.wd501.myworkdayjobs.com/Allied_External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Capital One",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://capitalone.wd12.myworkdayjobs.com/Capital_One",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "TruBridge",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cpsi.wd1.myworkdayjobs.com/CPSI",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "The Boeing Company",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://boeing.wd1.myworkdayjobs.com/EXTERNAL_CAREERS",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Northrop Grumman",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ngc.wd1.myworkdayjobs.com/Northrop_Grumman_External_Site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Jabil",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jabil.wd5.myworkdayjobs.com/Jabil_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Woodward Governor",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://woodward.wd5.myworkdayjobs.com/woodward",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Brigham Young University - Provo",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://byu.wd1.myworkdayjobs.com/byu-careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Finning",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://finning.wd3.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "KION Group",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://kiongroup.wd3.myworkdayjobs.com/kiongroup",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Vanguard",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://vanguard.wd5.myworkdayjobs.com/en-US/contractors_restricted",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Flextronics International",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://flextronics.wd1.myworkdayjobs.com/Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Ameren",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ameren.wd1.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Flutter",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://flutterbe.wd3.myworkdayjobs.com/FlutterUKI_External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Florida Institute of Technology",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://floridatech.wd5.myworkdayjobs.com/FloridaTechCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Walmart",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://walmart.wd5.myworkdayjobs.com/WalmartExternal",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Abbott",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://abbott.wd5.myworkdayjobs.com/abbottcareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Faith Technologies",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://faithtechnologies.wd1.myworkdayjobs.com/fti",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Truist Bank",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://truist.wd1.myworkdayjobs.com/en-US/Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Brink",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://brinks.wd5.myworkdayjobs.com/brinkscareersus",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Plexus",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://plexus.wd5.myworkdayjobs.com/en-US/Plexus_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Snyk",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://snyk.wd103.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Symbotic",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://symbotic.wd1.myworkdayjobs.com/en-US/Symbotic",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Manulife Financial",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://manulife.wd3.myworkdayjobs.com/en-US/MFCJH_adminJobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Richardson",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://richardson.wd3.myworkdayjobs.com/richardson_our_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "M&T Bank",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://mtb.wd5.myworkdayjobs.com/MTB",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "KeyBank",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://keybank.wd5.myworkdayjobs.com/External_Career_Site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Scientific Games",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://sglottery.wd5.myworkdayjobs.com/ScientificGamesExternalCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Northwestern Mutual",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://northwesternmutual.wd5.myworkdayjobs.com/corporate-careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Blue Origin",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://blueorigin.wd5.myworkdayjobs.com/blueorigin",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Astreya",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://astreya.wd5.myworkdayjobs.com/life-at-astreya-opportunities",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Newrez",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://newrez.wd1.myworkdayjobs.com/NRZ",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Boyd",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://boydcorp.wd12.myworkdayjobs.com/Boyd_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "WellSky",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://wellsky.wd1.myworkdayjobs.com/WellSkyCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Leidos",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://leidos.wd5.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "TD Bank",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://td.wd3.myworkdayjobs.com/TD_Bank_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Fidelity National Information Services",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://fis.wd5.myworkdayjobs.com/searchjobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "TRIMEDX",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://trimedx.wd1.myworkdayjobs.com/TMX",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "BTI Solutions",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://btisolutions.wd12.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Centene",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://centene.wd5.myworkdayjobs.com/Centene_External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "GE Vernova",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://gevernova.wd5.myworkdayjobs.com/only_confidential_executive_recruiting",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Magnite",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://osv-rubicon.wd5.myworkdayjobs.com/en-US/MagniteCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "S&P Global",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://spgi.wd5.myworkdayjobs.com/en-US/SPGI_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Bank of America",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ghr.wd1.myworkdayjobs.com/us-emplsv",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Greenheck Group",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://greenheckgroup.wd5.myworkdayjobs.com/external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "G-Research",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://gresearch.wd103.myworkdayjobs.com/G-Research",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "OCC",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://theocc.wd5.myworkdayjobs.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Clarivate",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://clarivate.wd3.myworkdayjobs.com/Clarivate_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "AltaGas",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://wgl.wd5.myworkdayjobs.com/altagas",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Moog",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://moog.wd5.myworkdayjobs.com/moog_external_career_site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Samsung",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://sec.wd3.myworkdayjobs.com/Samsung_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "CAE",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cae.wd3.myworkdayjobs.com/career",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Cox",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cox.wd1.myworkdayjobs.com/Cox_External_Career_Site_1",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Radiance Technologies",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://radiancetech.wd12.myworkdayjobs.com/Radiance_External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "LexisNexis Risk Solutions",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://relx.wd3.myworkdayjobs.com/en-US/RiskSolutions",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "TD Synnex",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://synnex.wd5.myworkdayjobs.com/tdsynnexcareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "AAA Club Alliance",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://aaaie.wd1.myworkdayjobs.com/csaacareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Uhaul",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://uhaul.wd1.myworkdayjobs.com/UhaulJobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "College Board",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://collegeboard.wd1.myworkdayjobs.com/en-US/Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "RELX",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://relx.wd3.myworkdayjobs.com/en-US/relx",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Guardian Life",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://guardianlife.wd5.myworkdayjobs.com/guardian-life-careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Ecolab",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ecolab.wd1.myworkdayjobs.com/ecolab_external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Huron",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://huron.wd1.myworkdayjobs.com/huroncareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Proofpoint",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://proofpoint.wd5.myworkdayjobs.com/proofpointcareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Oshkosh",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://oshkoshcorporation.wd5.myworkdayjobs.com/Oshkosh",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Alteryx",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://alteryx.wd108.myworkdayjobs.com/AlteryxCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Analog Devices",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://analogdevices.wd1.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Greene Tweed",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://gtweed.wd1.myworkdayjobs.com/Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Colorado School of Mines",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://mines.wd1.myworkdayjobs.com/mines_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Duke Energy",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://dukeenergy.wd1.myworkdayjobs.com/search",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Amentum",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://pae.wd1.myworkdayjobs.com/en-US/amentum_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Johnson & Johnson",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jj.wd5.myworkdayjobs.com/JJ",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "NiSource",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://nisource.wd1.myworkdayjobs.com/NiSource",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "2020 Companies",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://2020companies.wd1.myworkdayjobs.com/external_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "TKO Group Holdings, Inc",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://wwecorp.wd5.myworkdayjobs.com/tko",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Viavi Solutions",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://viavisolutions.wd1.myworkdayjobs.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Ciena",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ciena.wd5.myworkdayjobs.com/Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Ovative",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ovative.wd12.myworkdayjobs.com/en-US/ovative",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "TSYS",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://tsys.wd1.myworkdayjobs.com/tsys",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Tempus",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://tempus.wd5.myworkdayjobs.com/Tempus_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Carnegie Mellon University",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cmu.wd5.myworkdayjobs.com/cmu",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Cencora",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://myhrabc.wd5.myworkdayjobs.com/Global",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Nelnet",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://nelnet.wd1.myworkdayjobs.com/MyNelnet",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Empower",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://empower.wd12.myworkdayjobs.com/empower",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "WWE",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://wwecorp.wd5.myworkdayjobs.com/wwecorp",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "American Electric Power",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://aep.wd1.myworkdayjobs.com/AEPCareerSite",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Allegro MicroSystems",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://allegromicro.wd5.myworkdayjobs.com/allegrocareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Marvell",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://marvell.wd1.myworkdayjobs.com/MarvellCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "CVS Health",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cvshealth.wd1.myworkdayjobs.com/CVS_Health_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Cleveland Clinic",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ccf.wd1.myworkdayjobs.com/ClevelandClinicCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Johnson Controls",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jci.wd5.myworkdayjobs.com/JCI_Confidential",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Jain Global",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jainglobal.wd5.myworkdayjobs.com/ExternalSite",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "JINGDONG",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jd.wd103.myworkdayjobs.com/Campus_Career_Site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "JCDecaux",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jcdecaux.wd3.myworkdayjobs.com/ExternalSiteJCDUK",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Ohio State University",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://osu.wd1.myworkdayjobs.com/OSUCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Guidehouse",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://guidehouse.wd1.myworkdayjobs.com/external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Dallas College",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://dallascollege.wd1.myworkdayjobs.com/Dallas_College_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "CBC/Radio-Canada",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cbcrc.wd3.myworkdayjobs.com/CBC_Radio-Canada_Jobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Royal Bank of Canada",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://rbc.wd3.myworkdayjobs.com/rbcglobal1",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "The Hartford",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://thehartford.wd5.myworkdayjobs.com/Careers_External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Chaucer Group",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://chaucergroup.wd3.myworkdayjobs.com/chaucer_group_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "NCR Voyix",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ncr.wd1.myworkdayjobs.com/ext_us",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "F5",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ffive.wd5.myworkdayjobs.com/en-US/f5jobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Netsmart",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ntst.wd1.myworkdayjobs.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Bloomberg Industry Group",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://bloomberg.wd1.myworkdayjobs.com/Bloombergindustrygroup_External_Career_Site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Crowe",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://crowe.wd12.myworkdayjobs.com/en-US/external_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "ASML",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://asml.wd3.myworkdayjobs.com/asmlext1",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Booz Allen",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://bah.wd1.myworkdayjobs.com/Confidential",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Domo",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://domo.wd12.myworkdayjobs.com/DomoCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Cloudera",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cloudera.wd5.myworkdayjobs.com/external_career",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "LPL Financial Holdings",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://lplfinancial.wd1.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "GSK",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://gsk.wd5.myworkdayjobs.com/GSKCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Howard University",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://howard.wd1.myworkdayjobs.com/HU",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "CSAA Insurance Group",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://aaaie.wd1.myworkdayjobs.com/CSAACareers2",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Iowa State University",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://isu.wd1.myworkdayjobs.com/IowaStateJobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Mass General Brigham",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://massgeneralbrigham.wd1.myworkdayjobs.com/mgbexternal",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Nasdaq",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://nasdaq.wd1.myworkdayjobs.com/en-US/Global_External_Site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Chamberlain Group",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://chamberlain.wd1.myworkdayjobs.com/Chamberlain_Group",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "DraftKings",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://draftkings.wd1.myworkdayjobs.com/Employee_Referral_Portal",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "USAA",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://usaa.wd1.myworkdayjobs.com/en-US/USAAJOBSWD",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Motorola",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://motorolasolutions.wd5.myworkdayjobs.com/Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Loft",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://knitwellgroup.wd1.myworkdayjobs.com/US_Corporate_Jobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "First National Bank",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://fnbcorp.wd501.myworkdayjobs.com/FNBCORP",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Procter & Gamble",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://pg.wd5.myworkdayjobs.com/1000",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Fermilab",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://fermilab.wd5.myworkdayjobs.com/FermilabCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Republic Services",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://republic.wd5.myworkdayjobs.com/Republic",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Plug Power",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://plugpower.wd5.myworkdayjobs.com/Plug_Power_Inc",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "ERM",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://erm.wd3.myworkdayjobs.com/ERM_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Eversource Energy",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://eversource.wd1.myworkdayjobs.com/ExternalSite",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Thermo Fisher Scientific",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://thermofisher.wd5.myworkdayjobs.com/ThermoFisherCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Prudential Financial",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://pru.wd5.myworkdayjobs.com/Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Kodiak",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://kodiakgas.wd12.myworkdayjobs.com/en-US/KodiakGasCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Citi",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://citi.wd5.myworkdayjobs.com/2",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Slack",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://salesforce.wd12.myworkdayjobs.com/Slack",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "American University",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://american.wd1.myworkdayjobs.com/au",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "General Dynamics Information Technology",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://gdit.wd5.myworkdayjobs.com/external_career_site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Vanderbilt Health",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://vumc.wd1.myworkdayjobs.com/en-US/vumccareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "University of Central Florida",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ucf.wd1.myworkdayjobs.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Bass Pro Shops",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://basspro.wd1.myworkdayjobs.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Allstate Insurance Company",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://allstate.wd5.myworkdayjobs.com/allstate_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Howard County Public School System",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://hcpss.wd1.myworkdayjobs.com/hcpss",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Louisiana State University",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://lsu.wd1.myworkdayjobs.com/LSU",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "NASCAR",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://nascar.wd1.myworkdayjobs.com/en-US/NASCAR",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "T-Mobile",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://tmobile.wd1.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Illumina",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://illumina.wd1.myworkdayjobs.com/illumina-careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "McGill University",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://mcgill.wd3.myworkdayjobs.com/McGill_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "ICF International",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://icf.wd5.myworkdayjobs.com/icfexternal_career_site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Cineplex",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cineplex.wd3.myworkdayjobs.com/en-US/Cineplex",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Essentia Health",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://essentiahealth.wd1.myworkdayjobs.com/Essentia_Health",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "CACI",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://caci.wd1.myworkdayjobs.com/external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Takeda",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://takeda.wd3.myworkdayjobs.com/external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Comcast",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://comcast.wd5.myworkdayjobs.com/Comcast_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Integer Holdings Corporation",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://integer.wd1.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Roche",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://roche.wd3.myworkdayjobs.com/roche-ext",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "AMH",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://amh.wd12.myworkdayjobs.com/External_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Becton Dickinson",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://bdx.wd1.myworkdayjobs.com/EXTERNAL_CAREER_SITE_USA",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "IDEX",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://idexcorp.wd5.myworkdayjobs.com/idex_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "AT&T",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://att.wd1.myworkdayjobs.com/ATTGeneral",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Wellington Management",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://wellington.wd5.myworkdayjobs.com/Campus",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Teledyne",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://flir.wd1.myworkdayjobs.com/flircareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Sierra Nevada Corporation",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://snc.wd1.myworkdayjobs.com/snc_external_career_site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Raymond James Financial",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://raymondjames.wd1.myworkdayjobs.com/RaymondJamesCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Rogers Behavioral Health",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://rogersbh.wd1.myworkdayjobs.com/rbhcareer",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "The Toro Company",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ttc.wd1.myworkdayjobs.com/Toro_External_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Creation Technologies",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://creationtech.wd1.myworkdayjobs.com/Creation",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Dow Jones",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://dowjones.wd1.myworkdayjobs.com/en-US/Dow_Jones_Career",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "RingCentral",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ringcentral.wd1.myworkdayjobs.com/RingCentral_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Veralto",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://veralto.wd1.myworkdayjobs.com/hachjobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "University of Southern California",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://usc.wd5.myworkdayjobs.com/ExternalUSCCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "PennState University",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://psu.wd1.myworkdayjobs.com/PSU_Staff",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Sensata",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://sensata.wd1.myworkdayjobs.com/en-US/Sensata-Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Ferguson",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ferguson.wd1.myworkdayjobs.com/en-US/Ferguson_Experienced",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Alcon",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://alcon.wd5.myworkdayjobs.com/careers_alcon",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Canadian Solar",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://canadiansolar.wd5.myworkdayjobs.com/CanadianSolar",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "FOX",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://fox.wd1.myworkdayjobs.com/Domestic",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "KLA",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://kla.wd1.myworkdayjobs.com/UR",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Nidec",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://nidec.wd1.myworkdayjobs.com/nidec",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "KBR",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://kbr.wd5.myworkdayjobs.com/KBR_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Unisys",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://unisys.wd5.myworkdayjobs.com/en-US/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Goucher College",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://goucher.wd1.myworkdayjobs.com/Goucher_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Husqvarna Group",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://husqvarnagroup.wd3.myworkdayjobs.com/External_Career_Site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "SHI International",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://shi.wd12.myworkdayjobs.com/shicareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Oklahoma State Government",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://okgov.wd1.myworkdayjobs.com/okgovjobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Living Spaces",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://livingspaces.wd5.myworkdayjobs.com/ls",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Northeastern",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://northeastern.wd1.myworkdayjobs.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Yahoo",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ouryahoo.wd5.myworkdayjobs.com/en-US/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Advocate Health Care",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://aah.wd5.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Argo Group",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://brookfield.wd5.myworkdayjobs.com/bpandc",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Dow Chemical Company",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://dow.wd1.myworkdayjobs.com/ExternalCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Genentech",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://roche.wd3.myworkdayjobs.com/ROG-A2O-GENE",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Semtech",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://semtech.wd1.myworkdayjobs.com/SemtechCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Insulet Corporation",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://insulet.wd5.myworkdayjobs.com/InsuletCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Airbus",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ag.wd3.myworkdayjobs.com/Airbus",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Thales",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://thales.wd3.myworkdayjobs.com/en-US/Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Gensler",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://gensler.wd1.myworkdayjobs.com/genslercareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Texas Capital Bank",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://texascapitalbank.wd12.myworkdayjobs.com/Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Caterpillar Inc.",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cat.wd5.myworkdayjobs.com/CaterpillarCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Uline",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://uline.wd1.myworkdayjobs.com/en-US/Uline_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Cubic",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cubic.wd1.myworkdayjobs.com/cubic_global_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Brown Brothers Harriman",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://bbh.wd5.myworkdayjobs.com/en-US/BBH",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Globus Medical",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://globusmedical.wd5.myworkdayjobs.com/GMED_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Franklin Templeton",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://franklintempleton.wd5.myworkdayjobs.com/Primary-External-1",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "LabCorp",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://labcorp.wd1.myworkdayjobs.com/external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Ferrovial",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ferrovial.wd3.myworkdayjobs.com/ferrovial_career_site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "AeroVironment",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://avav.wd1.myworkdayjobs.com/en-US/avav",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "CoorsTek",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://coorstek.wd1.myworkdayjobs.com/CoorsTekCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "JPI",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jpi.wd1.myworkdayjobs.com/jpicareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "National Renewable Energy Laboratory",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://www.nrel.gov/careers/",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Parsons",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://parsons.wd5.myworkdayjobs.com/en-US/search",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Worldpay",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://worldpay.wd5.myworkdayjobs.com/Worldpay_External_Careers_Site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Equinix",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://equinix.wd1.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Dave & Busters",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://daveandbusters.wd1.myworkdayjobs.com/dave_and_busters_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Fragomen",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://fragomen.wd1.myworkdayjobs.com/FragomenCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Driscoll's",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://driscolls.wd5.myworkdayjobs.com/driscolls",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Covestro",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://covestro.wd3.myworkdayjobs.com/cov_external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Blue Cross and Blue Shield of North Carolina",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://bcbsnc.wd5.myworkdayjobs.com/bcbsnc",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "EMC Insurance",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://emcins.wd5.myworkdayjobs.com/en-US/EMC_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "The Travelers Companies",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://travelers.wd5.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Badger Meter",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://badgermeter.wd5.myworkdayjobs.com/US_CareerSite",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Arch Capital Group",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://archgroup.wd1.myworkdayjobs.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "HCSC",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://hcsc.wd1.myworkdayjobs.com/en-US/HCSC_External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "ibotta",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ibotta.wd1.myworkdayjobs.com/en-US/Ibotta",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Dimensional Fund Advisors",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://dimensional.wd5.myworkdayjobs.com/dfa_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Malvern Panalytical",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://spectris.wd3.myworkdayjobs.com/Malvern_Panalytical_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "ConvaTec Group",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://convatec.wd1.myworkdayjobs.com/convatec",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "ABB",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://abb.wd3.myworkdayjobs.com/external_career_page",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "7-Eleven",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://my7elevenhr.wd12.myworkdayjobs.com/Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Blue Yonder",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jda.wd5.myworkdayjobs.com/en-US/JDA_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "OCLC",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://oclc.wd1.myworkdayjobs.com/en-US/OCLC_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Barry-Wehmiller",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://barrywehmiller.wd1.myworkdayjobs.com/BWCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Plante Moran",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://plantemoran.wd1.myworkdayjobs.com/pmexternalcareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Xylem",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://xylem.wd5.myworkdayjobs.com/en-US/xylem-careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Ocean Optics",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://halma.wd3.myworkdayjobs.com/halma",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Grant Thornton",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ukgrantt.wd3.myworkdayjobs.com/careersgrantthornton",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Howard Hughes Medical Institute",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://hhmi.wd1.myworkdayjobs.com/external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Elsevier",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://relx.wd3.myworkdayjobs.com/ElsevierJobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Enbridge",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://enbridge.wd3.myworkdayjobs.com/enbridge_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Elevance Health",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://elevancehealth.wd1.myworkdayjobs.com/ELV-ET",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Fifth Third Bank",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://fifththird.wd5.myworkdayjobs.com/en-US/53careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "GE Aerospace",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://geaerospace.wd5.myworkdayjobs.com/ge_externalsite",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Maricopa County",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://maricopa.wd1.myworkdayjobs.com/en-US/MC_External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Sanford Health",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://sanford.wd5.myworkdayjobs.com/sanfordhealth",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Graco",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://graco.wd501.myworkdayjobs.com/Graco_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "University of Miami",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://umiami.wd1.myworkdayjobs.com/UMFaculty",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Baker Tilly",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://bakertilly.wd5.myworkdayjobs.com/BTCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "ING",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ing.wd3.myworkdayjobs.com/icsgblcor",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Howden",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://hyperiongrp.wd3.myworkdayjobs.com/Hyperion_External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "CLEAResult",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://clearesult.wd1.myworkdayjobs.com/CLEAResult_External_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Thomson Reuters",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://thomsonreuters.wd5.myworkdayjobs.com/en-US/External_Career_Site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Embry-Riddle Aeronautical University",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://embryriddle.wd1.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Marsh & McLennan",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://mmc.wd1.myworkdayjobs.com/en-US/MMC",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "TransUnion",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://transunion.wd5.myworkdayjobs.com/en-US/TransUnion",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Sun Life",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://sunlife.wd3.myworkdayjobs.com/en-US/Experienced-Jobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "DaVita",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://davita.wd1.myworkdayjobs.com/DKC_External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Milwaukee Tool",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://tti.wd1.myworkdayjobs.com/en-US/Milwaukee",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Solera Holdings",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://solera.wd5.myworkdayjobs.com/global_career_site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Carter's",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://carters.wd1.myworkdayjobs.com/en-US/CartersCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Rolls-Royce",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://rollsroyce.wd3.myworkdayjobs.com/Intern_Graduate",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "The Aerospace Corporation",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://aero.wd5.myworkdayjobs.com/external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Tutor Perini Corporation",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://tutorperini.wd12.myworkdayjobs.com/external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Protiviti",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://roberthalf.wd1.myworkdayjobs.com/protivitiexperiencedcareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Danaher Corporation",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://danaher.wd1.myworkdayjobs.com/DanaherJobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "GAP",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://gapinc.wd1.myworkdayjobs.com/GAPINC",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Asurion",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://asurion.wd5.myworkdayjobs.com/asurioncareers_us",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "University of Virginia",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://uva.wd1.myworkdayjobs.com/uvastudentjobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Walker & Dunlop",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://walkerdunlop.wd1.myworkdayjobs.com/WD",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Ascensus",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ascensushr.wd1.myworkdayjobs.com/ascensuscareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Scripps",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://scripps.wd5.myworkdayjobs.com/en-US/Scripps_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Regal Rexnord",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://regalrexnord.wd1.myworkdayjobs.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Collin College",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://collin.wd1.myworkdayjobs.com/ExternalStaffCareerSite",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "AstraZeneca",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://astrazeneca.wd3.myworkdayjobs.com/en-US/Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Cracker Barrel",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cbrlgroup.wd5.myworkdayjobs.com/CrackerBarrelExternal",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Aptiv",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://aptiv.wd5.myworkdayjobs.com/aptiv_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Comfort Systems USA",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://comfortsystemsusa.wd1.myworkdayjobs.com/Corpcareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Nordstrom",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://nordstrom.wd501.myworkdayjobs.com/nordstrom_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Generac",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://generac.wd5.myworkdayjobs.com/en-US/external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Early Warning",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://earlywarning.wd5.myworkdayjobs.com/earlywarningcareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Light & Wonder",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://lnw.wd5.myworkdayjobs.com/lightwonderexternalcareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Banco Bilbao Vizcaya Argentaria",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://bbva.wd3.myworkdayjobs.com/BBVA",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Brock University",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://brocku.wd3.myworkdayjobs.com/brocku_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "GlobalFoundries",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://globalfoundries.wd1.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Invitation Homes",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://invitationhomes.wd503.myworkdayjobs.com/INVH",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Elavon",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://usbank.wd1.myworkdayjobs.com/Elavon_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "U.S. Bank",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://usbank.wd1.myworkdayjobs.com/US_Bank_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Highmark Health",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://highmarkhealth.wd1.myworkdayjobs.com/highmark",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Likewize",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://likewize.wd1.myworkdayjobs.com/en-US/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Veterans United",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://veteransunited.wd1.myworkdayjobs.com/VUHL",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Wash U",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://wustl.wd1.myworkdayjobs.com/external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Baystate Health",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://baystatehealth.wd12.myworkdayjobs.com/External_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Intact",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://intactfc.wd3.myworkdayjobs.com/en-US/intactfc",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "O'Reilly Auto Parts",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://oreillyauto.wd1.myworkdayjobs.com/oreilly",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Aggreko",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://aggreko.wd3.myworkdayjobs.com/aggreko_careers_1",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "HNTB",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://hntb.wd5.myworkdayjobs.com/hntb_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Brown & Brown Insurance",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://bbinsurance.wd1.myworkdayjobs.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Hy-Vee",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://hyvee.wd1.myworkdayjobs.com/HyVeeCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Fugro",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://fugro.wd3.myworkdayjobs.com/broadbean_external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Cambridge Associates",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cambridgeassociates.wd5.myworkdayjobs.com/Cambridge_Associates",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "ZOLL Medical Corporation",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://zoll.wd5.myworkdayjobs.com/en-US/ZOLLMedicalCorp",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Relativity",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://kcura.wd1.myworkdayjobs.com/en-US/External_Career_Site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "University of Chicago",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://uchicago.wd5.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Edwards Lifesciences",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://edwards.wd5.myworkdayjobs.com/edwardscareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "DigiKey",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://digikey.wd5.myworkdayjobs.com/digi-key",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "CareBridge",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://elevancehealth.wd1.myworkdayjobs.com/ANT",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Merck",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://msd.wd5.myworkdayjobs.com/searchjobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Blue Cross of Idaho",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://bcidaho.wd5.myworkdayjobs.com/BCI",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "PJM",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://pjm.wd5.myworkdayjobs.com/pjmcareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Schweitzer Engineering Laboratories",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://selinc.wd1.myworkdayjobs.com/SEL",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Brookhaven Lab",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://bnl.wd1.myworkdayjobs.com/externa",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "KLA Corporation",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://kla.wd1.myworkdayjobs.com/search",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Harris Central Appraisal District",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://hcad.wd5.myworkdayjobs.com/HCADCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Banner Health",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://bannerhealth.wd108.myworkdayjobs.com/Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "General Motors",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://search-careers.gm.com",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "PVH",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://pvh.wd1.myworkdayjobs.com/en-US/PVH_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Aristocrat Leisure",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://aristocrat.wd3.myworkdayjobs.com/aristocratexternalcareerssite",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "The Home Depot",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://homedepot.wd5.myworkdayjobs.com/careerdepot",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Warner Music",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://wmg.wd1.myworkdayjobs.com/WMGUS",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Johns Manville",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jm.wd103.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Freddie Mac",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://freddiemac.wd5.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Analytical Mechanics Associates",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://amainc.wd12.myworkdayjobs.com/ama_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Washington State University",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://wsu.wd5.myworkdayjobs.com/WSU_Jobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Humana",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://humana.wd5.myworkdayjobs.com/humana_external_career_site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Invesco",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://invesco.wd1.myworkdayjobs.com/IVZearlycareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Aritzia",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://aritzia.wd3.myworkdayjobs.com/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Solventum",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://healthcare.wd1.myworkdayjobs.com/search",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Nationwide Children's Hospital",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://nationwidechildrens.wd5.myworkdayjobs.com/en-US/NCHCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Varian",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://onehealthineers.wd3.myworkdayjobs.com/SHSJB",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "o9 Solutions",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://o9solutions.wd5.myworkdayjobs.com/o9SolutionsExternal",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "IDEXX",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://idexx.wd1.myworkdayjobs.com/IDEXX",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Holman",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://holmanautogroup.wd1.myworkdayjobs.com/HolmanEnterprisesCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Interstate Batteries",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://interstate.wd1.myworkdayjobs.com/interstatebatteries-careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "McAfee",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://mcafee.wd1.myworkdayjobs.com/external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "IQVIA",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://iqvia.wd1.myworkdayjobs.com/en-US/IQVIA",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Wood Mackenzie",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://woodmac.wd3.myworkdayjobs.com/woodmaccareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Fresenius Medical Care",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://freseniusmedicalcare.wd3.myworkdayjobs.com/fme",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "QBE Insurance",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://qbe.wd3.myworkdayjobs.com/qbe-careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Athena Health",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://athenahealth.wd1.myworkdayjobs.com/en-US/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "J.Crew",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jcrew.wd1.myworkdayjobs.com/jcrewcareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Resmed",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://resmed.wd3.myworkdayjobs.com/en-US/ResMed_External_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Morningstar",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://morningstar.wd5.myworkdayjobs.com/Americas",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Amgen",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://amgen.wd1.myworkdayjobs.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "MSI",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://baldwin.wd1.myworkdayjobs.com/MSI",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "First Quality",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://firstquality.wd5.myworkdayjobs.com/firstquality",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Extra Space Storage",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://extraspace.wd5.myworkdayjobs.com/en-US/ESS_External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Vermeer",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://vermeer.wd5.myworkdayjobs.com/externalcareersite",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Cisive",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cisive.wd108.myworkdayjobs.com/Cisive",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "AtkinsR\u00e9alis",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://slihrms.wd3.myworkdayjobs.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Warner Bros.",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://warnerbros.wd5.myworkdayjobs.com/global",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Cushman & Wakefield",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cw.wd1.myworkdayjobs.com/external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Dexcom",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://dexcom.wd1.myworkdayjobs.com/Dexcom",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Jones Lang LaSalle",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://jll.wd1.myworkdayjobs.com/jllcareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Welocalize",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://welocalize.wd1.myworkdayjobs.com/welocalize",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Waystar",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://waystar.wd1.myworkdayjobs.com/Waystar",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Ultra Intelligence and Communications",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ultra.wd3.myworkdayjobs.com/uiccareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Allegion",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://allegion.wd5.myworkdayjobs.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Ken Garff Auto Group",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://kengarff.wd1.myworkdayjobs.com/external_site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Mohegan",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://mohegan.wd1.myworkdayjobs.com/mohegan",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Simpson Thacher & Bartlett",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://stblaw.wd1.myworkdayjobs.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "AssetMark",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://assetmark.wd5.myworkdayjobs.com/AssetMark_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Securian Financial Group",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://hq.wd12.myworkdayjobs.com/Securian_External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Idaho Power",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://idahopowercompany.wd1.myworkdayjobs.com/external",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Kenco Management Services",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://kencogroup.wd12.myworkdayjobs.com/kenco",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Leonardo",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://leonardocompany.wd3.myworkdayjobs.com/LeonardoCareerSite",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Agilent Technologies",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://agilent.wd5.myworkdayjobs.com/Agilent_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Sonos",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://sonos.wd1.myworkdayjobs.com/Sonos",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Roswell Park Comprehensive Cancer Center",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://roswellpark.wd5.myworkdayjobs.com/ExternalCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Geico",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://geico.wd1.myworkdayjobs.com/en-US/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Camping World",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://campingworld.wd5.myworkdayjobs.com/en-US/Jobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Simons Foundation",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://simonsfoundation.wd1.myworkdayjobs.com/en-US/simonsfoundationcareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Live Nation Entertainment",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://livenation.wd503.myworkdayjobs.com/LNExternalSite",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Niagara Bottling",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://niagarawater.wd5.myworkdayjobs.com/niagara",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Littelfuse",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://littelfuse.wd1.myworkdayjobs.com/Littelfuse-Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Magna International",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://magna.wd3.myworkdayjobs.com/Magna",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "MBDA",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://mbda.wd3.myworkdayjobs.com/MBDA-UK",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Intermountain Healthcare",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://imh.wd108.myworkdayjobs.com/IntermountainCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "FactSet",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://factset.wd108.myworkdayjobs.com/FactSetCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Accenture",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://accenture.wd103.myworkdayjobs.com/AccentureCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "AIG",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://aig.wd1.myworkdayjobs.com/en-US/early_careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Daikin Applied",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://daikinapplied.wd1.myworkdayjobs.com/Daikin-Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "White Cap Supply Holdings",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://whitecap.wd1.myworkdayjobs.com/careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "BECU",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://becu.wd1.myworkdayjobs.com/en-US/External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "BorgWarner",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://borgwarner.wd5.myworkdayjobs.com/BorgWarner_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Terex",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://terex.wd1.myworkdayjobs.com/terexcareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Curtiss-Wright Corporation",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://curtisswright.wd1.myworkdayjobs.com/cw_external_career_site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Ontario Teachers' Pension Plan",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://otppb.wd3.myworkdayjobs.com/OntarioTeachers_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Best Buy",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://bestbuycanada.wd3.myworkdayjobs.com/BestBuyCA_Career",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Novanta",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://novanta.wd5.myworkdayjobs.com/Novanta-Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Entegris",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://entegris.wd1.myworkdayjobs.com/entegriscareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Hyve Solutions",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://synnex.wd5.myworkdayjobs.com/hyvecareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Lilly USA",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://lilly.wd5.myworkdayjobs.com/CMP",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Merrick Bank",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cardworks.wd12.myworkdayjobs.com/Merrick_Bank_External",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Q2",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://q2ebanking.wd5.myworkdayjobs.com/Q2",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Integrity",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://integritymarketing.wd1.myworkdayjobs.com/en-US/Integrity",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Corebridge Financial",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://corebridgefinancial.wd1.myworkdayjobs.com/CorebridgeFinancial",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Applied Fluid Power",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://applied.wd501.myworkdayjobs.com/applied",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Excellus BCBS",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://lthc.wd1.myworkdayjobs.com/en-US/ExcellusBCBSCareers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Iberdrola Group",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://iberdrola.wd3.myworkdayjobs.com/iberdrola",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Florida Atlantic University",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://fau.wd1.myworkdayjobs.com/FAU",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "DXC Technology",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://dxctechnology.wd1.myworkdayjobs.com/dxcjobs",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Hagerty",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://hagerty.wd5.myworkdayjobs.com/en-US/hagerty",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "H.B. Fuller",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://hbfuller.wd1.myworkdayjobs.com/Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "QTS",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://qtsdatacenters.wd5.myworkdayjobs.com/qts",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Cincinnati Children\u2019s Hospital and Medical Center",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://cincinnatichildrens.wd5.myworkdayjobs.com/careersatcincinnatichildrens",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Four Seasons",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://fourseasons.wd3.myworkdayjobs.com/search",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Varex Imaging Corporation",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://vareximaging.wd103.myworkdayjobs.com/External_Career_Site",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Henry Schein",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://henryschein.wd1.myworkdayjobs.com/External_Careers",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Ankura Consulting Group",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://ankura.wd5.myworkdayjobs.com/ankura",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Nationwide",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://nationwide.wd1.myworkdayjobs.com/Nationwide_Career",
+    "salary_tier": "40-50LPA"
+  },
+  {
+    "company_name": "Watts Water",
+    "industry": "Global Enterprise GCC",
+    "locations": "Bengaluru, Hyderabad, Pune, Gurugram (India)",
+    "ats_platform": "workday",
+    "direct_career_url": "https://wattswater.wd5.myworkdayjobs.com/external",
+    "salary_tier": "40-50LPA"
+  }
+]

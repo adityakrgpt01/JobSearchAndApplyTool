@@ -14,6 +14,7 @@ import uvicorn
 import asyncio
 import os
 import json
+import sqlite3
 from typing import Optional
 from database import list_jobs, get_company_intelligence, init_db, get_failures_summary, get_unresolved_failures
 from unified_pipeline import run_unified_discovery, audit_and_clean_database_links
@@ -84,6 +85,29 @@ async def retry_failures(background_tasks: BackgroundTasks):
     background_tasks.add_task(rerun_failed_endpoints)
     return {"status": "Adaptive retry initiated for failed endpoints"}
 
+@app.get("/api/mncs")
+def get_mncs(q: Optional[str] = None, industry: Optional[str] = None, tier: Optional[str] = None, limit: int = 150):
+    conn = sqlite3.connect("jobs.db")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    query = "SELECT * FROM mnc_directory WHERE 1=1"
+    params = []
+    if q:
+        query += " AND (company_name LIKE ? OR locations LIKE ? OR industry LIKE ?)"
+        params.extend([f"%{q}%", f"%{q}%", f"%{q}%"])
+    if industry and industry != "all":
+        query += " AND industry = ?"
+        params.append(industry)
+    if tier and tier != "all":
+        query += " AND salary_tier = ?"
+        params.append(tier)
+    query += " ORDER BY company_name ASC LIMIT ?"
+    params.append(limit)
+    c.execute(query, params)
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return {"mncs": rows, "total": len(rows)}
+
 @app.post("/api/apply/{job_id}")
 async def apply_single_job(job_id: str, background_tasks: BackgroundTasks, dry_run: bool = True):
     jobs = list_jobs()
@@ -97,7 +121,7 @@ async def apply_single_job(job_id: str, background_tasks: BackgroundTasks, dry_r
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard_html():
-    return """
+    return r"""
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -122,8 +146,11 @@ def dashboard_html():
                     <button onclick="triggerAudit()" id="auditBtn" class="px-3.5 py-2 bg-slate-900 border border-emerald-500/40 hover:bg-slate-800 text-emerald-400 font-semibold rounded-lg shadow flex items-center gap-2 transition text-xs">
                         <i class="fa-solid fa-shield-check text-emerald-400"></i> Audit Links
                     </button>
+                    <button onclick="triggerResync()" id="headerResyncBtn" class="px-3.5 py-2 bg-slate-900 border border-amber-500/40 hover:bg-slate-800 text-amber-400 font-semibold rounded-lg shadow flex items-center gap-2 transition text-xs">
+                        <i class="fa-solid fa-arrows-rotate text-amber-400"></i> Resync Failed (<span id="headerFailureCount">52</span>)
+                    </button>
                     <button onclick="triggerScan()" id="scanBtn" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-semibold rounded-lg shadow flex items-center gap-2 transition text-xs">
-                        <i class="fa-solid fa-arrows-rotate"></i> Scan Now
+                        <i class="fa-solid fa-radar"></i> Scan Now
                     </button>
                     <a href="/docs" target="_blank" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition">
                         API Docs
@@ -202,8 +229,22 @@ def dashboard_html():
                 </div>
             </div>
 
-            <!-- Jobs Table -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+            <!-- Navigation Tabs -->
+            <div class="flex items-center gap-3 my-4 border-b border-slate-800 pb-3">
+                <button onclick="switchTab('jobs')" id="tabJobs" class="px-4 py-2 text-sm font-bold border-b-2 border-emerald-400 text-white flex items-center gap-2">
+                    <i class="fa-solid fa-briefcase text-emerald-400"></i> Active Opportunities
+                </button>
+                <button onclick="switchTab('mncs')" id="tabMncs" class="px-4 py-2 text-sm font-semibold text-slate-400 hover:text-white flex items-center gap-2 transition">
+                    <i class="fa-solid fa-building-columns text-blue-400"></i> 550+ Top MNCs Career Directory
+                </button>
+                <button onclick="switchTab('failures')" id="tabFailures" class="px-4 py-2 text-sm font-semibold text-slate-400 hover:text-white flex items-center gap-2 transition">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Failed / Maintenance Companies
+                    <span id="tabFailureBadge" class="ml-1 px-2 py-0.5 text-xs font-bold rounded-full bg-amber-950 text-amber-400 border border-amber-800 hidden">0</span>
+                </button>
+            </div>
+
+            <!-- VIEW 1: Jobs Table -->
+            <div id="viewJobs" class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
                 <div class="p-4 border-b border-slate-800 flex justify-between items-center">
                     <h2 class="text-lg font-bold flex items-center gap-2">
                         <i class="fa-solid fa-briefcase text-blue-400"></i> Active Opportunities
@@ -224,6 +265,72 @@ def dashboard_html():
                         </thead>
                         <tbody id="jobsTableBody" class="divide-y divide-slate-800">
                             <tr><td colspan="6" class="text-center py-8 text-slate-500">Loading opportunities...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VIEW 2: 550+ Top MNCs Direct Career Portals -->
+            <div id="viewMncs" class="hidden bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                <div class="p-4 border-b border-slate-800 flex flex-wrap justify-between items-center gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold flex items-center gap-2 text-white">
+                            <i class="fa-solid fa-building-columns text-blue-400"></i> Well-Known 550+ MNCs Hiring in India
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Direct verified career search links for top Global Capability Centers (GCCs), Big Tech & Tier-1 tech firms</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="text" id="mncSearchInput" onkeyup="loadMncs()" placeholder="Search MNC (e.g. Nvidia, Google, Walmart)..." class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500 w-64" />
+                        <span id="mncCountBadge" class="px-2.5 py-1 bg-slate-800 text-xs font-medium rounded-full text-blue-300">550 MNCs</span>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="bg-slate-950 text-slate-400 uppercase text-xs border-b border-slate-800">
+                            <tr>
+                                <th class="px-5 py-3">MNC Name & Industry</th>
+                                <th class="px-5 py-3">India Tech Locations</th>
+                                <th class="px-5 py-3">Platform</th>
+                                <th class="px-5 py-3">Compensation Tier</th>
+                                <th class="px-5 py-3 text-right">Direct Career Portal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mncsTableBody" class="divide-y divide-slate-800">
+                            <tr><td colspan="5" class="text-center py-8 text-slate-500">Loading MNC directory...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VIEW 3: Failed / Maintenance Companies & Resync Control -->
+            <div id="viewFailures" class="hidden bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                <div class="p-4 border-b border-slate-800 flex flex-wrap justify-between items-center gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold flex items-center gap-2 text-white">
+                            <i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Failed & Throttled Companies (Resync Queue)
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Companies whose ATS or endpoints encountered HTTP 500, maintenance redirects, or temporary rate limits</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span id="failureSummaryBadge" class="px-2.5 py-1 bg-amber-950 text-xs font-semibold rounded-full text-amber-300 border border-amber-800">0 Failed</span>
+                        <button onclick="triggerResync()" id="resyncBtn" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow transition">
+                            <i class="fa-solid fa-arrows-rotate"></i> Resync Failed Companies
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="bg-slate-950 text-slate-400 uppercase text-xs border-b border-slate-800">
+                            <tr>
+                                <th class="px-5 py-3">Company Name</th>
+                                <th class="px-5 py-3">Platform / Source</th>
+                                <th class="px-5 py-3">Failure Reason & Status</th>
+                                <th class="px-5 py-3">Last Attempted</th>
+                                <th class="px-5 py-3 text-right">Target Endpoint / Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="failuresTableBody" class="divide-y divide-slate-800">
+                            <tr><td colspan="5" class="text-center py-8 text-slate-500">No failed companies detected. All endpoints active.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -277,60 +384,73 @@ def dashboard_html():
             }
 
             async function loadStats() {
-                const platform = document.getElementById('platformSelect').value;
-                updateFilterLabel();
-                const res = await fetch(`/api/stats?hours=${currentHours}&platform=${platform}`);
-                const data = await res.json();
-                document.getElementById('statTotal').innerText = data.total_jobs;
-                document.getElementById('statTier70').innerText = data.tiers['70+LPA'] || 0;
-                document.getElementById('statTier5060').innerText = (data.tiers['50-60LPA'] || 0) + (data.tiers['60-70LPA'] || 0);
-                document.getElementById('statTier40').innerText = data.tiers['40-50LPA'] || 0;
+                try {
+                    const platform = document.getElementById('platformSelect') ? document.getElementById('platformSelect').value : 'all';
+                    updateFilterLabel();
+                    const res = await fetch(`/api/stats?hours=${currentHours}&platform=${platform}`);
+                    const data = await res.json();
+                    
+                    if (document.getElementById('statTotal')) document.getElementById('statTotal').innerText = data.total_jobs;
+                    if (document.getElementById('statTier70')) document.getElementById('statTier70').innerText = data.tiers['70+LPA'] || 0;
+                    if (document.getElementById('statTier5060')) document.getElementById('statTier5060').innerText = (data.tiers['50-60LPA'] || 0) + (data.tiers['60-70LPA'] || 0);
+                    if (document.getElementById('statTier40')) document.getElementById('statTier40').innerText = data.tiers['40-50LPA'] || 0;
 
-                const ctx = document.getElementById('salaryChart').getContext('2d');
-                if (chartInstance) chartInstance.destroy();
-                chartInstance = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: ['40-50 LPA', '50-60 LPA', '60-70 LPA', '70+ LPA'],
-                        datasets: [{
-                            label: 'Discovered Roles',
-                            data: [
-                                data.tiers['40-50LPA'] || 0,
-                                data.tiers['50-60LPA'] || 0,
-                                data.tiers['60-70LPA'] || 0,
-                                data.tiers['70+LPA'] || 0
-                            ],
-                            backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6', '#ec4899'],
-                            borderRadius: 6
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            y: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', stepSize: 1 } },
-                            x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
-                        }
+                    const canvas = document.getElementById('salaryChart');
+                    if (canvas && typeof Chart !== 'undefined') {
+                        const ctx = canvas.getContext('2d');
+                        if (chartInstance) chartInstance.destroy();
+                        chartInstance = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: ['40-50 LPA', '50-60 LPA', '60-70 LPA', '70+ LPA'],
+                                datasets: [{
+                                    label: 'Discovered Roles',
+                                    data: [
+                                        data.tiers['40-50LPA'] || 0,
+                                        data.tiers['50-60LPA'] || 0,
+                                        data.tiers['60-70LPA'] || 0,
+                                        data.tiers['70+LPA'] || 0
+                                    ],
+                                    backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6', '#ec4899'],
+                                    borderRadius: 6
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false } },
+                                scales: {
+                                    y: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', stepSize: 1 } },
+                                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                                }
+                            }
+                        });
                     }
-                });
+                } catch(err) {
+                    console.error("Error in loadStats:", err);
+                }
             }
 
             async function loadJobs() {
-                const platform = document.getElementById('platformSelect').value;
-                const res = await fetch(`/api/jobs?hours=${currentHours}&platform=${platform}`);
-                const data = await res.json();
-                document.getElementById('jobCountBadge').innerText = `${data.total} Jobs`;
-                const tbody = document.getElementById('jobsTableBody');
-                if (data.jobs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500">No jobs found for selected time range & source. Try expanding the time filter.</td></tr>';
-                    return;
-                }
+                try {
+                    const platform = document.getElementById('platformSelect') ? document.getElementById('platformSelect').value : 'all';
+                    const res = await fetch(`/api/jobs?hours=${currentHours}&platform=${platform}`);
+                    const data = await res.json();
+                    if (document.getElementById('jobCountBadge')) document.getElementById('jobCountBadge').innerText = `${data.total} Jobs`;
+                    const tbody = document.getElementById('jobsTableBody');
+                    if (!tbody) return;
+                    if (data.jobs.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500">No jobs found for selected time range & source. Try expanding the time filter.</td></tr>';
+                        return;
+                    }
 
-                tbody.innerHTML = data.jobs.map(j => `
+                tbody.innerHTML = data.jobs.map(j => {
+                    const encComp = encodeURIComponent(j.company_name || '');
+                    const encId = encodeURIComponent(j.job_id || '');
+                    return `
                     <tr class="hover:bg-slate-800/40 transition">
                         <td class="px-5 py-4">
-                            <div class="font-semibold text-white">${j.title}</div>
+                            <div class="font-semibold text-white">${j.title || 'Untitled Role'}</div>
                             <div class="text-xs text-slate-400 mt-0.5 font-medium">${j.company_name} • <span class="capitalize text-slate-500">${j.ats_platform}</span></div>
                         </td>
                         <td class="px-5 py-4">
@@ -350,7 +470,7 @@ def dashboard_html():
                                     <i class="fa-solid fa-shield-halved"></i> ${j.risk_level || 'LOW'} RISK
                                 </span>
                             </div>
-                            <button onclick="openDueDiligence('${j.company_name}')" class="text-xs text-blue-400 hover:underline mt-1 block">
+                            <button data-company="${encComp}" class="btn-dd text-xs text-blue-400 hover:underline mt-1 block">
                                 View Dossier & Layoffs &rarr;
                             </button>
                         </td>
@@ -371,17 +491,24 @@ def dashboard_html():
                             <a href="${j.apply_url}" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md text-xs font-semibold transition">
                                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Job Link
                             </a>
-                            <button onclick="triggerApply('${j.job_id}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-semibold shadow transition">
+                            <button data-jobid="${encId}" class="btn-apply px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-semibold shadow transition">
                                 <i class="fa-solid fa-robot"></i> Stealth Apply
                             </button>
                         </td>
                     </tr>
-                `).join('');
+                `;
+                }).join('');
+                } catch(err) {
+                    console.error("Error in loadJobs:", err);
+                    const tbody = document.getElementById('jobsTableBody');
+                    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-red-400">Failed to render jobs: ${err.message}</td></tr>`;
+                }
             }
 
             function loadAllData() {
                 loadStats();
                 loadJobs();
+                loadFailures();
             }
 
             async function triggerScan() {
@@ -479,8 +606,174 @@ def dashboard_html():
                 document.getElementById('ddModal').classList.add('hidden');
             }
 
-            loadAllData();
-            setInterval(loadAllData, 15000);
+            function switchTab(tab) {
+                const views = {
+                    'jobs': document.getElementById('viewJobs'),
+                    'mncs': document.getElementById('viewMncs'),
+                    'failures': document.getElementById('viewFailures')
+                };
+                const buttons = {
+                    'jobs': document.getElementById('tabJobs'),
+                    'mncs': document.getElementById('tabMncs'),
+                    'failures': document.getElementById('tabFailures')
+                };
+
+                for (let k in views) {
+                    if (views[k]) {
+                        if (k === tab) views[k].classList.remove('hidden');
+                        else views[k].classList.add('hidden');
+                    }
+                    if (buttons[k]) {
+                        if (k === tab) {
+                            if (k === 'jobs') buttons[k].className = 'px-4 py-2 text-sm font-bold border-b-2 border-emerald-400 text-white flex items-center gap-2';
+                            else if (k === 'mncs') buttons[k].className = 'px-4 py-2 text-sm font-bold border-b-2 border-blue-400 text-white flex items-center gap-2';
+                            else if (k === 'failures') buttons[k].className = 'px-4 py-2 text-sm font-bold border-b-2 border-amber-400 text-white flex items-center gap-2';
+                        } else {
+                            buttons[k].className = 'px-4 py-2 text-sm font-semibold text-slate-400 hover:text-white flex items-center gap-2 transition';
+                        }
+                    }
+                }
+
+                if (tab === 'mncs') loadMncs();
+                if (tab === 'failures') loadFailures();
+            }
+
+            async function loadFailures() {
+                try {
+                    const res = await fetch('/api/failures');
+                    const data = await res.json();
+                    const failures = data.unresolved || [];
+                    const badge = document.getElementById('tabFailureBadge');
+                    const summaryBadge = document.getElementById('failureSummaryBadge');
+                    
+                    if (failures.length > 0) {
+                        badge.innerText = failures.length;
+                        badge.classList.remove('hidden');
+                        summaryBadge.innerText = `${failures.length} Failed / In Maintenance`;
+                        const hCount = document.getElementById('headerFailureCount');
+                        if (hCount) hCount.innerText = failures.length;
+                    } else {
+                        badge.classList.add('hidden');
+                        summaryBadge.innerText = '0 Failures';
+                        const hCount = document.getElementById('headerFailureCount');
+                        if (hCount) hCount.innerText = '0';
+                    }
+
+                    const tbody = document.getElementById('failuresTableBody');
+                    if (failures.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check mr-2"></i>All company endpoints are operational! Zero unresolved failures.</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = failures.map(f => `
+                        <tr class="hover:bg-slate-800/40 transition">
+                            <td class="px-5 py-3 font-bold text-white">
+                                ${f.company_name}
+                            </td>
+                            <td class="px-5 py-3 text-xs text-slate-400 uppercase font-semibold">
+                                <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300">${f.source}</span>
+                            </td>
+                            <td class="px-5 py-3 text-xs">
+                                <div class="font-semibold text-amber-300">${f.failure_reason}</div>
+                                <div class="text-[11px] text-slate-500">Status code: ${f.http_status || 'N/A'} • Retry attempts: ${f.retry_count}</div>
+                            </td>
+                            <td class="px-5 py-3 text-xs text-slate-400">
+                                ${f.last_attempted ? f.last_attempted.slice(0, 19).replace('T', ' ') : 'Recently'}
+                            </td>
+                            <td class="px-5 py-3 text-right">
+                                <a href="${f.target_url}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-semibold transition">
+                                    <span>Direct Link</span>
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    `).join('');
+                } catch(e) {
+                    console.error("Error loading failures", e);
+                }
+            }
+
+            async function triggerResync() {
+                const btn = document.getElementById('resyncBtn');
+                btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Resyncing Queue...';
+                try {
+                    const res = await fetch('/api/failures/retry', { method: 'POST' });
+                    const data = await res.json();
+                    alert("🔄 " + data.status + "\n\nAdaptive retry is processing in the background with backoff.");
+                    setTimeout(() => {
+                        btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Resync Failed Companies';
+                        loadFailures();
+                    }, 3000);
+                } catch(e) {
+                    btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Resync Failed Companies';
+                    alert("Error initiating resync.");
+                }
+            }
+
+            async function loadMncs() {
+                const q = document.getElementById('mncSearchInput') ? document.getElementById('mncSearchInput').value : '';
+                try {
+                    const res = await fetch(`/api/mncs?q=${encodeURIComponent(q)}&limit=300`);
+                    const data = await res.json();
+                    document.getElementById('mncCountBadge').innerText = `${data.total} MNCs`;
+                    const tbody = document.getElementById('mncsTableBody');
+                    if (data.mncs.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-500">No matching MNCs found.</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = data.mncs.map(m => `
+                        <tr class="hover:bg-slate-800/40 transition">
+                            <td class="px-5 py-3">
+                                <div class="font-bold text-white">${m.company_name}</div>
+                                <div class="text-xs text-slate-400">${m.industry}</div>
+                            </td>
+                            <td class="px-5 py-3 text-xs text-slate-300">
+                                <i class="fa-solid fa-location-dot text-slate-500 mr-1"></i>${m.locations}
+                            </td>
+                            <td class="px-5 py-3 text-xs text-slate-400 uppercase font-semibold">
+                                ${m.ats_platform}
+                            </td>
+                            <td class="px-5 py-3">
+                                <span class="px-2 py-0.5 text-xs font-bold rounded ${
+                                    m.salary_tier === '70+LPA' ? 'bg-purple-950 text-purple-300 border border-purple-800' :
+                                    m.salary_tier === '60-70LPA' ? 'bg-indigo-950 text-indigo-300 border border-indigo-800' :
+                                    m.salary_tier === '50-60LPA' ? 'bg-blue-950 text-blue-300 border border-blue-800' :
+                                    'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                                }">${m.salary_tier}</span>
+                            </td>
+                            <td class="px-5 py-3 text-right">
+                                <a href="${m.direct_career_url}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-semibold shadow transition">
+                                    <span>Direct Portal</span>
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    `).join('');
+                } catch(e) {
+                    console.error("Error loading MNCs", e);
+                }
+            }
+
+            // Delegated click handling for jobs table to completely avoid inline quote escaping
+            document.addEventListener('DOMContentLoaded', () => {
+                const tbody = document.getElementById('jobsTableBody');
+                if (tbody) {
+                    tbody.addEventListener('click', (e) => {
+                        const ddBtn = e.target.closest('.btn-dd');
+                        if (ddBtn && ddBtn.dataset.company) {
+                            openDueDiligence(decodeURIComponent(ddBtn.dataset.company));
+                            return;
+                        }
+                        const applyBtn = e.target.closest('.btn-apply');
+                        if (applyBtn && applyBtn.dataset.jobid) {
+                            triggerApply(decodeURIComponent(applyBtn.dataset.jobid));
+                            return;
+                        }
+                    });
+                }
+                loadAllData();
+                setInterval(loadAllData, 15000);
+            });
         </script>
     </body>
     </html>
