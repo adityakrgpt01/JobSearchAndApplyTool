@@ -783,7 +783,29 @@ def dashboard_html():
                 if (remoteMode === 'remote_only') remText = ' • Remote Only';
                 else if (remoteMode === 'exclude_remote') remText = ' • Onsite/Hybrid Only';
 
-                document.getElementById('statTimeLabel').innerText = `${timeText} • ${platText}${tierText}${remText}`;
+                const compType = document.getElementById('companyTypeSelect') ? document.getElementById('companyTypeSelect').value : 'all';
+                let typeText = '';
+                if (compType !== 'all') {
+                    const sel = document.getElementById('companyTypeSelect');
+                    typeText = ` • ${sel.options[sel.selectedIndex].text}`;
+                }
+
+                const compSize = document.getElementById('companySizeSelect') ? document.getElementById('companySizeSelect').value : 'all';
+                let sizeText = '';
+                if (compSize !== 'all') {
+                    const sel = document.getElementById('companySizeSelect');
+                    sizeText = ` • ${sel.options[sel.selectedIndex].text}`;
+                }
+
+                const culture = document.getElementById('cultureSelect') ? document.getElementById('cultureSelect').value : 'all';
+                let cultText = '';
+                if (culture !== 'all') cultText = ` • Culture ${culture}+`;
+
+                const risk = document.getElementById('riskSelect') ? document.getElementById('riskSelect').value : 'all';
+                let riskText = '';
+                if (risk === 'low_only') riskText = ' • Low Risk';
+
+                document.getElementById('statTimeLabel').innerText = `${timeText} • ${platText}${tierText}${remText}${typeText}${sizeText}${cultText}${riskText}`;
             }
 
             function setTimeFilter(hours) {

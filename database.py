@@ -329,13 +329,13 @@ def list_jobs(
     if company_type and company_type != "all":
         ct = company_type.lower()
         if ct == "product":
-            query += " AND (LOWER(c.stage_or_type) LIKE '%product%' OR LOWER(c.culture_summary) LIKE '%product%')"
+            query += " AND (LOWER(c.stage_or_type) LIKE '%product%' OR LOWER(c.stage_or_type) LIKE '%saas%')"
         elif ct == "startup":
-            query += " AND (LOWER(c.stage_or_type) LIKE '%scaleup%' OR LOWER(c.stage_or_type) LIKE '%startup%' OR j.ats_platform IN ('ashby', 'instahyre'))"
+            query += " AND (LOWER(c.stage_or_type) LIKE '%startup%' OR LOWER(c.stage_or_type) LIKE '%scaleup%' OR j.ats_platform IN ('ashby', 'instahyre'))"
         elif ct == "unicorn":
-            query += " AND (LOWER(c.stage_or_type) LIKE '%unicorn%' OR j.ats_platform = 'instahyre')"
+            query += " AND (LOWER(c.stage_or_type) LIKE '%unicorn%' OR LOWER(c.stage_or_type) LIKE '%pre-ipo%')"
         elif ct == "enterprise":
-            query += " AND (LOWER(c.stage_or_type) LIKE '%enterprise%' OR LOWER(c.stage_or_type) LIKE '%fortune%' OR j.ats_platform = 'workday')"
+            query += " AND (LOWER(c.stage_or_type) LIKE '%enterprise%' OR LOWER(c.stage_or_type) LIKE '%fortune%' OR LOWER(c.stage_or_type) LIKE '%public%' OR j.ats_platform = 'workday' OR j.ats_platform = 'amazon')"
 
     # Company Size / Headcount filter
     if company_size and company_size != "all":
@@ -343,9 +343,9 @@ def list_jobs(
         if cs == "startup_small":  # < 1,000 employees
             query += " AND (c.headcount_range LIKE '100%' OR c.headcount_range LIKE '500%' OR j.ats_platform = 'ashby')"
         elif cs == "mid_scaleup":   # 1,000 - 5,000 employees
-            query += " AND (c.headcount_range LIKE '%1,000%' OR c.headcount_range LIKE '%2,000%' OR c.headcount_range LIKE '%3,000%' OR c.headcount_range LIKE '%4,000%')"
+            query += " AND (c.headcount_range LIKE '%1,000%' OR c.headcount_range LIKE '%2,000%' OR c.headcount_range LIKE '%2,500%' OR c.headcount_range LIKE '%3,000%' OR c.headcount_range LIKE '%3,500%' OR c.headcount_range LIKE '%4,000%') AND c.headcount_range NOT LIKE '%1,000,000%' AND c.headcount_range NOT LIKE '%50,000%'"
         elif cs == "large_enterprise":  # 5,000+ employees
-            query += " AND (c.headcount_range LIKE '%5,000%' OR c.headcount_range LIKE '%8,000%' OR c.headcount_range LIKE '%10,000%' OR c.headcount_range LIKE '%50,000%' OR j.ats_platform = 'workday')"
+            query += " AND (c.headcount_range LIKE '%5,000%' OR c.headcount_range LIKE '%6,000%' OR c.headcount_range LIKE '%7,000%' OR c.headcount_range LIKE '%8,000%' OR c.headcount_range LIKE '%10,000%' OR c.headcount_range LIKE '%30,000%' OR c.headcount_range LIKE '%50,000%' OR c.headcount_range LIKE '%200,000%' OR c.headcount_range LIKE '%1,000,000%' OR j.ats_platform = 'workday')"
 
     # Work-Life Balance / Culture Rating filter (e.g. 4.0+)
     if min_wlb and min_wlb > 0:
