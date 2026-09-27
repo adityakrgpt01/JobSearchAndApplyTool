@@ -106,7 +106,10 @@ async def scan_single_workday(session: aiohttp.ClientSession, comp: Dict[str, An
                         continue
 
                     external_path = j.get("externalPath", "")
-                    apply_url = f"https://{comp['host']}{external_path}" if external_path else f"https://{comp['host']}"
+                    if comp.get('tenant') == 'en-US':
+                        apply_url = f"https://{comp['host']}/en-US/{comp.get('board', 'job')}{external_path}" if external_path else f"https://{comp['host']}"
+                    else:
+                        apply_url = f"https://{comp['host']}/{comp['tenant']}{external_path}" if external_path else f"https://{comp['host']}"
                     job_id = f"wd_{comp['tenant']}_{abs(hash(external_path or title))}"
 
                     tier, est_ctc = classify_salary(name, title)
