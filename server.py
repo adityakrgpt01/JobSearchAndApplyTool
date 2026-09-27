@@ -61,7 +61,11 @@ def get_jobs(
     hours: Optional[float] = 24,
     min_hours: Optional[float] = None,
     start_date: Optional[str] = None,
-    end_date: Optional[str] = None
+    end_date: Optional[str] = None,
+    company_type: Optional[str] = None,
+    company_size: Optional[str] = None,
+    min_wlb: Optional[float] = None,
+    max_risk: Optional[str] = None
 ):
     jobs = list_jobs(
         status=status,
@@ -73,7 +77,11 @@ def get_jobs(
         max_age_hours=hours,
         min_age_hours=min_hours,
         start_date=start_date,
-        end_date=end_date
+        end_date=end_date,
+        company_type=company_type,
+        company_size=company_size,
+        min_wlb=min_wlb,
+        max_risk=max_risk
     )
     return {"jobs": jobs, "total": len(jobs)}
 
@@ -88,7 +96,11 @@ def get_stats(
     status: Optional[str] = None,
     q: Optional[str] = None,
     remote: Optional[bool] = None,
-    exclude_remote: Optional[bool] = None
+    exclude_remote: Optional[bool] = None,
+    company_type: Optional[str] = None,
+    company_size: Optional[str] = None,
+    min_wlb: Optional[float] = None,
+    max_risk: Optional[str] = None
 ):
     jobs = list_jobs(
         status=status,
@@ -100,7 +112,11 @@ def get_stats(
         max_age_hours=hours,
         min_age_hours=min_hours,
         start_date=start_date,
-        end_date=end_date
+        end_date=end_date,
+        company_type=company_type,
+        company_size=company_size,
+        min_wlb=min_wlb,
+        max_risk=max_risk
     )
     tiers = {"40-50LPA": 0, "50-60LPA": 0, "60-70LPA": 0, "70+LPA": 0}
     status_counts = {"DISCOVERED": 0, "APPLYING": 0, "APPLIED": 0, "READY_TO_SUBMIT (DRY_RUN)": 0, "FAILED": 0}
@@ -375,15 +391,54 @@ def dashboard_html():
                         </select>
                     </div>
 
-                    <!-- Remote Preference Selector (Any, Remote Only, Exclude Remote) -->
+                    <!-- Company Type / Stage Filter -->
                     <div class="flex items-center gap-1.5">
                         <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                            <i class="fa-solid fa-house-laptop text-emerald-400 mr-1"></i>Workplace:
+                            <i class="fa-solid fa-shapes text-pink-400 mr-1"></i>Type:
                         </span>
-                        <select id="remoteModeSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500">
-                            <option value="any">🌐 Remote & Onsite (All)</option>
-                            <option value="remote_only">🏠 Remote Only</option>
-                            <option value="exclude_remote">🏢 Exclude Remote (Onsite / Hybrid Only)</option>
+                        <select id="companyTypeSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-pink-500">
+                            <option value="all">All Types</option>
+                            <option value="product">🚀 Product-Based</option>
+                            <option value="startup">⚡ Startup / Scaleup</option>
+                            <option value="unicorn">🦄 Unicorns</option>
+                            <option value="enterprise">🏢 Enterprise / Fortune 500</option>
+                        </select>
+                    </div>
+
+                    <!-- Company Size / Headcount Filter -->
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                            <i class="fa-solid fa-users text-cyan-400 mr-1"></i>Size:
+                        </span>
+                        <select id="companySizeSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
+                            <option value="all">All Sizes</option>
+                            <option value="startup_small">🌱 &lt; 1,000 (Early/Mid Startup)</option>
+                            <option value="mid_scaleup">📈 1,000 - 5,000 (Scaleup)</option>
+                            <option value="large_enterprise">🏛️ 5,000+ (Large Enterprise / MNC)</option>
+                        </select>
+                    </div>
+
+                    <!-- Culture / WLB Rating Filter -->
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                            <i class="fa-solid fa-heart-pulse text-amber-400 mr-1"></i>Culture:
+                        </span>
+                        <select id="cultureSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-amber-500">
+                            <option value="all">Any Culture Rating</option>
+                            <option value="4.2">⭐ 4.2+ Exceptional WLB</option>
+                            <option value="4.0">⭐ 4.0+ High WLB & Glassdoor</option>
+                            <option value="3.8">⭐ 3.8+ Above Average</option>
+                        </select>
+                    </div>
+
+                    <!-- Layoff & Financial Risk Filter -->
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                            <i class="fa-solid fa-shield-halved text-emerald-400 mr-1"></i>Stability:
+                        </span>
+                        <select id="riskSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <option value="all">All Risk Levels</option>
+                            <option value="low_only">🛡️ Safe Only (Zero Layoffs / Low Risk)</option>
                         </select>
                     </div>
                 </div>
@@ -665,6 +720,14 @@ def dashboard_html():
                 if (tierEl) tierEl.value = 'all';
                 const remModeEl = document.getElementById('remoteModeSelect');
                 if (remModeEl) remModeEl.value = 'any';
+                const typeEl = document.getElementById('companyTypeSelect');
+                if (typeEl) typeEl.value = 'all';
+                const sizeEl = document.getElementById('companySizeSelect');
+                if (sizeEl) sizeEl.value = 'all';
+                const cultEl = document.getElementById('cultureSelect');
+                if (cultEl) cultEl.value = 'all';
+                const riskEl = document.getElementById('riskSelect');
+                if (riskEl) riskEl.value = 'all';
                 clearCustomRange();
             }
 
@@ -672,6 +735,10 @@ def dashboard_html():
                 const platform = getSelectedPlatforms();
                 const tier = document.getElementById('tierSelect') ? document.getElementById('tierSelect').value : 'all';
                 const remoteMode = document.getElementById('remoteModeSelect') ? document.getElementById('remoteModeSelect').value : 'any';
+                const compType = document.getElementById('companyTypeSelect') ? document.getElementById('companyTypeSelect').value : 'all';
+                const compSize = document.getElementById('companySizeSelect') ? document.getElementById('companySizeSelect').value : 'all';
+                const culture = document.getElementById('cultureSelect') ? document.getElementById('cultureSelect').value : 'all';
+                const risk = document.getElementById('riskSelect') ? document.getElementById('riskSelect').value : 'all';
                 const q = document.getElementById('jobSearchInput') ? document.getElementById('jobSearchInput').value.trim() : '';
 
                 let params = `platform=${encodeURIComponent(platform)}`;
@@ -686,6 +753,10 @@ def dashboard_html():
                 if (tier && tier !== 'all') params += `&tier=${encodeURIComponent(tier)}`;
                 if (remoteMode === 'remote_only') params += `&remote=true`;
                 if (remoteMode === 'exclude_remote') params += `&exclude_remote=true`;
+                if (compType && compType !== 'all') params += `&company_type=${encodeURIComponent(compType)}`;
+                if (compSize && compSize !== 'all') params += `&company_size=${encodeURIComponent(compSize)}`;
+                if (culture && culture !== 'all') params += `&min_wlb=${encodeURIComponent(culture)}`;
+                if (risk && risk !== 'all') params += `&max_risk=${encodeURIComponent(risk)}`;
                 if (q) params += `&q=${encodeURIComponent(q)}`;
                 return params;
             }
@@ -858,11 +929,14 @@ def dashboard_html():
                     const encId = encodeURIComponent(j.job_id || '');
                     const displayTime = formatPostedTime(j.posted_at, j.discovered_at, j.ats_platform);
                     const isVeryRecent = displayTime.includes('h ago') || displayTime.includes('m ago') || displayTime.toLowerCase().includes('today') || displayTime.toLowerCase().includes('just now');
+                    const compStage = j.stage_or_type ? `<span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">${j.stage_or_type}</span>` : '';
+                    const compSize = j.headcount_range ? `<span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-cyan-950/60 text-cyan-300 border border-cyan-800/60 ml-1"><i class="fa-solid fa-users text-[9px] mr-1"></i>${j.headcount_range}</span>` : '';
                     return `
                     <tr class="hover:bg-slate-800/40 transition">
                         <td class="px-5 py-4">
                             <div class="font-semibold text-white">${j.title || 'Untitled Role'}</div>
                             <div class="text-xs text-slate-400 mt-0.5 font-medium">${j.company_name} • <span class="capitalize text-slate-500">${j.ats_platform}</span></div>
+                            <div class="flex flex-wrap items-center gap-1 mt-0.5">${compStage}${compSize}</div>
                         </td>
                         <td class="px-5 py-4">
                             <span class="px-2.5 py-1 text-xs font-semibold rounded-md ${

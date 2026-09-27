@@ -279,6 +279,10 @@ def list_jobs(
     min_age_hours: Optional[float] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    company_type: Optional[str] = None,
+    company_size: Optional[str] = None,
+    min_wlb: Optional[float] = None,
+    max_risk: Optional[str] = None,
     db_path: str = DB_PATH
 ) -> List[Dict[str, Any]]:
     conn = sqlite3.connect(db_path)
@@ -288,7 +292,7 @@ def list_jobs(
     query = """
     SELECT j.*, 
            c.glassdoor_rating, c.ambitionbox_rating, c.engineering_wlb_score,
-           c.culture_summary, c.headcount_range, c.has_recent_layoffs,
+           c.culture_summary, c.headcount_range, c.stage_or_type, c.has_recent_layoffs,
            c.layoffs_details, c.risk_level
     FROM job_postings j
     LEFT JOIN companies_intelligence c ON LOWER(TRIM(j.company_name)) = c.normalized_name
@@ -321,10 +325,42 @@ def list_jobs(
     elif exclude_remote:
         query += " AND (j.is_remote = 0 AND LOWER(j.location) NOT LIKE '%remote%')"
 
+    # Company Stage / Type filter (Product, Startup, Enterprise, Unicorn)
+    if company_type and company_type != "all":
+        ct = company_type.lower()
+        if ct == "product":
+            query += " AND (LOWER(c.stage_or_type) LIKE '%product%' OR LOWER(c.culture_summary) LIKE '%product%')"
+        elif ct == "startup":
+            query += " AND (LOWER(c.stage_or_type) LIKE '%scaleup%' OR LOWER(c.stage_or_type) LIKE '%startup%' OR j.ats_platform IN ('ashby', 'instahyre'))"
+        elif ct == "unicorn":
+            query += " AND (LOWER(c.stage_or_type) LIKE '%unicorn%' OR j.ats_platform = 'instahyre')"
+        elif ct == "enterprise":
+            query += " AND (LOWER(c.stage_or_type) LIKE '%enterprise%' OR LOWER(c.stage_or_type) LIKE '%fortune%' OR j.ats_platform = 'workday')"
+
+    # Company Size / Headcount filter
+    if company_size and company_size != "all":
+        cs = company_size.lower()
+        if cs == "startup_small":  # < 1,000 employees
+            query += " AND (c.headcount_range LIKE '100%' OR c.headcount_range LIKE '500%' OR j.ats_platform = 'ashby')"
+        elif cs == "mid_scaleup":   # 1,000 - 5,000 employees
+            query += " AND (c.headcount_range LIKE '%1,000%' OR c.headcount_range LIKE '%2,000%' OR c.headcount_range LIKE '%3,000%' OR c.headcount_range LIKE '%4,000%')"
+        elif cs == "large_enterprise":  # 5,000+ employees
+            query += " AND (c.headcount_range LIKE '%5,000%' OR c.headcount_range LIKE '%8,000%' OR c.headcount_range LIKE '%10,000%' OR c.headcount_range LIKE '%50,000%' OR j.ats_platform = 'workday')"
+
+    # Work-Life Balance / Culture Rating filter (e.g. 4.0+)
+    if min_wlb and min_wlb > 0:
+        query += " AND (c.engineering_wlb_score >= ? OR c.glassdoor_rating >= ?)"
+        params.extend([min_wlb, min_wlb])
+
+    # Layoff / Financial Risk filter
+    if max_risk and max_risk != "all":
+        if max_risk.lower() == "low_only":
+            query += " AND (c.risk_level = 'LOW' AND (c.has_recent_layoffs = 0 OR c.has_recent_layoffs IS NULL))"
+
     if search_query and search_query.strip():
         term = f"%{search_query.strip()}%"
-        query += " AND (j.company_name LIKE ? OR j.title LIKE ? OR j.location LIKE ? OR j.jd_content LIKE ?)"
-        params.extend([term, term, term, term])
+        query += " AND (j.company_name LIKE ? OR j.title LIKE ? OR j.location LIKE ? OR j.jd_content LIKE ? OR c.stage_or_type LIKE ? OR c.culture_summary LIKE ?)"
+        params.extend([term, term, term, term, term, term])
 
     cursor.execute(query, params)
     rows = [dict(r) for r in cursor.fetchall()]
