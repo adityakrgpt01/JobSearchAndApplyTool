@@ -12,6 +12,18 @@ import imaplib
 from email.header import decode_header
 from typing import Optional
 
+def _load_env_file():
+    if os.path.exists(".env"):
+        with open(".env", "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    if k.strip() not in os.environ:
+                        os.environ[k.strip()] = v.strip()
+
+_load_env_file()
+
 GMAIL_USER = os.getenv("GMAIL_USER", "adityakumargupta521@gmail.com")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
 
