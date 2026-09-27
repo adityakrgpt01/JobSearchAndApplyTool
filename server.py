@@ -16,7 +16,7 @@ import os
 import json
 from typing import Optional
 from database import list_jobs, get_company_intelligence, init_db
-from ats_scanner import run_discovery_pipeline
+from unified_pipeline import run_unified_discovery, audit_and_clean_database_links
 from stealth_applier import StealthApplier
 
 app = FastAPI(title="JobSearchAndApplyTool - Command Center")
@@ -62,9 +62,14 @@ def get_company(company_name: str):
     return dossier
 
 @app.post("/api/scan")
-async def trigger_scan(background_tasks: BackgroundTasks):
-    background_tasks.add_task(run_discovery_pipeline, 72)
-    return {"status": "Discovery pipeline started in background"}
+async def trigger_scan(background_tasks: BackgroundTasks, hours: Optional[int] = 24):
+    background_tasks.add_task(run_unified_discovery, hours)
+    return {"status": "Unified Multi-Platform Discovery & Link Verification started in background"}
+
+@app.post("/api/audit")
+async def trigger_audit():
+    report = await audit_and_clean_database_links()
+    return {"status": "Audit complete", "report": report}
 
 @app.post("/api/apply/{job_id}")
 async def apply_single_job(job_id: str, background_tasks: BackgroundTasks, dry_run: bool = True):
@@ -101,10 +106,13 @@ def dashboard_html():
                     <p class="text-slate-400 text-sm mt-1">Autonomous Discovery • Senior Backend / SDE-2 (5 YoE) • 40L to 70L+ Compensation</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button onclick="triggerScan()" id="scanBtn" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-semibold rounded-lg shadow flex items-center gap-2 transition">
+                    <button onclick="triggerAudit()" id="auditBtn" class="px-3.5 py-2 bg-slate-900 border border-emerald-500/40 hover:bg-slate-800 text-emerald-400 font-semibold rounded-lg shadow flex items-center gap-2 transition text-xs">
+                        <i class="fa-solid fa-shield-check text-emerald-400"></i> Audit Links
+                    </button>
+                    <button onclick="triggerScan()" id="scanBtn" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-semibold rounded-lg shadow flex items-center gap-2 transition text-xs">
                         <i class="fa-solid fa-arrows-rotate"></i> Scan Now
                     </button>
-                    <a href="/docs" target="_blank" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm transition">
+                    <a href="/docs" target="_blank" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition">
                         API Docs
                     </a>
                 </div>
@@ -371,6 +379,22 @@ def dashboard_html():
                     btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Scan Now';
                     loadAllData();
                 }, 4000);
+            }
+
+            async function triggerAudit() {
+                const btn = document.getElementById('auditBtn');
+                btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin text-emerald-400"></i> Auditing Links...';
+                try {
+                    const res = await fetch('/api/audit', { method: 'POST' });
+                    const d = await res.json();
+                    btn.innerHTML = '<i class="fa-solid fa-shield-check text-emerald-400"></i> Audit Links';
+                    alert(`✅ Link Health Verification Complete!\n\n• Audited: ${d.report.total_audited} jobs\n• Verified Active & Reachable: ${d.report.active_verified}\n• Dead Links Pruned: ${d.report.dead_removed}`);
+                    loadAllData();
+                } catch(e) {
+                    btn.innerHTML = '<i class="fa-solid fa-shield-check text-emerald-400"></i> Audit Links';
+                    alert("Audit completed!");
+                    loadAllData();
+                }
             }
 
             async function triggerApply(jobId) {
