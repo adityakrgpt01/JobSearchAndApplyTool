@@ -276,19 +276,31 @@ class StealthApplier:
         domain = urllib.parse.urlparse(portal_url).netloc
         company = job.get("company_name", "Workday Employer")
 
-        # 1. Click primary apply button
+        # 1. Handle Cookie Banner if present
+        cookie_btn = await page.query_selector('button:has-text("Accept Cookies"), button:has-text("Accept All"), button:has-text("I Accept")')
+        if cookie_btn:
+            await cookie_btn.click()
+            await asyncio.sleep(1.5)
+
+        # 2. Click primary apply button
         apply_btn = await page.query_selector('a[data-automation-id*="apply" i], button[data-automation-id*="apply" i], a:has-text("Apply")')
         if apply_btn:
             await apply_btn.click()
-            await asyncio.sleep(3.0)
+            await asyncio.sleep(2.5)
 
-        # 2. Check for 'Autofill with Resume' or 'Apply Manually'
+        # 3. Check for 'Autofill with Resume' or 'Apply Manually'
         autofill_btn = await page.query_selector('a:has-text("Autofill with Resume"), button:has-text("Autofill with Resume")')
         if autofill_btn:
             await autofill_btn.click()
             await asyncio.sleep(3.0)
 
-        # 3. Workday Account Wall Handling
+        # Handle cookie banner again if it reappears
+        cookie_btn2 = await page.query_selector('button:has-text("Accept Cookies")')
+        if cookie_btn2:
+            await cookie_btn2.click()
+            await asyncio.sleep(1.5)
+
+        # 4. Workday Account Wall Handling (Create Account / Sign In)
         email_input = await page.query_selector("input[data-automation-id='email'], input[id*='email' i], input[type='email']")
         pass_input = await page.query_selector("input[data-automation-id='password'], input[id*='password' i], input[type='password']")
 
@@ -318,10 +330,10 @@ class StealthApplier:
                     await consent.click()
 
             # Click Sign In / Create Account
-            submit_auth = await page.query_selector("button[data-automation-id='signInSubmitButton'], button[data-automation-id='createAccountSubmitButton'], button:has-text('Create Account'), button:has-text('Sign In')")
+            submit_auth = await page.query_selector('div[data-automation-id="click_filter"][aria-label="Create Account"], button:has-text("Create Account"), button[data-automation-id="createAccountSubmitButton"], button:has-text("Sign In")')
             if submit_auth:
-                await submit_auth.click()
-                await asyncio.sleep(4.0)
+                await submit_auth.click(force=True)
+                await asyncio.sleep(5.0)
 
             # 4. Check for PIN / Verification Screen
             pin_input = await page.query_selector("input[data-automation-id='verificationCode'], input[id*='code' i], input[name*='pin' i]")
