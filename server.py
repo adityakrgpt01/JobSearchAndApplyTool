@@ -14,6 +14,7 @@ import uvicorn
 import asyncio
 import os
 import json
+from typing import Optional
 from database import list_jobs, get_company_intelligence, init_db
 from ats_scanner import run_discovery_pipeline
 from stealth_applier import StealthApplier
@@ -27,26 +28,30 @@ def on_startup():
     init_db()
 
 @app.get("/api/jobs")
-def get_jobs(status: str = None, tier: str = None):
-    jobs = list_jobs(status=status, salary_tier=tier)
+def get_jobs(status: Optional[str] = None, tier: Optional[str] = None, platform: Optional[str] = None, hours: Optional[int] = 24):
+    jobs = list_jobs(status=status, salary_tier=tier, platform=platform, max_age_hours=hours)
     return {"jobs": jobs, "total": len(jobs)}
 
 @app.get("/api/stats")
-def get_stats():
-    jobs = list_jobs()
+def get_stats(hours: Optional[int] = 24):
+    jobs = list_jobs(max_age_hours=hours)
     tiers = {"40-50LPA": 0, "50-60LPA": 0, "60-70LPA": 0, "70+LPA": 0}
     status_counts = {"DISCOVERED": 0, "APPLYING": 0, "APPLIED": 0, "READY_TO_SUBMIT (DRY_RUN)": 0, "FAILED": 0}
+    platforms = {}
 
     for j in jobs:
         st = j.get("salary_tier", "40-50LPA")
         tiers[st] = tiers.get(st, 0) + 1
         stat = j.get("status", "DISCOVERED")
         status_counts[stat] = status_counts.get(stat, 0) + 1
+        plat = j.get("ats_platform", "other")
+        platforms[plat] = platforms.get(plat, 0) + 1
 
     return {
         "total_jobs": len(jobs),
         "tiers": tiers,
-        "status_counts": status_counts
+        "status_counts": status_counts,
+        "platforms": platforms
     }
 
 @app.get("/api/company/{company_name}")
@@ -93,11 +98,11 @@ def dashboard_html():
                     <h1 class="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
                         <i class="fa-solid fa-radar text-emerald-400"></i> Job Intelligence & Stealth Applier
                     </h1>
-                    <p class="text-slate-400 text-sm mt-1">Autonomous 24h Discovery • Senior Backend / SDE-2 (5 YoE) • 40L to 70L+ Compensation</p>
+                    <p class="text-slate-400 text-sm mt-1">Autonomous Discovery • Senior Backend / SDE-2 (5 YoE) • 40L to 70L+ Compensation</p>
                 </div>
                 <div class="flex items-center gap-3">
                     <button onclick="triggerScan()" id="scanBtn" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-semibold rounded-lg shadow flex items-center gap-2 transition">
-                        <i class="fa-solid fa-arrows-rotate"></i> Scan Now (24h)
+                        <i class="fa-solid fa-arrows-rotate"></i> Scan Now
                     </button>
                     <a href="/docs" target="_blank" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm transition">
                         API Docs
@@ -105,12 +110,49 @@ def dashboard_html():
                 </div>
             </div>
 
+            <!-- Global Time Filter Toolbar -->
+            <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl my-6 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mr-2">
+                        <i class="fa-solid fa-clock text-blue-400"></i> Time Range:
+                    </span>
+                    <button onclick="setTimeFilter(24)" id="btnTime24" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 text-black transition">
+                        Last 24 Hours
+                    </button>
+                    <button onclick="setTimeFilter(48)" id="btnTime48" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                        Last 48 Hours
+                    </button>
+                    <button onclick="setTimeFilter(168)" id="btnTime168" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                        Last 7 Days
+                    </button>
+                    <button onclick="setTimeFilter(0)" id="btnTimeAll" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                        All Time (Full DB)
+                    </button>
+                </div>
+
+                <!-- Platform Filter dropdown -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">
+                        <i class="fa-solid fa-layer-group text-purple-400"></i> Platform:
+                    </span>
+                    <select id="platformSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-1.5 text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <option value="all">All Sources</option>
+                        <option value="linkedin">LinkedIn Stream</option>
+                        <option value="greenhouse">Greenhouse ATS</option>
+                        <option value="instahyre">Instahyre Unicorns</option>
+                        <option value="ashby">Ashby Scaleups</option>
+                        <option value="workday">Workday CXS</option>
+                        <option value="amazon">Amazon Direct API</option>
+                    </select>
+                </div>
+            </div>
+
             <!-- Stats & Analytics Cards -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 my-6">
                 <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-sm">
-                    <div class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Total Discovered</div>
+                    <div class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Filtered Jobs</div>
                     <div id="statTotal" class="text-3xl font-bold mt-2 text-white">--</div>
-                    <div class="text-xs text-slate-500 mt-1">Senior Backend / SDE-2</div>
+                    <div id="statTimeLabel" class="text-xs text-emerald-400 mt-1">Posted within last 24h</div>
                 </div>
                 <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-sm">
                     <div class="text-purple-400 text-xs font-semibold uppercase tracking-wider">🌟 70+ LPA Tier</div>
@@ -154,7 +196,7 @@ def dashboard_html():
                                 <th class="px-5 py-3">Company & Role</th>
                                 <th class="px-5 py-3">Salary Tier</th>
                                 <th class="px-5 py-3">Due Diligence (Rating / Risk)</th>
-                                <th class="px-5 py-3">Location</th>
+                                <th class="px-5 py-3">Location & Posted</th>
                                 <th class="px-5 py-3">Status</th>
                                 <th class="px-5 py-3 text-right">Actions</th>
                             </tr>
@@ -173,17 +215,39 @@ def dashboard_html():
                 <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
-                <div id="modalContent">
-                    <!-- Populated dynamically -->
-                </div>
+                <div id="modalContent"></div>
             </div>
         </div>
 
         <script>
             let chartInstance = null;
+            let currentHours = 24; // Default to last 24h!
+
+            function setTimeFilter(hours) {
+                currentHours = hours;
+                document.querySelectorAll('.time-btn').forEach(btn => {
+                    btn.classList.remove('bg-emerald-500', 'text-black');
+                    btn.classList.add('bg-slate-800', 'text-slate-300');
+                });
+
+                let activeId = 'btnTime24';
+                let label = 'Posted within last 24 hours';
+                if (hours === 48) { activeId = 'btnTime48'; label = 'Posted within last 48 hours'; }
+                else if (hours === 168) { activeId = 'btnTime168'; label = 'Posted within last 7 days'; }
+                else if (hours === 0) { activeId = 'btnTimeAll'; label = 'All time historical data'; }
+
+                const activeBtn = document.getElementById(activeId);
+                if (activeBtn) {
+                    activeBtn.classList.remove('bg-slate-800', 'text-slate-300');
+                    activeBtn.classList.add('bg-emerald-500', 'text-black');
+                }
+                document.getElementById('statTimeLabel').innerText = label;
+
+                loadAllData();
+            }
 
             async function loadStats() {
-                const res = await fetch('/api/stats');
+                const res = await fetch(`/api/stats?hours=${currentHours}`);
                 const data = await res.json();
                 document.getElementById('statTotal').innerText = data.total_jobs;
                 document.getElementById('statTier70').innerText = data.tiers['70+LPA'] || 0;
@@ -221,12 +285,13 @@ def dashboard_html():
             }
 
             async function loadJobs() {
-                const res = await fetch('/api/jobs');
+                const platform = document.getElementById('platformSelect').value;
+                const res = await fetch(`/api/jobs?hours=${currentHours}&platform=${platform}`);
                 const data = await res.json();
                 document.getElementById('jobCountBadge').innerText = `${data.total} Jobs`;
                 const tbody = document.getElementById('jobsTableBody');
                 if (data.jobs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500">No jobs found in the last 24h. Click "Scan Now".</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500">No jobs found for selected time range & source. Try expanding the time filter.</td></tr>';
                     return;
                 }
 
@@ -259,6 +324,7 @@ def dashboard_html():
                         </td>
                         <td class="px-5 py-4 text-xs text-slate-400">
                             <div><i class="fa-solid fa-location-dot mr-1"></i>${j.location || 'Multiple'}</div>
+                            <div class="text-slate-500 mt-0.5"><i class="fa-solid fa-clock mr-1"></i>${j.posted_at || 'Recent'}</div>
                             ${j.is_remote ? '<span class="text-emerald-400 text-[10px] font-bold uppercase mt-0.5 inline-block">Remote Eligible</span>' : ''}
                         </td>
                         <td class="px-5 py-4">
@@ -281,22 +347,26 @@ def dashboard_html():
                 `).join('');
             }
 
+            function loadAllData() {
+                loadStats();
+                loadJobs();
+            }
+
             async function triggerScan() {
                 const btn = document.getElementById('scanBtn');
                 btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Scanning...';
                 await fetch('/api/scan', { method: 'POST' });
                 setTimeout(() => {
-                    btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Scan Now (24h)';
-                    loadStats();
-                    loadJobs();
-                }, 3500);
+                    btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Scan Now';
+                    loadAllData();
+                }, 4000);
             }
 
             async function triggerApply(jobId) {
-                if (!confirm("Launch stealth browser to auto-fill this application? (Runs in safe Dry-Run mode with screenshot verification)")) return;
+                if (!confirm("Launch stealth browser to auto-fill this application? (Safe Dry-Run mode with screenshot verification)")) return;
                 await fetch(`/api/apply/${jobId}?dry_run=true`, { method: 'POST' });
-                alert("Stealth Applier launched! Watch browser window or refresh table in a few seconds to see screenshot.");
-                setTimeout(() => { loadJobs(); loadStats(); }, 5000);
+                alert("Stealth Applier launched! Watch browser window or refresh table to see screenshot.");
+                setTimeout(loadAllData, 5000);
             }
 
             async function openDueDiligence(companyName) {
@@ -361,10 +431,8 @@ def dashboard_html():
                 document.getElementById('ddModal').classList.add('hidden');
             }
 
-            loadStats();
-            loadJobs();
-            setInterval(loadStats, 10000);
-            setInterval(loadJobs, 10000);
+            loadAllData();
+            setInterval(loadAllData, 15000);
         </script>
     </body>
     </html>

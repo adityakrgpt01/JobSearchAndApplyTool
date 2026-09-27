@@ -1,6 +1,6 @@
 import sqlite3
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 
 DB_PATH = "jobs.db"
@@ -41,7 +41,7 @@ def init_db(db_path: str = DB_PATH):
         title TEXT NOT NULL,
         location TEXT,
         is_remote BOOLEAN DEFAULT 0,
-        ats_platform TEXT, -- greenhouse, lever, ashby, workday, direct
+        ats_platform TEXT, -- greenhouse, lever, ashby, workday, linkedin, instahyre, amazon
         apply_url TEXT NOT NULL,
         jd_content TEXT,
         posted_at TIMESTAMP,
@@ -66,6 +66,21 @@ def init_db(db_path: str = DB_PATH):
         status TEXT NOT NULL,
         message TEXT,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
+    # 4. Scraper Failures Tracking Table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS scraper_failures (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source TEXT NOT NULL,
+        company_name TEXT NOT NULL,
+        target_url TEXT NOT NULL,
+        failure_reason TEXT NOT NULL,
+        http_status INTEGER,
+        retry_count INTEGER DEFAULT 0,
+        resolved BOOLEAN DEFAULT 0,
+        last_attempted TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
 
@@ -160,10 +175,17 @@ def save_job(job: Dict[str, Any], db_path: str = DB_PATH) -> bool:
         print(f"Error saving job: {e}")
         return False
 
-def list_jobs(status: Optional[str] = None, salary_tier: Optional[str] = None, db_path: str = DB_PATH) -> List[Dict[str, Any]]:
+def list_jobs(
+    status: Optional[str] = None,
+    salary_tier: Optional[str] = None,
+    platform: Optional[str] = None,
+    max_age_hours: Optional[int] = None,
+    db_path: str = DB_PATH
+) -> List[Dict[str, Any]]:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+
     query = """
     SELECT j.*, 
            c.glassdoor_rating, c.ambitionbox_rating, c.engineering_wlb_score,
@@ -180,6 +202,27 @@ def list_jobs(status: Optional[str] = None, salary_tier: Optional[str] = None, d
     if salary_tier:
         query += " AND j.salary_tier = ?"
         params.append(salary_tier)
+    if platform and platform != "all":
+        query += " AND j.ats_platform = ?"
+        params.append(platform)
+
+    # Time-based filtering (in hours from now)
+    if max_age_hours and max_age_hours > 0:
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+        cutoff_iso = cutoff.isoformat()
+        cutoff_str = cutoff.strftime("%Y-%m-%d %H:%M:%S")
+
+        query += """ AND (
+            j.posted_at >= ? 
+            OR j.discovered_at >= ?
+            OR j.posted_at LIKE '%today%'
+            OR (j.posted_at LIKE '%yesterday%' AND ? >= 24)
+            OR (j.posted_at LIKE '%1 day ago%' AND ? >= 24)
+            OR (j.posted_at LIKE '%2 days ago%' AND ? >= 48)
+            OR (j.posted_at LIKE '%hours ago%')
+        )"""
+        params.extend([cutoff_iso, cutoff_str, max_age_hours, max_age_hours, max_age_hours])
+
     query += " ORDER BY j.posted_at DESC, j.discovered_at DESC"
     cursor.execute(query, params)
     rows = [dict(r) for r in cursor.fetchall()]
@@ -203,4 +246,3 @@ def update_job_status(job_id: str, status: str, apply_log: str = "", screenshot_
 
 if __name__ == "__main__":
     init_db()
-    print("Database initialized successfully.")
