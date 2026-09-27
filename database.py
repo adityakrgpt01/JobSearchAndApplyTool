@@ -337,15 +337,25 @@ def list_jobs(
         elif ct == "enterprise":
             query += " AND (LOWER(c.stage_or_type) LIKE '%enterprise%' OR LOWER(c.stage_or_type) LIKE '%fortune%' OR LOWER(c.stage_or_type) LIKE '%public%' OR j.ats_platform = 'workday' OR j.ats_platform = 'amazon')"
 
-    # Company Size / Headcount filter
+    # Company Size / Headcount filter (Supports granular 0-10, 10-50, 50-100, 100-500, 500-1000, 1000-5000, 5000+, 50000+)
     if company_size and company_size != "all":
-        cs = company_size.lower()
-        if cs == "startup_small":  # < 1,000 employees
-            query += " AND (c.headcount_range LIKE '100%' OR c.headcount_range LIKE '500%' OR j.ats_platform = 'ashby')"
-        elif cs == "mid_scaleup":   # 1,000 - 5,000 employees
-            query += " AND (c.headcount_range LIKE '%1,000%' OR c.headcount_range LIKE '%2,000%' OR c.headcount_range LIKE '%2,500%' OR c.headcount_range LIKE '%3,000%' OR c.headcount_range LIKE '%3,500%' OR c.headcount_range LIKE '%4,000%') AND c.headcount_range NOT LIKE '%1,000,000%' AND c.headcount_range NOT LIKE '%50,000%'"
-        elif cs == "large_enterprise":  # 5,000+ employees
-            query += " AND (c.headcount_range LIKE '%5,000%' OR c.headcount_range LIKE '%6,000%' OR c.headcount_range LIKE '%7,000%' OR c.headcount_range LIKE '%8,000%' OR c.headcount_range LIKE '%10,000%' OR c.headcount_range LIKE '%30,000%' OR c.headcount_range LIKE '%50,000%' OR c.headcount_range LIKE '%200,000%' OR c.headcount_range LIKE '%1,000,000%' OR j.ats_platform = 'workday')"
+        cs = company_size.lower().replace(" ", "").replace("_", "-")
+        if cs in ("0-10", "seed-nano"):
+            query += " AND (c.headcount_range = '0 - 10')"
+        elif cs in ("10-50", "stealth-seed"):
+            query += " AND (c.headcount_range = '10 - 50')"
+        elif cs in ("50-100", "series-a"):
+            query += " AND (c.headcount_range = '50 - 100')"
+        elif cs in ("100-500", "series-b"):
+            query += " AND (c.headcount_range = '100 - 500')"
+        elif cs in ("500-1000", "series-c-d", "startup-small", "startupsmall"):
+            query += " AND (c.headcount_range = '500 - 1,000' OR c.headcount_range LIKE '100%' OR c.headcount_range LIKE '500%' OR j.ats_platform = 'ashby')"
+        elif cs in ("1000-5000", "mid-scaleup", "midscaleup"):
+            query += " AND (c.headcount_range = '1,000 - 5,000' OR c.headcount_range LIKE '2,%' OR c.headcount_range LIKE '3,%' OR c.headcount_range LIKE '4,%')"
+        elif cs in ("5000+", "large-enterprise", "largeenterprise"):
+            query += " AND (c.headcount_range = '50,000+' OR c.headcount_range = '5,000 - 50,000' OR c.headcount_range LIKE '5,%' OR c.headcount_range LIKE '6,%' OR c.headcount_range LIKE '7,%' OR c.headcount_range LIKE '8,%' OR c.headcount_range LIKE '10,%' OR c.headcount_range LIKE '30,%' OR c.headcount_range LIKE '200,%' OR c.headcount_range LIKE '1,000,000%' OR j.ats_platform = 'workday')"
+        elif cs in ("50000+", "mega-enterprise"):
+            query += " AND (c.headcount_range = '50,000+' OR c.headcount_range LIKE '200,%' OR c.headcount_range LIKE '1,000,000%')"
 
     # Work-Life Balance / Culture Rating filter (e.g. 4.0+)
     if min_wlb and min_wlb > 0:

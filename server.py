@@ -412,9 +412,14 @@ def dashboard_html():
                         </span>
                         <select id="companySizeSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
                             <option value="all">All Sizes</option>
-                            <option value="startup_small">🌱 &lt; 1,000 (Early/Mid Startup)</option>
-                            <option value="mid_scaleup">📈 1,000 - 5,000 (Scaleup)</option>
-                            <option value="large_enterprise">🏛️ 5,000+ (Large Enterprise / MNC)</option>
+                            <option value="0-10">🔬 0 - 10 (Stealth / Boutique)</option>
+                            <option value="10-50">🌱 10 - 50 (Seed / Early Stage)</option>
+                            <option value="50-100">🌿 50 - 100 (Series A Startup)</option>
+                            <option value="100-500">⚡ 100 - 500 (Series B Growth)</option>
+                            <option value="500-1000">🚀 500 - 1,000 (Series C/D Scale)</option>
+                            <option value="1000-5000">📈 1,000 - 5,000 (Scaleup / Unicorn)</option>
+                            <option value="5000+">🏛️ 5,000+ (Enterprise / MNC)</option>
+                            <option value="50000+">🌐 50,000+ (Global Megacorp)</option>
                         </select>
                     </div>
 
