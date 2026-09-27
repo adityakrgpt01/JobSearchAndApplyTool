@@ -30,13 +30,41 @@ def on_startup():
     init_db()
 
 @app.get("/api/jobs")
-def get_jobs(status: Optional[str] = None, tier: Optional[str] = None, platform: Optional[str] = None, hours: Optional[int] = 24):
-    jobs = list_jobs(status=status, salary_tier=tier, platform=platform, max_age_hours=hours)
+def get_jobs(
+    status: Optional[str] = None,
+    tier: Optional[str] = None,
+    platform: Optional[str] = None,
+    q: Optional[str] = None,
+    remote: Optional[bool] = None,
+    hours: Optional[int] = 24
+):
+    jobs = list_jobs(
+        status=status,
+        salary_tier=tier,
+        platform=platform,
+        search_query=q,
+        remote_only=remote,
+        max_age_hours=hours
+    )
     return {"jobs": jobs, "total": len(jobs)}
 
 @app.get("/api/stats")
-def get_stats(hours: Optional[int] = 24, platform: Optional[str] = None):
-    jobs = list_jobs(platform=platform, max_age_hours=hours)
+def get_stats(
+    hours: Optional[int] = 24,
+    platform: Optional[str] = None,
+    tier: Optional[str] = None,
+    status: Optional[str] = None,
+    q: Optional[str] = None,
+    remote: Optional[bool] = None
+):
+    jobs = list_jobs(
+        status=status,
+        salary_tier=tier,
+        platform=platform,
+        search_query=q,
+        remote_only=remote,
+        max_age_hours=hours
+    )
     tiers = {"40-50LPA": 0, "50-60LPA": 0, "60-70LPA": 0, "70+LPA": 0}
     status_counts = {"DISCOVERED": 0, "APPLYING": 0, "APPLIED": 0, "READY_TO_SUBMIT (DRY_RUN)": 0, "FAILED": 0}
     platforms = {}
@@ -158,40 +186,79 @@ def dashboard_html():
                 </div>
             </div>
 
-            <!-- Global Time Filter Toolbar -->
-            <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl my-6 flex flex-wrap items-center justify-between gap-4">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mr-2">
-                        <i class="fa-solid fa-clock text-blue-400"></i> Time Range:
-                    </span>
-                    <button onclick="setTimeFilter(24)" id="btnTime24" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 text-black transition">
-                        Last 24 Hours
-                    </button>
-                    <button onclick="setTimeFilter(48)" id="btnTime48" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
-                        Last 48 Hours
-                    </button>
-                    <button onclick="setTimeFilter(168)" id="btnTime168" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
-                        Last 7 Days
-                    </button>
-                    <button onclick="setTimeFilter(0)" id="btnTimeAll" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
-                        All Time (Full DB)
-                    </button>
+            <!-- Global Multi-Criteria Filter Toolbar -->
+            <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl my-6 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <!-- Time Filters -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mr-2">
+                            <i class="fa-solid fa-clock text-blue-400"></i> Time Range:
+                        </span>
+                        <button onclick="setTimeFilter(24)" id="btnTime24" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 text-black transition">
+                            Last 24 Hours
+                        </button>
+                        <button onclick="setTimeFilter(48)" id="btnTime48" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                            Last 48 Hours
+                        </button>
+                        <button onclick="setTimeFilter(168)" id="btnTime168" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                            Last 7 Days
+                        </button>
+                        <button onclick="setTimeFilter(0)" id="btnTimeAll" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                            All Time (Full DB)
+                        </button>
+                    </div>
+
+                    <!-- Reset Filters Button -->
+                    <div>
+                        <button onclick="resetFilters()" class="text-xs font-semibold px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg flex items-center gap-1.5 transition border border-slate-700">
+                            <i class="fa-solid fa-arrow-rotate-left text-slate-400"></i> Reset Filters
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Platform Filter dropdown -->
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">
-                        <i class="fa-solid fa-layer-group text-purple-400"></i> Platform:
-                    </span>
-                    <select id="platformSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-1.5 text-slate-200 focus:outline-none focus:border-emerald-500">
-                        <option value="all">All Sources</option>
-                        <option value="linkedin">LinkedIn Stream</option>
-                        <option value="greenhouse">Greenhouse ATS</option>
-                        <option value="instahyre">Instahyre Unicorns</option>
-                        <option value="ashby">Ashby Scaleups</option>
-                        <option value="workday">Workday CXS</option>
-                        <option value="amazon">Amazon Direct API</option>
-                    </select>
+                <!-- Secondary Filter Row: Search, Platform, Tier, Remote -->
+                <div class="pt-3 border-t border-slate-800/80 flex flex-wrap items-center gap-3">
+                    <!-- Instant Search -->
+                    <div class="relative flex-1 min-w-[240px]">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                        <input type="text" id="jobSearchInput" oninput="debounceFilter()" placeholder="Search title, company, skills (Go, Java, K8s, Python)..." class="w-full bg-slate-950 border border-slate-700 text-xs rounded-lg pl-8 pr-3 py-2 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500" />
+                    </div>
+
+                    <!-- Platform Select -->
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                            <i class="fa-solid fa-layer-group text-purple-400 mr-1"></i>Platform:
+                        </span>
+                        <select id="platformSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <option value="all">All Sources</option>
+                            <option value="linkedin">LinkedIn Stream</option>
+                            <option value="greenhouse">Greenhouse ATS</option>
+                            <option value="instahyre">Instahyre Unicorns</option>
+                            <option value="ashby">Ashby Scaleups</option>
+                            <option value="workday">Workday CXS</option>
+                            <option value="amazon">Amazon Direct API</option>
+                        </select>
+                    </div>
+
+                    <!-- Salary Tier Select -->
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                            <i class="fa-solid fa-money-bill-wave text-emerald-400 mr-1"></i>Tier:
+                        </span>
+                        <select id="tierSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <option value="all">All Tiers (40+ LPA)</option>
+                            <option value="70+LPA">🌟 70+ LPA (HFT / Tier-1 US)</option>
+                            <option value="60-70LPA">🟣 60-70 LPA</option>
+                            <option value="50-60LPA">🔵 50-60 LPA</option>
+                            <option value="40-50LPA">🟢 40-50 LPA</option>
+                        </select>
+                    </div>
+
+                    <!-- Remote Only Checkbox -->
+                    <label class="flex items-center gap-2 text-xs font-semibold text-slate-300 bg-slate-950 px-3 py-2 rounded-lg border border-slate-700 cursor-pointer hover:border-slate-600 select-none">
+                        <input type="checkbox" id="remoteFilter" onchange="loadAllData()" class="accent-emerald-500 rounded cursor-pointer" />
+                        <span><i class="fa-solid fa-house-laptop text-emerald-400 mr-1"></i>Remote Only</span>
+                    </label>
                 </div>
             </div>
 
@@ -350,6 +417,39 @@ def dashboard_html():
         <script>
             let chartInstance = null;
             let currentHours = 24; // Default to last 24h!
+            let searchDebounceTimer = null;
+
+            function debounceFilter() {
+                clearTimeout(searchDebounceTimer);
+                searchDebounceTimer = setTimeout(() => {
+                    loadAllData();
+                }, 300);
+            }
+
+            function resetFilters() {
+                const searchEl = document.getElementById('jobSearchInput');
+                if (searchEl) searchEl.value = '';
+                const platEl = document.getElementById('platformSelect');
+                if (platEl) platEl.value = 'all';
+                const tierEl = document.getElementById('tierSelect');
+                if (tierEl) tierEl.value = 'all';
+                const remEl = document.getElementById('remoteFilter');
+                if (remEl) remEl.checked = false;
+                setTimeFilter(24);
+            }
+
+            function getFilterParams() {
+                const platform = document.getElementById('platformSelect') ? document.getElementById('platformSelect').value : 'all';
+                const tier = document.getElementById('tierSelect') ? document.getElementById('tierSelect').value : 'all';
+                const remote = document.getElementById('remoteFilter') && document.getElementById('remoteFilter').checked ? 'true' : '';
+                const q = document.getElementById('jobSearchInput') ? document.getElementById('jobSearchInput').value.trim() : '';
+
+                let params = `hours=${currentHours}&platform=${encodeURIComponent(platform)}`;
+                if (tier && tier !== 'all') params += `&tier=${encodeURIComponent(tier)}`;
+                if (remote) params += `&remote=true`;
+                if (q) params += `&q=${encodeURIComponent(q)}`;
+                return params;
+            }
 
             function updateFilterLabel() {
                 let timeText = 'Posted within last 24h';
@@ -358,8 +458,11 @@ def dashboard_html():
                 else if (currentHours === 0) timeText = 'All time catalog';
 
                 const pSelect = document.getElementById('platformSelect');
-                const platText = pSelect.options[pSelect.selectedIndex].text;
-                document.getElementById('statTimeLabel').innerText = `${timeText} • ${platText}`;
+                const platText = pSelect ? pSelect.options[pSelect.selectedIndex].text : 'All Sources';
+                const tierSelect = document.getElementById('tierSelect');
+                const tierText = tierSelect && tierSelect.value !== 'all' ? ` • ${tierSelect.value}` : '';
+                const isRem = document.getElementById('remoteFilter') && document.getElementById('remoteFilter').checked ? ' • Remote Only' : '';
+                document.getElementById('statTimeLabel').innerText = `${timeText} • ${platText}${tierText}${isRem}`;
             }
 
             function setTimeFilter(hours) {
@@ -385,9 +488,9 @@ def dashboard_html():
 
             async function loadStats() {
                 try {
-                    const platform = document.getElementById('platformSelect') ? document.getElementById('platformSelect').value : 'all';
                     updateFilterLabel();
-                    const res = await fetch(`/api/stats?hours=${currentHours}&platform=${platform}`);
+                    const params = getFilterParams();
+                    const res = await fetch(`/api/stats?${params}`);
                     const data = await res.json();
                     
                     if (document.getElementById('statTotal')) document.getElementById('statTotal').innerText = data.total_jobs;
@@ -479,14 +582,14 @@ def dashboard_html():
 
             async function loadJobs() {
                 try {
-                    const platform = document.getElementById('platformSelect') ? document.getElementById('platformSelect').value : 'all';
-                    const res = await fetch(`/api/jobs?hours=${currentHours}&platform=${platform}`);
+                    const params = getFilterParams();
+                    const res = await fetch(`/api/jobs?${params}`);
                     const data = await res.json();
                     if (document.getElementById('jobCountBadge')) document.getElementById('jobCountBadge').innerText = `${data.total} Jobs`;
                     const tbody = document.getElementById('jobsTableBody');
                     if (!tbody) return;
                     if (data.jobs.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500">No jobs found for selected time range & source. Try expanding the time filter.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500">No jobs found matching your filters. Try adjusting your search term, tier, or expanding the time window.</td></tr>';
                         return;
                     }
 

@@ -246,6 +246,8 @@ def list_jobs(
     status: Optional[str] = None,
     salary_tier: Optional[str] = None,
     platform: Optional[str] = None,
+    search_query: Optional[str] = None,
+    remote_only: Optional[bool] = None,
     max_age_hours: Optional[int] = None,
     db_path: str = DB_PATH
 ) -> List[Dict[str, Any]]:
@@ -263,15 +265,21 @@ def list_jobs(
     WHERE 1=1
     """
     params = []
-    if status:
+    if status and status != "all":
         query += " AND j.status = ?"
         params.append(status)
-    if salary_tier:
+    if salary_tier and salary_tier != "all":
         query += " AND j.salary_tier = ?"
         params.append(salary_tier)
     if platform and platform != "all":
         query += " AND j.ats_platform = ?"
         params.append(platform)
+    if remote_only:
+        query += " AND (j.is_remote = 1 OR LOWER(j.location) LIKE '%remote%')"
+    if search_query and search_query.strip():
+        term = f"%{search_query.strip()}%"
+        query += " AND (j.company_name LIKE ? OR j.title LIKE ? OR j.location LIKE ? OR j.jd_content LIKE ?)"
+        params.extend([term, term, term, term])
 
     cursor.execute(query, params)
     rows = [dict(r) for r in cursor.fetchall()]
