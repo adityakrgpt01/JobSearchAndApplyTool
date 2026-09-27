@@ -431,6 +431,26 @@ def dashboard_html():
                 }
             }
 
+            function formatPostedTime(postedVal) {
+                if (!postedVal) return 'Recently';
+                const s = String(postedVal).trim();
+                const sLow = s.toLowerCase();
+                if (sLow.includes('today') || sLow.includes('hour') || sLow.includes('minute') || sLow.includes('just now')) return s;
+                if (sLow.includes('yesterday') || sLow.includes('1 day ago')) return 'Yesterday (1d ago)';
+                if (sLow.includes('2 days ago') || sLow.includes('2 day ago')) return '2 days ago';
+                
+                const d = new Date(s);
+                if (!isNaN(d.getTime())) {
+                    const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
+                    if (diffSec < 3600) return `${Math.max(1, Math.floor(diffSec / 60))}m ago`;
+                    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+                    const days = Math.floor(diffSec / 86400);
+                    if (days === 1) return 'Yesterday (1d ago)';
+                    return `${days}d ago`;
+                }
+                return s;
+            }
+
             async function loadJobs() {
                 try {
                     const platform = document.getElementById('platformSelect') ? document.getElementById('platformSelect').value : 'all';
@@ -447,6 +467,8 @@ def dashboard_html():
                 tbody.innerHTML = data.jobs.map(j => {
                     const encComp = encodeURIComponent(j.company_name || '');
                     const encId = encodeURIComponent(j.job_id || '');
+                    const displayTime = formatPostedTime(j.posted_at);
+                    const isVeryRecent = displayTime.includes('h ago') || displayTime.includes('m ago') || displayTime.toLowerCase().includes('today') || displayTime.toLowerCase().includes('just now');
                     return `
                     <tr class="hover:bg-slate-800/40 transition">
                         <td class="px-5 py-4">
@@ -476,8 +498,11 @@ def dashboard_html():
                         </td>
                         <td class="px-5 py-4 text-xs text-slate-400">
                             <div><i class="fa-solid fa-location-dot mr-1"></i>${j.location || 'Multiple'}</div>
-                            <div class="text-slate-500 mt-0.5"><i class="fa-solid fa-clock mr-1"></i>${j.posted_at || 'Recent'}</div>
-                            ${j.is_remote ? '<span class="text-emerald-400 text-[10px] font-bold uppercase mt-0.5 inline-block">Remote Eligible</span>' : ''}
+                            <div class="mt-1 flex items-center gap-1.5">
+                                <i class="fa-solid fa-clock text-[11px] ${isVeryRecent ? 'text-emerald-400' : 'text-slate-500'}"></i>
+                                <span class="${isVeryRecent ? 'text-emerald-400 font-semibold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/60 text-[11px]' : 'text-slate-400 text-xs'}">${displayTime}</span>
+                            </div>
+                            ${j.is_remote ? '<span class="text-emerald-400 text-[10px] font-bold uppercase mt-1 inline-block">Remote Eligible</span>' : ''}
                         </td>
                         <td class="px-5 py-4">
                             <span class="px-2.5 py-1 text-xs rounded-full font-medium ${

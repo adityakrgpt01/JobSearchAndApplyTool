@@ -181,7 +181,7 @@ def parse_posted_dt(val: Optional[str]) -> Optional[datetime]:
         return None
     val = str(val).strip()
     try:
-        dt = datetime.fromisoformat(val)
+        dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         return dt
@@ -192,6 +192,37 @@ def parse_posted_dt(val: Optional[str]) -> Optional[datetime]:
     except Exception:
         pass
     return None
+
+def get_job_sort_timestamp(row: Dict[str, Any]) -> float:
+    now = datetime.now(timezone.utc)
+    posted = str(row.get('posted_at') or '').strip()
+    p_low = posted.lower()
+    
+    if any(k in p_low for k in ["just now", "minute"]):
+        return now.timestamp()
+    if "hour" in p_low:
+        m = re.search(r"(\d+)\s+hour", p_low)
+        hours = int(m.group(1)) if m else 1
+        return now.timestamp() - hours * 3600
+    if "today" in p_low:
+        return now.timestamp() - 4 * 3600
+    if "yesterday" in p_low or "1 day ago" in p_low:
+        return now.timestamp() - 24 * 3600
+    if "2 days ago" in p_low:
+        return now.timestamp() - 48 * 3600
+    m_days = re.search(r"(\d+)\s+days?\s+ago", p_low)
+    if m_days:
+        return now.timestamp() - int(m_days.group(1)) * 86400
+        
+    dt = parse_posted_dt(posted)
+    if dt:
+        return dt.timestamp()
+        
+    disc = parse_posted_dt(row.get('discovered_at'))
+    if disc:
+        return disc.timestamp()
+        
+    return 0
 
 def is_within_age(posted_at: Optional[str], discovered_at: Optional[str], max_age_hours: Optional[int]) -> bool:
     if not max_age_hours or max_age_hours <= 0:
@@ -256,7 +287,6 @@ def list_jobs(
         query += " AND j.ats_platform = ?"
         params.append(platform)
 
-    query += " ORDER BY j.posted_at DESC, j.discovered_at DESC"
     cursor.execute(query, params)
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
@@ -264,6 +294,7 @@ def list_jobs(
     if max_age_hours and max_age_hours > 0:
         rows = [r for r in rows if is_within_age(r.get("posted_at"), r.get("discovered_at"), max_age_hours)]
 
+    rows.sort(key=get_job_sort_timestamp, reverse=True)
     return rows
 
 def update_job_status(job_id: str, status: str, apply_log: str = "", screenshot_path: str = "", db_path: str = DB_PATH):

@@ -37,9 +37,15 @@ def is_backend_role(title: str) -> bool:
         return False
     return any(k in t for k in BACKEND_KEYWORDS)
 
-def is_recent(posted_on: str) -> bool:
+def is_recent(posted_on: str, max_age_hours: int = 24) -> bool:
     p = posted_on.lower()
-    return "today" in p or "yesterday" in p or "1 day ago" in p or "2 days ago" in p
+    if "today" in p or "hour" in p or "minute" in p or "just now" in p:
+        return True
+    if "yesterday" in p or "1 day ago" in p:
+        return max_age_hours >= 24
+    if "2 days ago" in p:
+        return max_age_hours >= 48
+    return False
 
 def load_verified_workday_endpoints() -> List[Dict[str, Any]]:
     """Extracts cleanly structured Workday CXS endpoints from dataset URLs."""
