@@ -196,68 +196,51 @@ def parse_posted_dt(val: Optional[str]) -> Optional[datetime]:
         pass
     return None
 
-def get_job_sort_timestamp(row: Dict[str, Any]) -> float:
+def compute_job_exact_age_hours(posted_at: Optional[str], discovered_at: Optional[str]) -> float:
     now = datetime.now(timezone.utc)
-    posted = str(row.get('posted_at') or '').strip()
-    p_low = posted.lower()
     
-    if any(k in p_low for k in ["just now", "minute"]):
-        return now.timestamp()
-    if "hour" in p_low:
-        m = re.search(r"(\d+)\s+hour", p_low)
-        hours = int(m.group(1)) if m else 1
-        return now.timestamp() - hours * 3600
-    if "today" in p_low:
-        return now.timestamp() - 4 * 3600
-    if "yesterday" in p_low or "1 day ago" in p_low:
-        return now.timestamp() - 24 * 3600
-    if "2 days ago" in p_low:
-        return now.timestamp() - 48 * 3600
-    m_days = re.search(r"(\d+)\s+days?\s+ago", p_low)
-    if m_days:
-        return now.timestamp() - int(m_days.group(1)) * 86400
+    if posted_at:
+        # 1. Absolute ISO / Date string
+        dt = parse_posted_dt(posted_at)
+        if dt:
+            return max(0.0, (now - dt).total_seconds() / 3600.0)
+            
+        # 2. Relative string: calculate offset + real time elapsed since discovery
+        p_lower = str(posted_at).lower().strip()
+        disc_dt = parse_posted_dt(discovered_at)
+        elapsed_since_scrape = max(0.0, (now - disc_dt).total_seconds() / 3600.0) if disc_dt else 0.0
         
-    dt = parse_posted_dt(posted)
-    if dt:
-        return dt.timestamp()
-        
-    disc = parse_posted_dt(row.get('discovered_at'))
-    if disc:
-        return disc.timestamp()
-        
-    return 0
+        if any(w in p_lower for w in ["just now", "minute"]):
+            return elapsed_since_scrape
+        m_hr = re.search(r"(\d+)\s+hour", p_lower)
+        if m_hr:
+            return float(m_hr.group(1)) + elapsed_since_scrape
+        if "today" in p_lower:
+            return 4.0 + elapsed_since_scrape
+        if "yesterday" in p_lower or "1 day ago" in p_lower:
+            return 24.0 + elapsed_since_scrape
+        if "2 days ago" in p_lower:
+            return 48.0 + elapsed_since_scrape
+        m_days = re.search(r"(\d+)\s+days?\s+ago", p_lower)
+        if m_days:
+            return (float(m_days.group(1)) * 24.0) + elapsed_since_scrape
+            
+    if discovered_at:
+        disc_dt = parse_posted_dt(discovered_at)
+        if disc_dt:
+            return max(0.0, (now - disc_dt).total_seconds() / 3600.0)
+            
+    return 999999.0
 
 def is_within_age(posted_at: Optional[str], discovered_at: Optional[str], max_age_hours: Optional[int]) -> bool:
     if not max_age_hours or max_age_hours <= 0:
         return True
-    
-    # 1. Check relative strings
-    if posted_at:
-        p_lower = str(posted_at).lower().strip()
-        if any(w in p_lower for w in ["today", "hour", "minute", "just now"]):
-            return True
-        if any(w in p_lower for w in ["yesterday", "1 day ago"]):
-            return max_age_hours >= 24
-        m = re.search(r"(\d+)\s+days?\s+ago", p_lower)
-        if m:
-            days = int(m.group(1))
-            return max_age_hours >= (days * 24)
-            
-        dt = parse_posted_dt(posted_at)
-        if dt:
-            now = datetime.now(timezone.utc)
-            diff_hours = (now - dt).total_seconds() / 3600.0
-            return diff_hours <= max_age_hours
+    return compute_job_exact_age_hours(posted_at, discovered_at) <= float(max_age_hours)
 
-    # 2. Fallback to discovered_at only if posted_at was absent
-    if not posted_at and discovered_at:
-        dt = parse_posted_dt(discovered_at)
-        if dt:
-            now = datetime.now(timezone.utc)
-            diff_hours = (now - dt).total_seconds() / 3600.0
-            return diff_hours <= max_age_hours
-
-    return False
+def get_job_sort_timestamp(row: Dict[str, Any]) -> float:
+    now = datetime.now(timezone.utc)
+    age_hours = compute_job_exact_age_hours(row.get('posted_at'), row.get('discovered_at'))
+    return now.timestamp() - (age_hours * 3600.0)
 
 def list_jobs(
     status: Optional[str] = None,
