@@ -36,7 +36,10 @@ def get_jobs(
     platform: Optional[str] = None,
     q: Optional[str] = None,
     remote: Optional[bool] = None,
-    hours: Optional[int] = 24
+    hours: Optional[float] = 24,
+    min_hours: Optional[float] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
 ):
     jobs = list_jobs(
         status=status,
@@ -44,13 +47,19 @@ def get_jobs(
         platform=platform,
         search_query=q,
         remote_only=remote,
-        max_age_hours=hours
+        max_age_hours=hours,
+        min_age_hours=min_hours,
+        start_date=start_date,
+        end_date=end_date
     )
     return {"jobs": jobs, "total": len(jobs)}
 
 @app.get("/api/stats")
 def get_stats(
-    hours: Optional[int] = 24,
+    hours: Optional[float] = 24,
+    min_hours: Optional[float] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     platform: Optional[str] = None,
     tier: Optional[str] = None,
     status: Optional[str] = None,
@@ -63,7 +72,10 @@ def get_stats(
         platform=platform,
         search_query=q,
         remote_only=remote,
-        max_age_hours=hours
+        max_age_hours=hours,
+        min_age_hours=min_hours,
+        start_date=start_date,
+        end_date=end_date
     )
     tiers = {"40-50LPA": 0, "50-60LPA": 0, "60-70LPA": 0, "70+LPA": 0}
     status_counts = {"DISCOVERED": 0, "APPLYING": 0, "APPLIED": 0, "READY_TO_SUBMIT (DRY_RUN)": 0, "FAILED": 0}
@@ -190,7 +202,7 @@ def dashboard_html():
             <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl my-6 space-y-3">
                 <div class="flex flex-wrap items-center justify-between gap-4">
                     <!-- Time Filters -->
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
                         <span class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mr-2">
                             <i class="fa-solid fa-clock text-blue-400"></i> Time Range:
                         </span>
@@ -206,6 +218,9 @@ def dashboard_html():
                         <button onclick="setTimeFilter(0)" id="btnTimeAll" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
                             All Time (Full DB)
                         </button>
+                        <button onclick="toggleCustomRange()" id="btnTimeCustom" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-sliders text-cyan-400"></i> Custom Range
+                        </button>
                     </div>
 
                     <!-- Reset Filters Button -->
@@ -214,6 +229,30 @@ def dashboard_html():
                             <i class="fa-solid fa-arrow-rotate-left text-slate-400"></i> Reset Filters
                         </button>
                     </div>
+                </div>
+
+                <!-- Custom Range Sub-bar (Hidden by default) -->
+                <div id="customRangeBar" class="hidden pt-3 border-t border-slate-800/80 bg-slate-950/60 p-3 rounded-lg flex flex-wrap items-center gap-4 text-xs text-slate-300">
+                    <span class="font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-calendar-days"></i> Custom Filter:
+                    </span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400 font-medium">Last N Hours:</span>
+                        <input type="number" id="customHoursInput" min="1" max="8760" placeholder="e.g. 12 or 72" class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-slate-200 focus:outline-none focus:border-cyan-400" />
+                    </div>
+                    <span class="text-slate-500 font-bold">— OR —</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400 font-medium">Date Range:</span>
+                        <input type="date" id="customStartDate" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-cyan-400" />
+                        <span class="text-slate-500">to</span>
+                        <input type="date" id="customEndDate" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-cyan-400" />
+                    </div>
+                    <button onclick="applyCustomRange()" class="px-3.5 py-1 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold rounded shadow transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-check"></i> Apply Range
+                    </button>
+                    <button onclick="clearCustomRange()" class="text-xs text-slate-400 hover:text-white underline">
+                        Clear
+                    </button>
                 </div>
 
                 <!-- Secondary Filter Row: Search, Platform, Tier, Remote -->
@@ -417,6 +456,8 @@ def dashboard_html():
         <script>
             let chartInstance = null;
             let currentHours = 24; // Default to last 24h!
+            let customStartDate = '';
+            let customEndDate = '';
             let searchDebounceTimer = null;
 
             function debounceFilter() {
@@ -424,6 +465,62 @@ def dashboard_html():
                 searchDebounceTimer = setTimeout(() => {
                     loadAllData();
                 }, 300);
+            }
+
+            function toggleCustomRange() {
+                const bar = document.getElementById('customRangeBar');
+                if (bar) bar.classList.toggle('hidden');
+            }
+
+            function applyCustomRange() {
+                const hInput = document.getElementById('customHoursInput');
+                const sDate = document.getElementById('customStartDate');
+                const eDate = document.getElementById('customEndDate');
+
+                const hVal = hInput && hInput.value ? parseFloat(hInput.value) : null;
+                const sVal = sDate && sDate.value ? sDate.value : '';
+                const eVal = eDate && eDate.value ? eDate.value : '';
+
+                if (hVal && hVal > 0) {
+                    currentHours = hVal;
+                    customStartDate = '';
+                    customEndDate = '';
+                } else if (sVal || eVal) {
+                    currentHours = -1; // Flag indicating custom date range active
+                    customStartDate = sVal;
+                    customEndDate = eVal;
+                } else {
+                    alert("Please enter either a number of hours or select start/end dates.");
+                    return;
+                }
+
+                // Update UI button active states
+                document.querySelectorAll('.time-btn').forEach(btn => {
+                    btn.classList.remove('bg-emerald-500', 'text-black', 'bg-cyan-500');
+                    btn.classList.add('bg-slate-800', 'text-slate-300');
+                });
+                const customBtn = document.getElementById('btnTimeCustom');
+                if (customBtn) {
+                    customBtn.classList.remove('bg-slate-800', 'text-slate-300');
+                    customBtn.classList.add('bg-cyan-500', 'text-black');
+                }
+
+                updateFilterLabel();
+                loadAllData();
+            }
+
+            function clearCustomRange() {
+                const hInput = document.getElementById('customHoursInput');
+                if (hInput) hInput.value = '';
+                const sDate = document.getElementById('customStartDate');
+                if (sDate) sDate.value = '';
+                const eDate = document.getElementById('customEndDate');
+                if (eDate) eDate.value = '';
+                customStartDate = '';
+                customEndDate = '';
+                const bar = document.getElementById('customRangeBar');
+                if (bar) bar.classList.add('hidden');
+                setTimeFilter(24);
             }
 
             function resetFilters() {
@@ -435,7 +532,7 @@ def dashboard_html():
                 if (tierEl) tierEl.value = 'all';
                 const remEl = document.getElementById('remoteFilter');
                 if (remEl) remEl.checked = false;
-                setTimeFilter(24);
+                clearCustomRange();
             }
 
             function getFilterParams() {
@@ -444,7 +541,15 @@ def dashboard_html():
                 const remote = document.getElementById('remoteFilter') && document.getElementById('remoteFilter').checked ? 'true' : '';
                 const q = document.getElementById('jobSearchInput') ? document.getElementById('jobSearchInput').value.trim() : '';
 
-                let params = `hours=${currentHours}&platform=${encodeURIComponent(platform)}`;
+                let params = `platform=${encodeURIComponent(platform)}`;
+                if (currentHours >= 0) {
+                    params += `&hours=${currentHours}`;
+                } else {
+                    params += `&hours=0`;
+                    if (customStartDate) params += `&start_date=${encodeURIComponent(customStartDate)}`;
+                    if (customEndDate) params += `&end_date=${encodeURIComponent(customEndDate)}`;
+                }
+
                 if (tier && tier !== 'all') params += `&tier=${encodeURIComponent(tier)}`;
                 if (remote) params += `&remote=true`;
                 if (q) params += `&q=${encodeURIComponent(q)}`;
@@ -456,6 +561,12 @@ def dashboard_html():
                 if (currentHours === 48) timeText = 'Posted within last 48h';
                 else if (currentHours === 168) timeText = 'Posted within last 7 days';
                 else if (currentHours === 0) timeText = 'All time catalog';
+                else if (currentHours > 0) timeText = `Posted within last ${currentHours}h`;
+                else if (currentHours === -1) {
+                    if (customStartDate && customEndDate) timeText = `Range: ${customStartDate} to ${customEndDate}`;
+                    else if (customStartDate) timeText = `From: ${customStartDate} onwards`;
+                    else if (customEndDate) timeText = `Until: ${customEndDate}`;
+                }
 
                 const pSelect = document.getElementById('platformSelect');
                 const platText = pSelect ? pSelect.options[pSelect.selectedIndex].text : 'All Sources';
@@ -467,8 +578,17 @@ def dashboard_html():
 
             function setTimeFilter(hours) {
                 currentHours = hours;
+                customStartDate = '';
+                customEndDate = '';
+                const hInput = document.getElementById('customHoursInput');
+                if (hInput) hInput.value = '';
+                const sDate = document.getElementById('customStartDate');
+                if (sDate) sDate.value = '';
+                const eDate = document.getElementById('customEndDate');
+                if (eDate) eDate.value = '';
+
                 document.querySelectorAll('.time-btn').forEach(btn => {
-                    btn.classList.remove('bg-emerald-500', 'text-black');
+                    btn.classList.remove('bg-emerald-500', 'text-black', 'bg-cyan-500');
                     btn.classList.add('bg-slate-800', 'text-slate-300');
                 });
 

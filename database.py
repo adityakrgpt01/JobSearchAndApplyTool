@@ -232,10 +232,34 @@ def compute_job_exact_age_hours(posted_at: Optional[str], discovered_at: Optiona
             
     return 999999.0
 
-def is_within_age(posted_at: Optional[str], discovered_at: Optional[str], max_age_hours: Optional[int]) -> bool:
-    if not max_age_hours or max_age_hours <= 0:
-        return True
-    return compute_job_exact_age_hours(posted_at, discovered_at) <= float(max_age_hours)
+def is_within_age(
+    posted_at: Optional[str],
+    discovered_at: Optional[str],
+    max_age_hours: Optional[float] = None,
+    min_age_hours: Optional[float] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+) -> bool:
+    age_hours = compute_job_exact_age_hours(posted_at, discovered_at)
+    
+    if max_age_hours is not None and max_age_hours > 0:
+        if age_hours > float(max_age_hours):
+            return False
+            
+    if min_age_hours is not None and min_age_hours > 0:
+        if age_hours < float(min_age_hours):
+            return False
+
+    if start_date or end_date:
+        now = datetime.now(timezone.utc)
+        job_sort_dt = now - timedelta(hours=age_hours)
+        job_date_str = job_sort_dt.strftime("%Y-%m-%d")
+        if start_date and job_date_str < start_date:
+            return False
+        if end_date and job_date_str > end_date:
+            return False
+
+    return True
 
 def get_job_sort_timestamp(row: Dict[str, Any]) -> float:
     now = datetime.now(timezone.utc)
@@ -248,7 +272,10 @@ def list_jobs(
     platform: Optional[str] = None,
     search_query: Optional[str] = None,
     remote_only: Optional[bool] = None,
-    max_age_hours: Optional[int] = None,
+    max_age_hours: Optional[float] = None,
+    min_age_hours: Optional[float] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db_path: str = DB_PATH
 ) -> List[Dict[str, Any]]:
     conn = sqlite3.connect(db_path)
@@ -285,8 +312,18 @@ def list_jobs(
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
 
-    if max_age_hours and max_age_hours > 0:
-        rows = [r for r in rows if is_within_age(r.get("posted_at"), r.get("discovered_at"), max_age_hours)]
+    if (max_age_hours and max_age_hours > 0) or (min_age_hours and min_age_hours > 0) or start_date or end_date:
+        rows = [
+            r for r in rows
+            if is_within_age(
+                r.get("posted_at"),
+                r.get("discovered_at"),
+                max_age_hours=max_age_hours,
+                min_age_hours=min_age_hours,
+                start_date=start_date,
+                end_date=end_date
+            )
+        ]
 
     rows.sort(key=get_job_sort_timestamp, reverse=True)
     return rows
