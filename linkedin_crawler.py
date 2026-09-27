@@ -8,8 +8,9 @@ Strictly enforces f_TPR=r86400 (last 24 hours).
 import aiohttp
 import asyncio
 import urllib.parse
+import re
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Set
 from database import save_job
 from smart_due_diligence import perform_smart_due_diligence
@@ -79,6 +80,21 @@ async def fetch_linkedin_page(session: aiohttp.ClientSession, query: str, locati
                 job_id = f"li_{apply_url.split('-')[-1]}" if "-" in apply_url else f"li_{abs(hash(apply_url))}"
                 posted_time = time_elem.text.strip() if time_elem else "Within 24h"
 
+                # Calculate accurate posted_at from LinkedIn relative string
+                now_utc = datetime.now(timezone.utc)
+                exact_posted_iso = now_utc.isoformat()
+                p_low = posted_time.lower()
+                if "just now" in p_low or "minute" in p_low:
+                    exact_posted_iso = now_utc.isoformat()
+                else:
+                    m_hr = re.search(r"(\d+)\s*hour", p_low)
+                    if m_hr:
+                        exact_posted_iso = (now_utc - timedelta(hours=int(m_hr.group(1)))).isoformat()
+                    else:
+                        m_day = re.search(r"(\d+)\s*day", p_low)
+                        if m_day:
+                            exact_posted_iso = (now_utc - timedelta(days=int(m_day.group(1)))).isoformat()
+
                 t_low = title.lower()
                 if any(neg in t_low for neg in ["frontend", "front-end", "intern", "qa", "sdet"]):
                     continue
@@ -95,7 +111,7 @@ async def fetch_linkedin_page(session: aiohttp.ClientSession, query: str, locati
                     "ats_platform": "linkedin",
                     "apply_url": apply_url,
                     "jd_content": f"Title: {title} at {company_name}. Location: {loc}. Posted: {posted_time}.",
-                    "posted_at": datetime.now(timezone.utc).isoformat(),
+                    "posted_at": exact_posted_iso,
                     "experience_required": "4-6 Years (SDE-2 / Senior)",
                     "salary_tier": tier,
                     "estimated_ctc": est_ctc,

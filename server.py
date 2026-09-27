@@ -534,8 +534,11 @@ def dashboard_html():
                 }
             }
 
-            function formatPostedTime(postedVal, discoveredVal) {
-                if (!postedVal && !discoveredVal) return 'Recently';
+            function formatPostedTime(postedVal, discoveredVal, platform) {
+                const isInstahyre = String(platform || '').toLowerCase().includes('instahyre');
+                const prefix = isInstahyre ? 'Indexed ' : '';
+
+                if (!postedVal && !discoveredVal) return isInstahyre ? 'Recently indexed' : 'Recently';
                 const s = String(postedVal || '').trim();
                 const sLow = s.toLowerCase();
 
@@ -543,12 +546,12 @@ def dashboard_html():
                 const d = new Date(s);
                 if (!isNaN(d.getTime())) {
                     const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
-                    if (diffSec < 0) return 'Just now';
-                    if (diffSec < 3600) return `${Math.max(1, Math.floor(diffSec / 60))}m ago`;
-                    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+                    if (diffSec < 0) return `${prefix}Just now`;
+                    if (diffSec < 3600) return `${prefix}${Math.max(1, Math.floor(diffSec / 60))}m ago`;
+                    if (diffSec < 86400) return `${prefix}${Math.floor(diffSec / 3600)}h ago`;
                     const days = Math.floor(diffSec / 86400);
-                    if (days === 1) return 'Yesterday (1d ago)';
-                    return `${days}d ago`;
+                    if (days === 1) return isInstahyre ? 'Indexed Yesterday' : 'Yesterday (1d ago)';
+                    return `${prefix}${days}d ago`;
                 }
 
                 // 2. If it's a relative string from scraping (e.g. Workday "Posted Yesterday"),
@@ -563,21 +566,21 @@ def dashboard_html():
 
                 if (sLow.includes('just now') || sLow.includes('minute')) {
                     const totalHours = Math.floor(discElapsedHours);
-                    return totalHours < 1 ? 'Just now' : `${totalHours}h ago`;
+                    return totalHours < 1 ? `${prefix}Just now` : `${prefix}${totalHours}h ago`;
                 }
                 if (sLow.includes('today')) {
                     const totalHours = Math.floor(4 + discElapsedHours);
-                    return totalHours < 24 ? `${totalHours}h ago` : 'Yesterday (1d ago)';
+                    return totalHours < 24 ? `${prefix}${totalHours}h ago` : (isInstahyre ? 'Indexed Yesterday' : 'Yesterday (1d ago)');
                 }
                 if (sLow.includes('yesterday') || sLow.includes('1 day ago')) {
                     const totalHours = Math.floor(24 + discElapsedHours);
-                    return totalHours < 48 ? 'Yesterday (1d ago)' : '2 days ago';
+                    return totalHours < 48 ? (isInstahyre ? 'Indexed Yesterday' : 'Yesterday (1d ago)') : `${prefix}2 days ago`;
                 }
                 if (sLow.includes('2 days ago') || sLow.includes('2 day ago')) {
                     const totalDays = Math.floor((48 + discElapsedHours) / 24);
-                    return `${totalDays} days ago`;
+                    return `${prefix}${totalDays} days ago`;
                 }
-                return s || 'Recently';
+                return s || (isInstahyre ? 'Recently indexed' : 'Recently');
             }
 
             async function loadJobs() {
@@ -596,7 +599,7 @@ def dashboard_html():
                 tbody.innerHTML = data.jobs.map(j => {
                     const encComp = encodeURIComponent(j.company_name || '');
                     const encId = encodeURIComponent(j.job_id || '');
-                    const displayTime = formatPostedTime(j.posted_at, j.discovered_at);
+                    const displayTime = formatPostedTime(j.posted_at, j.discovered_at, j.ats_platform);
                     const isVeryRecent = displayTime.includes('h ago') || displayTime.includes('m ago') || displayTime.toLowerCase().includes('today') || displayTime.toLowerCase().includes('just now');
                     return `
                     <tr class="hover:bg-slate-800/40 transition">
