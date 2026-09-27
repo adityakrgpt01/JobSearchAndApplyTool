@@ -21,13 +21,34 @@ from unified_pipeline import run_unified_discovery, audit_and_clean_database_lin
 from workday_resilient_scanner import rerun_failed_endpoints
 from stealth_applier import StealthApplier
 
+import asyncio
+
 app = FastAPI(title="JobSearchAndApplyTool - Command Center")
 os.makedirs("screenshots", exist_ok=True)
 app.mount("/screenshots", StaticFiles(directory="screenshots"), name="screenshots")
 
+_IS_CRAWLING = False
+
+async def continuous_crawler_worker():
+    global _IS_CRAWLING
+    while True:
+        try:
+            _IS_CRAWLING = True
+            # 1. Run main rotating discovery
+            await run_unified_discovery(24)
+            # 2. Automatically retry previously failed endpoints with adaptive backoff
+            await rerun_failed_endpoints()
+        except Exception as e:
+            print(f"Continuous crawler note: {e}")
+        finally:
+            _IS_CRAWLING = False
+        await asyncio.sleep(15)  # Wait 15 seconds between completion and next rotating batch
+
 @app.on_event("startup")
-def on_startup():
+async def on_startup():
     init_db()
+    # Launch persistent background crawler that cycles continuously across all 6,000+ companies
+    asyncio.create_task(continuous_crawler_worker())
 
 @app.get("/api/jobs")
 def get_jobs(
@@ -36,6 +57,7 @@ def get_jobs(
     platform: Optional[str] = None,
     q: Optional[str] = None,
     remote: Optional[bool] = None,
+    exclude_remote: Optional[bool] = None,
     hours: Optional[float] = 24,
     min_hours: Optional[float] = None,
     start_date: Optional[str] = None,
@@ -47,6 +69,7 @@ def get_jobs(
         platform=platform,
         search_query=q,
         remote_only=remote,
+        exclude_remote=exclude_remote,
         max_age_hours=hours,
         min_age_hours=min_hours,
         start_date=start_date,
@@ -64,7 +87,8 @@ def get_stats(
     tier: Optional[str] = None,
     status: Optional[str] = None,
     q: Optional[str] = None,
-    remote: Optional[bool] = None
+    remote: Optional[bool] = None,
+    exclude_remote: Optional[bool] = None
 ):
     jobs = list_jobs(
         status=status,
@@ -72,6 +96,7 @@ def get_stats(
         platform=platform,
         search_query=q,
         remote_only=remote,
+        exclude_remote=exclude_remote,
         max_age_hours=hours,
         min_age_hours=min_hours,
         start_date=start_date,
@@ -105,8 +130,11 @@ def get_company(company_name: str):
 
 @app.post("/api/scan")
 async def trigger_scan(background_tasks: BackgroundTasks, hours: Optional[int] = 24):
-    background_tasks.add_task(run_unified_discovery, hours)
-    return {"status": "Unified Multi-Platform Discovery & Link Verification started in background"}
+    global _IS_CRAWLING
+    if not _IS_CRAWLING:
+        background_tasks.add_task(run_unified_discovery, hours)
+        return {"status": "Discovery crawl launched"}
+    return {"status": "Background crawler is already actively scanning the next batch"}
 
 @app.post("/api/audit")
 async def trigger_audit():
@@ -183,6 +211,9 @@ def dashboard_html():
                     <p class="text-slate-400 text-sm mt-1">Autonomous Discovery • Senior Backend / SDE-2 (5 YoE) • 40L to 70L+ Compensation</p>
                 </div>
                 <div class="flex items-center gap-3">
+                    <span id="autoRefreshBadge" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-900 text-slate-300 border border-slate-700 flex items-center gap-1.5">
+                        <i class="fa-solid fa-arrows-rotate text-emerald-400"></i> Auto-updates in <span id="autoRefreshCountdown" class="font-bold text-emerald-400">15</span>s
+                    </span>
                     <span id="liveSyncStatus" class="hidden text-xs px-2.5 py-1.5 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1.5 animate-pulse">
                         <i class="fa-solid fa-arrows-rotate animate-spin"></i> Syncing Fresh Jobs...
                     </span>
@@ -209,19 +240,40 @@ def dashboard_html():
                         <span class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mr-2">
                             <i class="fa-solid fa-clock text-blue-400"></i> Time Range:
                         </span>
+                        <button onclick="setTimeFilter(1)" id="btnTime1" class="time-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                            1 Hour
+                        </button>
+                        <button onclick="setTimeFilter(2)" id="btnTime2" class="time-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                            2 Hours
+                        </button>
+                        <button onclick="setTimeFilter(3)" id="btnTime3" class="time-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                            3 Hours
+                        </button>
+                        <button onclick="setTimeFilter(4)" id="btnTime4" class="time-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                            4 Hours
+                        </button>
+                        <button onclick="setTimeFilter(6)" id="btnTime6" class="time-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                            6 Hours
+                        </button>
+                        <button onclick="setTimeFilter(8)" id="btnTime8" class="time-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                            8 Hours
+                        </button>
+                        <button onclick="setTimeFilter(16)" id="btnTime16" class="time-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                            16 Hours
+                        </button>
                         <button onclick="setTimeFilter(24)" id="btnTime24" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 text-black transition">
-                            Last 24 Hours
+                            24 Hours
                         </button>
-                        <button onclick="setTimeFilter(48)" id="btnTime48" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
-                            Last 48 Hours
+                        <button onclick="setTimeFilter(48)" id="btnTime48" class="time-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                            48 Hours
                         </button>
-                        <button onclick="setTimeFilter(168)" id="btnTime168" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
-                            Last 7 Days
+                        <button onclick="setTimeFilter(168)" id="btnTime168" class="time-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                            7 Days
                         </button>
-                        <button onclick="setTimeFilter(0)" id="btnTimeAll" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
-                            All Time (Full DB)
+                        <button onclick="setTimeFilter(0)" id="btnTimeAll" class="time-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                            All Time
                         </button>
-                        <button onclick="toggleCustomRange()" id="btnTimeCustom" class="time-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5">
+                        <button onclick="toggleCustomRange()" id="btnTimeCustom" class="time-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5">
                             <i class="fa-solid fa-sliders text-cyan-400"></i> Custom Range
                         </button>
                     </div>
@@ -266,20 +318,47 @@ def dashboard_html():
                         <input type="text" id="jobSearchInput" oninput="debounceFilter()" placeholder="Search title, company, skills (Go, Java, K8s, Python)..." class="w-full bg-slate-950 border border-slate-700 text-xs rounded-lg pl-8 pr-3 py-2 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500" />
                     </div>
 
-                    <!-- Platform Select -->
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                            <i class="fa-solid fa-layer-group text-purple-400 mr-1"></i>Platform:
-                        </span>
-                        <select id="platformSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500">
-                            <option value="all">All Sources</option>
-                            <option value="linkedin">LinkedIn Stream</option>
-                            <option value="greenhouse">Greenhouse ATS</option>
-                            <option value="instahyre">Instahyre Unicorns</option>
-                            <option value="ashby">Ashby Scaleups</option>
-                            <option value="workday">Workday CXS</option>
-                            <option value="amazon">Amazon Direct API</option>
-                        </select>
+                    <!-- Multi-Platform Dropdown / Select -->
+                    <div class="relative" id="platformDropdownContainer">
+                        <button type="button" onclick="togglePlatformDropdown()" id="platformDropdownBtn" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-purple-400 flex items-center gap-2">
+                            <i class="fa-solid fa-layer-group text-purple-400"></i>
+                            <span id="platformDropdownLabel" class="font-medium">Platforms (All)</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 ml-1"></i>
+                        </button>
+                        <div id="platformDropdownMenu" class="hidden absolute left-0 mt-1 w-64 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 p-2.5 space-y-1.5 text-xs">
+                            <div class="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[11px] font-semibold text-slate-400">
+                                <span>SELECT PLATFORMS</span>
+                                <div class="space-x-2">
+                                    <button type="button" onclick="selectAllPlatforms(true)" class="text-purple-400 hover:underline">All</button>
+                                    <span class="text-slate-600">|</span>
+                                    <button type="button" onclick="selectAllPlatforms(false)" class="text-slate-400 hover:underline">Clear</button>
+                                </div>
+                            </div>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="linkedin" class="plat-checkbox accent-purple-500 rounded" checked onchange="onPlatformCheckboxChange()" />
+                                <span><i class="fa-brands fa-linkedin text-blue-400 w-4"></i> LinkedIn Stream</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="greenhouse" class="plat-checkbox accent-purple-500 rounded" checked onchange="onPlatformCheckboxChange()" />
+                                <span><i class="fa-solid fa-seedling text-emerald-400 w-4"></i> Greenhouse ATS</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="instahyre" class="plat-checkbox accent-purple-500 rounded" checked onchange="onPlatformCheckboxChange()" />
+                                <span><i class="fa-solid fa-bolt text-amber-400 w-4"></i> Instahyre Unicorns</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="ashby" class="plat-checkbox accent-purple-500 rounded" checked onchange="onPlatformCheckboxChange()" />
+                                <span><i class="fa-solid fa-shapes text-cyan-400 w-4"></i> Ashby Scaleups</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="workday" class="plat-checkbox accent-purple-500 rounded" checked onchange="onPlatformCheckboxChange()" />
+                                <span><i class="fa-solid fa-briefcase text-blue-500 w-4"></i> Workday CXS</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="amazon" class="plat-checkbox accent-purple-500 rounded" checked onchange="onPlatformCheckboxChange()" />
+                                <span><i class="fa-brands fa-amazon text-amber-500 w-4"></i> Amazon Direct API</span>
+                            </label>
+                        </div>
                     </div>
 
                     <!-- Salary Tier Select -->
@@ -296,11 +375,17 @@ def dashboard_html():
                         </select>
                     </div>
 
-                    <!-- Remote Only Checkbox -->
-                    <label class="flex items-center gap-2 text-xs font-semibold text-slate-300 bg-slate-950 px-3 py-2 rounded-lg border border-slate-700 cursor-pointer hover:border-slate-600 select-none">
-                        <input type="checkbox" id="remoteFilter" onchange="loadAllData()" class="accent-emerald-500 rounded cursor-pointer" />
-                        <span><i class="fa-solid fa-house-laptop text-emerald-400 mr-1"></i>Remote Only</span>
-                    </label>
+                    <!-- Remote Preference Selector (Any, Remote Only, Exclude Remote) -->
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                            <i class="fa-solid fa-house-laptop text-emerald-400 mr-1"></i>Workplace:
+                        </span>
+                        <select id="remoteModeSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <option value="any">🌐 Remote & Onsite (All)</option>
+                            <option value="remote_only">🏠 Remote Only</option>
+                            <option value="exclude_remote">🏢 Exclude Remote (Onsite / Hybrid Only)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -526,22 +611,67 @@ def dashboard_html():
                 setTimeFilter(24);
             }
 
+            function togglePlatformDropdown() {
+                const menu = document.getElementById('platformDropdownMenu');
+                if (menu) menu.classList.toggle('hidden');
+            }
+
+            // Close platform menu when clicking outside
+            document.addEventListener('click', (e) => {
+                const container = document.getElementById('platformDropdownContainer');
+                const menu = document.getElementById('platformDropdownMenu');
+                if (container && menu && !container.contains(e.target)) {
+                    menu.classList.add('hidden');
+                }
+            });
+
+            function getSelectedPlatforms() {
+                const cbs = document.querySelectorAll('.plat-checkbox:checked');
+                const total = document.querySelectorAll('.plat-checkbox').length;
+                if (cbs.length === 0 || cbs.length === total) {
+                    return 'all';
+                }
+                return Array.from(cbs).map(cb => cb.value).join(',');
+            }
+
+            function selectAllPlatforms(selectAll) {
+                document.querySelectorAll('.plat-checkbox').forEach(cb => {
+                    cb.checked = selectAll;
+                });
+                onPlatformCheckboxChange();
+            }
+
+            function onPlatformCheckboxChange() {
+                const cbs = document.querySelectorAll('.plat-checkbox:checked');
+                const total = document.querySelectorAll('.plat-checkbox').length;
+                const label = document.getElementById('platformDropdownLabel');
+                if (label) {
+                    if (cbs.length === total || cbs.length === 0) {
+                        label.innerText = 'Platforms (All)';
+                    } else if (cbs.length === 1) {
+                        label.innerText = `Platform (${cbs[0].value})`;
+                    } else {
+                        label.innerText = `Platforms (${cbs.length}/${total})`;
+                    }
+                }
+                loadAllData();
+            }
+
             function resetFilters() {
                 const searchEl = document.getElementById('jobSearchInput');
                 if (searchEl) searchEl.value = '';
-                const platEl = document.getElementById('platformSelect');
-                if (platEl) platEl.value = 'all';
+                selectAllPlatforms(true);
                 const tierEl = document.getElementById('tierSelect');
                 if (tierEl) tierEl.value = 'all';
-                const remEl = document.getElementById('remoteFilter');
-                if (remEl) remEl.checked = false;
+                const remModeEl = document.getElementById('remoteModeSelect');
+                if (remModeEl) remModeEl.value = 'any';
                 clearCustomRange();
             }
 
             function getFilterParams() {
-                const platform = document.getElementById('platformSelect') ? document.getElementById('platformSelect').value : 'all';
+                const platform = getSelectedPlatforms();
                 const tier = document.getElementById('tierSelect') ? document.getElementById('tierSelect').value : 'all';
-                const remote = document.getElementById('remoteFilter') && document.getElementById('remoteFilter').checked ? 'true' : '';
+                const remoteMode = document.getElementById('remoteModeSelect') ? document.getElementById('remoteModeSelect').value : 'any';
                 const q = document.getElementById('jobSearchInput') ? document.getElementById('jobSearchInput').value.trim() : '';
 
                 let params = `platform=${encodeURIComponent(platform)}`;
@@ -554,7 +684,8 @@ def dashboard_html():
                 }
 
                 if (tier && tier !== 'all') params += `&tier=${encodeURIComponent(tier)}`;
-                if (remote) params += `&remote=true`;
+                if (remoteMode === 'remote_only') params += `&remote=true`;
+                if (remoteMode === 'exclude_remote') params += `&exclude_remote=true`;
                 if (q) params += `&q=${encodeURIComponent(q)}`;
                 return params;
             }
@@ -571,12 +702,17 @@ def dashboard_html():
                     else if (customEndDate) timeText = `Until: ${customEndDate}`;
                 }
 
-                const pSelect = document.getElementById('platformSelect');
-                const platText = pSelect ? pSelect.options[pSelect.selectedIndex].text : 'All Sources';
+                const selPlats = getSelectedPlatforms();
+                const platText = selPlats === 'all' ? 'All Platforms' : `Platforms: ${selPlats}`;
                 const tierSelect = document.getElementById('tierSelect');
                 const tierText = tierSelect && tierSelect.value !== 'all' ? ` • ${tierSelect.value}` : '';
-                const isRem = document.getElementById('remoteFilter') && document.getElementById('remoteFilter').checked ? ' • Remote Only' : '';
-                document.getElementById('statTimeLabel').innerText = `${timeText} • ${platText}${tierText}${isRem}`;
+                
+                const remoteMode = document.getElementById('remoteModeSelect') ? document.getElementById('remoteModeSelect').value : 'any';
+                let remText = '';
+                if (remoteMode === 'remote_only') remText = ' • Remote Only';
+                else if (remoteMode === 'exclude_remote') remText = ' • Onsite/Hybrid Only';
+
+                document.getElementById('statTimeLabel').innerText = `${timeText} • ${platText}${tierText}${remText}`;
             }
 
             function setTimeFilter(hours) {
@@ -595,10 +731,8 @@ def dashboard_html():
                     btn.classList.add('bg-slate-800', 'text-slate-300');
                 });
 
-                let activeId = 'btnTime24';
-                if (hours === 48) activeId = 'btnTime48';
-                else if (hours === 168) activeId = 'btnTime168';
-                else if (hours === 0) activeId = 'btnTimeAll';
+                let activeId = `btnTime${hours}`;
+                if (hours === 0) activeId = 'btnTimeAll';
 
                 const activeBtn = document.getElementById(activeId);
                 if (activeBtn) {
@@ -1055,11 +1189,21 @@ def dashboard_html():
                 // 1. Instantly render cached database listings & stats
                 loadAllData();
 
-                // 2. Automatically trigger live background discovery and failed company resync
+                // 2. Automatically trigger live background discovery and failed company resync on page load
                 triggerBackgroundAutoSync();
 
-                // 3. Periodic UI polling every 15s to display freshly scraped roles seamlessly
-                setInterval(loadAllData, 15000);
+                // 3. Smooth auto-update loop with live countdown every 15s
+                let countdownSeconds = 15;
+                setInterval(() => {
+                    countdownSeconds -= 1;
+                    const cdSpan = document.getElementById('autoRefreshCountdown');
+                    if (cdSpan) cdSpan.innerText = countdownSeconds;
+
+                    if (countdownSeconds <= 0) {
+                        countdownSeconds = 15;
+                        loadAllData();
+                    }
+                }, 1000);
             });
 
             async function triggerBackgroundAutoSync() {

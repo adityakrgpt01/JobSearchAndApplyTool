@@ -15,7 +15,7 @@ import aiohttp
 import asyncio
 from datetime import datetime, timezone
 from typing import List, Dict, Any
-from database import save_job
+from database import save_job, log_failure, mark_failure_resolved
 from smart_due_diligence import perform_smart_due_diligence
 from salary_classifier import classify_salary
 
@@ -26,12 +26,16 @@ DATASET_URLS = [
     'https://raw.githubusercontent.com/SimplifyJobs/Summer2026-Internships/dev/.github/scripts/listings.json'
 ]
 
+from experience_filter import is_qualified_seniority_and_exp
+
 BACKEND_KEYWORDS = [
     "backend", "back end", "back-end", "distributed", "sde 2", "sde-2",
     "sde ii", "software engineer ii", "senior software engineer", "software development engineer ii"
 ]
 
-def is_backend_role(title: str) -> bool:
+def is_backend_role(title: str, jd_text: str = "") -> bool:
+    if not is_qualified_seniority_and_exp(title, jd_text):
+        return False
     t = title.lower()
     if any(neg in t for neg in ["frontend", "front-end", "intern", "qa", "sdet", "warehouse", "sales", "account manager"]):
         return False
@@ -74,6 +78,54 @@ def load_verified_workday_endpoints() -> List[Dict[str, Any]]:
                             }
         except Exception:
             pass
+
+    # Load all 1,812 enterprise Workday endpoints from local verified dataset
+    try:
+        import os
+        if os.path.exists("workday_2000.json"):
+            with open("workday_2000.json", "r") as f:
+                saved_wd = json.load(f)
+                for item in saved_wd:
+                    host = item.get("host", "").lower()
+                    tenant = item.get("tenant", "")
+                    board = item.get("board", "")
+                    key = f"{host}/{tenant}/{board}"
+                    if key not in endpoints:
+                        endpoints[key] = {
+                            "company_name": item.get("company_name", "").strip() or tenant.capitalize(),
+                            "host": host,
+                            "tenant": tenant,
+                            "board": board,
+                            "api_url": item.get("api_url") or f"https://{host}/wday/cxs/{tenant}/{board}/jobs"
+                        }
+    except Exception as e:
+        pass
+
+    # Inject verified MNC directory Workday companies
+    try:
+        import sqlite3
+        conn = sqlite3.connect("jobs.db")
+        c = conn.cursor()
+        c.execute("SELECT company_name, direct_career_url FROM mnc_directory WHERE ats_platform = 'workday'")
+        for cname, u in c.fetchall():
+            m = re.search(r'https://([a-zA-Z0-9_\-\.]+myworkdayjobs\.com)/(?:[a-zA-Z]{2}-[a-zA-Z]{2}/)?([a-zA-Z0-9_\-]+)', u)
+            if m:
+                host = m.group(1).lower()
+                board = m.group(2)
+                tenant = host.split('.')[0]
+                key = f"{host}/{tenant}/{board}"
+                if key not in endpoints:
+                    endpoints[key] = {
+                        "company_name": cname.strip(),
+                        "host": host,
+                        "tenant": tenant,
+                        "board": board,
+                        "api_url": f"https://{host}/wday/cxs/{tenant}/{board}/jobs"
+                    }
+        conn.close()
+    except Exception:
+        pass
+
     return list(endpoints.values())
 
 async def scan_single_workday(session: aiohttp.ClientSession, comp: Dict[str, Any], sem: asyncio.Semaphore) -> List[Dict[str, Any]]:
@@ -92,8 +144,10 @@ async def scan_single_workday(session: aiohttp.ClientSession, comp: Dict[str, An
         try:
             async with session.post(api_url, json=payload, timeout=aiohttp.ClientTimeout(total=7)) as resp:
                 if resp.status != 200:
+                    log_failure("workday", name, api_url, f"HTTP {resp.status}", resp.status)
                     return []
                 data = await resp.json()
+                mark_failure_resolved(api_url)
                 postings = data.get("jobPostings", [])
 
                 for j in postings:
@@ -138,8 +192,10 @@ async def scan_single_workday(session: aiohttp.ClientSession, comp: Dict[str, An
                     }
                     save_job(rec)
                     discovered.append(rec)
-        except Exception:
-            pass
+        except asyncio.TimeoutError:
+            log_failure("workday", name, api_url, "Connection Timeout (WAF/Akamai rate-limit)", 408)
+        except Exception as e:
+            log_failure("workday", name, api_url, str(e), 500)
 
     return discovered
 

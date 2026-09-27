@@ -25,6 +25,8 @@ from workday_scanner import run_workday_cxs_pipeline
 from instahyre_deep_scanner import scan_instahyre_page
 from linkedin_crawler import run_partitioned_linkedin_crawler, scan_amazon_jobs
 
+from experience_filter import is_qualified_seniority_and_exp
+
 DISALLOWED_KEYWORDS = [
     "frontend", "front-end", "front end", "android", "ios", "react", "angular",
     "qa engineer", "qa tester", "sdet", "intern", "internship", "graduate",
@@ -36,7 +38,7 @@ ALLOWED_KEYWORDS = [
     "backend", "back end", "back-end", "distributed", "sde 2", "sde-2", "sde ii",
     "software engineer ii", "senior software engineer", "software development engineer ii",
     "software engineer 2", "senior backend engineer", "senior software developer",
-    "staff backend", "platform engineer", "systems engineer", "java developer", "golang"
+    "platform engineer", "systems engineer", "java developer", "golang"
 ]
 
 INDIA_REGIONS = [
@@ -44,19 +46,23 @@ INDIA_REGIONS = [
     "gurgaon", "gurugram", "delhi", "noida", "chennai", "remote", "anywhere", "work from home"
 ]
 
-def is_qualified_job(title: str, location: str) -> bool:
+def is_qualified_job(title: str, location: str, jd_text: str = "") -> bool:
     t = (title or "").lower()
     loc = (location or "").lower()
 
-    # 1. Negative title filter
+    # 1. Seniority & max experience check (excludes lead, staff, principal, architect, and >6 YoE)
+    if not is_qualified_seniority_and_exp(title, jd_text):
+        return False
+
+    # 2. Negative title filter
     if any(d in t for d in DISALLOWED_KEYWORDS):
         return False
 
-    # 2. Positive backend / SDE-2 title filter
+    # 3. Positive backend / SDE-2 title filter
     if not any(a in t for a in ALLOWED_KEYWORDS):
         return False
 
-    # 3. Location filter (India or Remote)
+    # 4. Location filter (India or Remote)
     if not any(r in loc for r in INDIA_REGIONS):
         return False
 
@@ -195,14 +201,49 @@ async def run_unified_discovery(hours: int = 24) -> Dict[str, Any]:
     
     discovered_jobs = []
 
+    # Continuous Rotating Cursors across all 6,000+ registered companies
+    # Greenhouse: 2,780, Ashby: 669, Lever: 345, Workday: 2,275
+    global _CURSOR_GH, _CURSOR_ASHBY, _CURSOR_LEVER, _CURSOR_WD
+    if "_CURSOR_GH" not in globals():
+        _CURSOR_GH = 0
+        _CURSOR_ASHBY = 0
+        _CURSOR_LEVER = 0
+        _CURSOR_WD = 0
+
+    BATCH_GH = 350
+    BATCH_ASHBY = 150
+    BATCH_LEVER = 120
+
+    gh_all = grouped.get("greenhouse", [])
+    ashby_all = grouped.get("ashby", [])
+    lever_all = grouped.get("lever", [])
+
+    # Slice next rotating window
+    gh_batch = gh_all[_CURSOR_GH:_CURSOR_GH + BATCH_GH]
+    if len(gh_batch) < BATCH_GH:
+        gh_batch += gh_all[:BATCH_GH - len(gh_batch)]
+    _CURSOR_GH = (_CURSOR_GH + BATCH_GH) % max(1, len(gh_all))
+
+    ashby_batch = ashby_all[_CURSOR_ASHBY:_CURSOR_ASHBY + BATCH_ASHBY]
+    if len(ashby_batch) < BATCH_ASHBY:
+        ashby_batch += ashby_all[:BATCH_ASHBY - len(ashby_batch)]
+    _CURSOR_ASHBY = (_CURSOR_ASHBY + BATCH_ASHBY) % max(1, len(ashby_all))
+
+    lever_batch = lever_all[_CURSOR_LEVER:_CURSOR_LEVER + BATCH_LEVER]
+    if len(lever_batch) < BATCH_LEVER:
+        lever_batch += lever_all[:BATCH_LEVER - len(lever_batch)]
+    _CURSOR_LEVER = (_CURSOR_LEVER + BATCH_LEVER) % max(1, len(lever_all))
+
+    print(f"🔄 Scanning rotating batch: Greenhouse ({len(gh_batch)} of {len(gh_all)}), Ashby ({len(ashby_batch)} of {len(ashby_all)}), Lever ({len(lever_batch)} of {len(lever_all)})")
+
     async with aiohttp.ClientSession(connector=conn_obj, headers=headers) as session:
         # Run Multi-ATS
         tasks = []
-        for c in grouped["greenhouse"][:200]:
+        for c in gh_batch:
             tasks.append(scan_greenhouse_job(session, c, sem, hours))
-        for c in grouped["ashby"][:80]:
+        for c in ashby_batch:
             tasks.append(scan_ashby_job(session, c, sem, hours))
-        for c in grouped["lever"][:80]:
+        for c in lever_batch:
             tasks.append(scan_lever_job(session, c, sem, hours))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -220,19 +261,19 @@ async def run_unified_discovery(hours: int = 24) -> Dict[str, Any]:
     except Exception as e:
         print(f"Instahyre scan note: {e}")
 
-    # 3. Workday CXS Resilient
+    # 3. Workday CXS Resilient (rotating batch across 2,275 verified Workday endpoints)
     try:
-        wd_jobs = await run_workday_cxs_pipeline(concurrency=25)
+        wd_jobs = await run_workday_cxs_pipeline(concurrency=35)
         discovered_jobs.extend(wd_jobs)
     except Exception as e:
         print(f"Workday scan note: {e}")
 
-    # 4. Amazon Official Jobs
+    # 4. Amazon Official Jobs & Big Tech / MNC Direct Partitions
     try:
-        amz_jobs = await scan_amazon_jobs()
-        discovered_jobs.extend(amz_jobs)
+        ln_jobs = await run_partitioned_linkedin_crawler(max_pages=2)
+        discovered_jobs.extend(ln_jobs)
     except Exception as e:
-        print(f"Amazon scan note: {e}")
+        print(f"Big Tech / MNC Direct crawler note: {e}")
 
     # 5. Audit all links in database
     audit_res = await audit_and_clean_database_links()

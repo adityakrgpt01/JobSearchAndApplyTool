@@ -11,16 +11,20 @@ import asyncio
 import json
 import sqlite3
 from typing import List, Dict, Any
-from database import save_job
+from database import save_job, log_failure, mark_failure_resolved
 from smart_due_diligence import perform_smart_due_diligence
 from salary_classifier import classify_salary
+
+from experience_filter import is_qualified_seniority_and_exp
 
 BACKEND_KEYWORDS = [
     "backend", "back end", "back-end", "distributed", "sde 2", "sde-2",
     "sde ii", "software engineer ii", "senior software engineer", "software development engineer ii"
 ]
 
-def is_backend_role(title: str) -> bool:
+def is_backend_role(title: str, jd_text: str = "") -> bool:
+    if not is_qualified_seniority_and_exp(title, jd_text):
+        return False
     t = title.lower()
     if any(neg in t for neg in ["frontend", "front-end", "intern", "qa", "sdet", "warehouse", "sales", "account manager"]):
         return False
@@ -35,29 +39,6 @@ def is_recent(posted_on: str, max_age_hours: int = 24) -> bool:
     if "2 days ago" in p:
         return max_age_hours >= 48
     return False
-
-def log_failure(source: str, company: str, url: str, reason: str, status_code: int = 0):
-    try:
-        conn = sqlite3.connect("jobs.db")
-        c = conn.cursor()
-        c.execute("""
-        INSERT INTO scraper_failures (source, company_name, target_url, failure_reason, http_status, retry_count, last_attempted)
-        VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
-        """, (source, company, url, reason, status_code))
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
-
-def mark_failure_resolved(url: str):
-    try:
-        conn = sqlite3.connect("jobs.db")
-        c = conn.cursor()
-        c.execute("UPDATE scraper_failures SET resolved = 1 WHERE target_url = ?", (url,))
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
 
 async def scan_single_workday_adaptive(
     session: aiohttp.ClientSession,
@@ -136,12 +117,12 @@ async def scan_single_workday_adaptive(
     return discovered
 
 async def rerun_failed_endpoints(concurrency: int = 15) -> List[Dict[str, Any]]:
-    """Reruns exclusively on failed endpoints with higher backoff and retry tracking."""
+    """Reruns exclusively on failed Workday endpoints with higher backoff and retry tracking."""
     conn = sqlite3.connect("jobs.db")
     c = conn.cursor()
     c.execute("""
     SELECT company_name, target_url, failure_reason FROM scraper_failures
-    WHERE resolved = 0 AND retry_count < 3
+    WHERE resolved = 0 AND (http_status IS NULL OR http_status != 404) AND retry_count < 5 AND (source = 'workday' OR target_url LIKE '%myworkdayjobs.com%')
     GROUP BY target_url
     """)
     failed_rows = c.fetchall()

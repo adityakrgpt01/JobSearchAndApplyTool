@@ -18,35 +18,71 @@ from database import save_job, get_company_intelligence, log_failure
 from smart_due_diligence import perform_smart_due_diligence
 from salary_classifier import classify_salary
 
+from experience_filter import is_qualified_seniority_and_exp
+
 BACKEND_KEYWORDS = [
     "backend", "back end", "back-end", "distributed systems", "sde 2", "sde-2",
     "sde ii", "software engineer ii", "senior software engineer", "software development engineer ii"
 ]
 
-def is_senior_backend_or_sde2(title: str) -> bool:
+def is_senior_backend_or_sde2(title: str, jd_text: str = "") -> bool:
+    if not is_qualified_seniority_and_exp(title, jd_text):
+        return False
     t = title.lower()
-    if any(neg in t for neg in ["frontend", "front-end", "front end", "android", "ios", "qa tester", "sdet", "intern", "lead", "director", "manager"]):
+    if any(neg in t for neg in ["frontend", "front-end", "front end", "android", "ios", "qa tester", "sdet", "intern", "director", "manager"]):
         return False
     return any(k in t for k in BACKEND_KEYWORDS)
 
 def load_all_target_companies() -> Dict[str, List[Dict[str, str]]]:
-    """Loads all companies grouped by ATS: greenhouse, lever, ashby."""
+    """Loads all companies grouped by ATS: greenhouse, lever, ashby, including top 550 MNCs."""
     conn = sqlite3.connect("jobs.db")
     c = conn.cursor()
     c.execute("SELECT company_name, normalized_name, raw_metadata FROM companies_intelligence")
     rows = c.fetchall()
-    conn.close()
 
     grouped = {"greenhouse": [], "lever": [], "ashby": []}
+    seen = {"greenhouse": set(), "lever": set(), "ashby": set()}
+
     for name, norm, meta in rows:
         if norm.startswith("lever_"):
             tok = norm.replace("lever_", "")
             grouped["lever"].append({"name": name.replace(" (Lever)", ""), "token": tok})
+            seen["lever"].add(tok)
         elif norm.startswith("ashby_"):
             tok = norm.replace("ashby_", "")
             grouped["ashby"].append({"name": name.replace(" (Ashby)", ""), "token": tok})
+            seen["ashby"].add(tok)
         else:
             grouped["greenhouse"].append({"name": name, "token": norm})
+            seen["greenhouse"].add(norm)
+
+    # Seamlessly inject all 550 MNC directory companies with ATS endpoints
+    c.execute("SELECT company_name, direct_career_url, ats_platform FROM mnc_directory")
+    import re
+    for cname, url, plat in c.fetchall():
+        if plat == "greenhouse":
+            m = re.search(r'greenhouse\.io/([^/]+)', url)
+            if m:
+                tok = m.group(1).strip()
+                if tok not in seen["greenhouse"]:
+                    grouped["greenhouse"].insert(0, {"name": cname, "token": tok})
+                    seen["greenhouse"].add(tok)
+        elif plat == "lever":
+            m = re.search(r'lever\.co/([^/]+)', url)
+            if m:
+                tok = m.group(1).strip()
+                if tok not in seen["lever"]:
+                    grouped["lever"].insert(0, {"name": cname, "token": tok})
+                    seen["lever"].add(tok)
+        elif plat == "ashby":
+            m = re.search(r'ashbyhq\.com/([^/]+)', url)
+            if m:
+                tok = m.group(1).strip()
+                if tok not in seen["ashby"]:
+                    grouped["ashby"].insert(0, {"name": cname, "token": tok})
+                    seen["ashby"].add(tok)
+
+    conn.close()
     return grouped
 
 # --- 1. Greenhouse Scanner ---

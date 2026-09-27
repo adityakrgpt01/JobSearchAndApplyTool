@@ -15,8 +15,9 @@ from typing import List, Dict, Any, Set
 from database import save_job
 from smart_due_diligence import perform_smart_due_diligence
 from salary_classifier import classify_salary
+from experience_filter import is_qualified_seniority_and_exp
 
-# Dedicated Big Tech Company Partitions
+# Dedicated Big Tech & Custom Portal MNC Partitions
 BIG_TECH_PARTITIONS = [
     ("Microsoft", "Senior Software Engineer Backend"),
     ("Microsoft", "Software Engineer II Azure"),
@@ -24,7 +25,18 @@ BIG_TECH_PARTITIONS = [
     ("Google", "Senior Software Engineer"),
     ("Apple", "Software Engineer Backend"),
     ("Meta", "Software Engineer"),
-    ("Netflix", "Senior Software Engineer")
+    ("Netflix", "Senior Software Engineer"),
+    ("Cisco", "Software Engineer Backend"),
+    ("Atlassian", "Senior Backend Engineer"),
+    ("JPMorgan Chase", "Software Engineer Backend"),
+    ("Barclays", "Software Development Engineer"),
+    ("Snowflake", "Software Engineer Backend"),
+    ("Nutanix", "Member of Technical Staff Backend"),
+    ("Cohesity", "Member of Technical Staff"),
+    ("Target", "Software Engineer Backend"),
+    ("Siemens", "Senior Software Engineer Backend"),
+    ("eBay", "Software Engineer Backend"),
+    ("Booking.com", "Software Engineer Backend")
 ]
 
 # Tech Stack & Title Partitions
@@ -97,6 +109,9 @@ async def fetch_linkedin_page(session: aiohttp.ClientSession, query: str, locati
 
                 t_low = title.lower()
                 if any(neg in t_low for neg in ["frontend", "front-end", "intern", "qa", "sdet"]):
+                    continue
+
+                if not is_qualified_seniority_and_exp(title):
                     continue
 
                 tier, est_ctc = classify_salary(company_name, title)

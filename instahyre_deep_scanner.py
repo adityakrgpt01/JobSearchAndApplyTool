@@ -13,12 +13,16 @@ from database import save_job
 from smart_due_diligence import perform_smart_due_diligence
 from salary_classifier import classify_salary
 
+from experience_filter import is_qualified_seniority_and_exp
+
 BACKEND_KEYWORDS = [
     "backend", "back end", "back-end", "distributed", "sde 2", "sde-2",
     "sde ii", "software engineer ii", "senior software engineer", "software development engineer ii"
 ]
 
-def is_backend_match(title: str) -> bool:
+def is_backend_match(title: str, jd_text: str = "") -> bool:
+    if not is_qualified_seniority_and_exp(title, jd_text):
+        return False
     t = title.lower()
     if any(neg in t for neg in ["frontend", "front-end", "qa", "sdet", "intern", "android", "ios", "devops", "marketing", "sales"]):
         return False

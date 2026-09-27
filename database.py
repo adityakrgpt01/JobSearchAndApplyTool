@@ -3,6 +3,7 @@ import json
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
+from experience_filter import is_qualified_seniority_and_exp
 
 DB_PATH = "jobs.db"
 
@@ -76,7 +77,7 @@ def init_db(db_path: str = DB_PATH):
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         company_name TEXT NOT NULL,
-        target_url TEXT NOT NULL,
+        target_url TEXT UNIQUE NOT NULL,
         failure_reason TEXT NOT NULL,
         http_status INTEGER,
         retry_count INTEGER DEFAULT 0,
@@ -84,6 +85,7 @@ def init_db(db_path: str = DB_PATH):
         last_attempted TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
+    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_scraper_failures_url ON scraper_failures(target_url);")
 
     conn.commit()
     conn.close()
@@ -269,9 +271,10 @@ def get_job_sort_timestamp(row: Dict[str, Any]) -> float:
 def list_jobs(
     status: Optional[str] = None,
     salary_tier: Optional[str] = None,
-    platform: Optional[str] = None,
+    platform: Optional[Any] = None,
     search_query: Optional[str] = None,
     remote_only: Optional[bool] = None,
+    exclude_remote: Optional[bool] = None,
     max_age_hours: Optional[float] = None,
     min_age_hours: Optional[float] = None,
     start_date: Optional[str] = None,
@@ -298,11 +301,26 @@ def list_jobs(
     if salary_tier and salary_tier != "all":
         query += " AND j.salary_tier = ?"
         params.append(salary_tier)
+
+    # Multi-platform support (handles list, tuple, or comma-separated string)
     if platform and platform != "all":
-        query += " AND j.ats_platform = ?"
-        params.append(platform)
+        if isinstance(platform, str):
+            plats = [p.strip().lower() for p in platform.split(",") if p.strip() and p.strip().lower() != "all"]
+        elif isinstance(platform, (list, tuple, set)):
+            plats = [str(p).strip().lower() for p in platform if str(p).strip() and str(p).strip().lower() != "all"]
+        else:
+            plats = []
+
+        if plats:
+            placeholders = ",".join("?" for _ in plats)
+            query += f" AND LOWER(j.ats_platform) IN ({placeholders})"
+            params.extend(plats)
+
     if remote_only:
         query += " AND (j.is_remote = 1 OR LOWER(j.location) LIKE '%remote%')"
+    elif exclude_remote:
+        query += " AND (j.is_remote = 0 AND LOWER(j.location) NOT LIKE '%remote%')"
+
     if search_query and search_query.strip():
         term = f"%{search_query.strip()}%"
         query += " AND (j.company_name LIKE ? OR j.title LIKE ? OR j.location LIKE ? OR j.jd_content LIKE ?)"
@@ -311,6 +329,12 @@ def list_jobs(
     cursor.execute(query, params)
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
+
+    # Filter strictly: exclude Lead, Staff, Principal, Architect, and >6 YoE positions
+    rows = [
+        r for r in rows
+        if is_qualified_seniority_and_exp(r.get("title", ""), r.get("jd_content", ""))
+    ]
 
     if (max_age_hours and max_age_hours > 0) or (min_age_hours and min_age_hours > 0) or start_date or end_date:
         rows = [
@@ -344,14 +368,24 @@ def update_job_status(job_id: str, status: str, apply_log: str = "", screenshot_
     conn.close()
 
 def log_failure(source: str, company_name: str, target_url: str, failure_reason: str, http_status: int = 0, db_path: str = DB_PATH):
-    """Logs an endpoint or URL error into the scraper_failures dead-letter queue."""
+    """Logs an endpoint or URL error into the scraper_failures dead-letter queue with deduplication and auto-retirement of 404s."""
     try:
         conn = sqlite3.connect(db_path)
         c = conn.cursor()
+        # Auto-resolve permanent 404s so they don't bloat the retry queue
+        is_permanent = 1 if http_status == 404 else 0
         c.execute("""
-        INSERT INTO scraper_failures (source, company_name, target_url, failure_reason, http_status, retry_count, last_attempted)
-        VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
-        """, (source, company_name, target_url, failure_reason, http_status))
+        INSERT INTO scraper_failures (source, company_name, target_url, failure_reason, http_status, retry_count, resolved, last_attempted)
+        VALUES (?, ?, ?, ?, ?, 1, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(target_url) DO UPDATE SET
+            company_name = excluded.company_name,
+            source = excluded.source,
+            failure_reason = excluded.failure_reason,
+            http_status = excluded.http_status,
+            retry_count = scraper_failures.retry_count + 1,
+            resolved = CASE WHEN excluded.http_status = 404 THEN 1 ELSE scraper_failures.resolved END,
+            last_attempted = CURRENT_TIMESTAMP;
+        """, (source, company_name, target_url, failure_reason, http_status, is_permanent))
         conn.commit()
         conn.close()
     except Exception:
@@ -369,14 +403,14 @@ def mark_failure_resolved(target_url: str, db_path: str = DB_PATH):
         pass
 
 def get_unresolved_failures(db_path: str = DB_PATH) -> List[Dict[str, Any]]:
-    """Fetches all active failures that need retry."""
+    """Fetches all active distinct failures that need retry (excludes retired 404s and max-retried items)."""
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("""
     SELECT source, company_name, target_url, failure_reason, http_status, retry_count, last_attempted
     FROM scraper_failures
-    WHERE resolved = 0 AND retry_count < 5
+    WHERE resolved = 0 AND (http_status IS NULL OR http_status != 404) AND retry_count < 5
     ORDER BY last_attempted DESC
     """)
     rows = [dict(r) for r in c.fetchall()]
@@ -384,14 +418,19 @@ def get_unresolved_failures(db_path: str = DB_PATH) -> List[Dict[str, Any]]:
     return rows
 
 def get_failures_summary(db_path: str = DB_PATH) -> Dict[str, Any]:
-    """Summary of scraper errors for health monitoring."""
+    """Summary of scraper errors for health monitoring, counting unique actionable endpoints."""
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM scraper_failures WHERE resolved = 0")
+    c.execute("SELECT COUNT(*) FROM scraper_failures WHERE resolved = 0 AND (http_status IS NULL OR http_status != 404) AND retry_count < 5")
     unresolved = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM scraper_failures WHERE resolved = 1")
+    c.execute("SELECT COUNT(*) FROM scraper_failures WHERE resolved = 1 OR http_status = 404")
     resolved = c.fetchone()[0]
-    c.execute("SELECT source, COUNT(*) FROM scraper_failures WHERE resolved = 0 GROUP BY source")
+    c.execute("""
+    SELECT source, COUNT(*) 
+    FROM scraper_failures 
+    WHERE resolved = 0 AND (http_status IS NULL OR http_status != 404) AND retry_count < 5
+    GROUP BY source
+    """)
     by_source = dict(c.fetchall())
     conn.close()
     return {"unresolved_count": unresolved, "resolved_count": resolved, "by_source": by_source}
