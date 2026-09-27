@@ -151,7 +151,10 @@ def save_job(job: Dict[str, Any], db_path: str = DB_PATH) -> bool:
             job_id, company_name, title, location, is_remote, ats_platform,
             apply_url, jd_content, posted_at, experience_required, salary_tier, estimated_ctc, status
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(job_id) DO NOTHING;
+        ON CONFLICT(job_id) DO UPDATE SET
+            posted_at = excluded.posted_at,
+            apply_url = excluded.apply_url,
+            location = excluded.location;
         """, (
             job["job_id"],
             job["company_name"],
