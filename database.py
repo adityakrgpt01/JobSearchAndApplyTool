@@ -87,6 +87,21 @@ def init_db(db_path: str = DB_PATH):
     """)
     cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_scraper_failures_url ON scraper_failures(target_url);")
 
+    # 5. Portal Credentials & Accounts Table (Workday, Taleo, Oracle, etc.)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS portal_accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        portal_domain TEXT UNIQUE NOT NULL, -- e.g. sglottery.wd5.myworkdayjobs.com
+        company_name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        password TEXT NOT NULL,
+        status TEXT DEFAULT 'ACTIVE', -- ACTIVE, LOCKED, VERIFIED
+        last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_portal_accounts_domain ON portal_accounts(portal_domain);")
+
     conn.commit()
     conn.close()
 
@@ -480,6 +495,33 @@ def get_failures_summary(db_path: str = DB_PATH) -> Dict[str, Any]:
     by_source = dict(c.fetchall())
     conn.close()
     return {"unresolved_count": unresolved, "resolved_count": resolved, "by_source": by_source}
+
+def save_portal_account(domain: str, company: str, email: str, password: str, status: str = "ACTIVE", db_path: str = DB_PATH):
+    """Saves or updates portal credentials for a domain."""
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute("""
+    INSERT INTO portal_accounts (portal_domain, company_name, email, password, status, last_used)
+    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(portal_domain) DO UPDATE SET
+        password = excluded.password,
+        status = excluded.status,
+        last_used = CURRENT_TIMESTAMP;
+    """, (domain, company, email, password, status))
+    conn.commit()
+    conn.close()
+
+def get_portal_account(domain: str, db_path: str = DB_PATH) -> Optional[Dict[str, Any]]:
+    """Retrieves credentials for a given portal domain."""
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM portal_accounts WHERE portal_domain = ?", (domain,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    return None
 
 if __name__ == "__main__":
     init_db()

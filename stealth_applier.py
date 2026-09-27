@@ -75,6 +75,8 @@ class StealthApplier:
                     success, msg = await self._fill_lever(page)
                 elif platform == "ashby":
                     success, msg = await self._fill_ashby(page)
+                elif platform == "workday":
+                    success, msg = await self._fill_workday(page, job)
                 else:
                     success, msg = False, f"Unsupported platform for direct apply: {platform}"
 
@@ -261,3 +263,85 @@ class StealthApplier:
                 await file_input.set_input_files(resume_path)
 
         return True, "Filled Ashby fields and attached resume"
+
+    async def _fill_workday(self, page, job: Dict[str, Any]) -> (bool, str):
+        from database import save_portal_account, get_portal_account
+        from gmail_authenticator import GmailVerificationReader
+        import urllib.parse
+        import secrets
+        import string
+
+        pers = self.profile["personal"]
+        portal_url = job["apply_url"]
+        domain = urllib.parse.urlparse(portal_url).netloc
+        company = job.get("company_name", "Workday Employer")
+
+        # 1. Click primary apply button
+        apply_btn = await page.query_selector('a[data-automation-id*="apply" i], button[data-automation-id*="apply" i], a:has-text("Apply")')
+        if apply_btn:
+            await apply_btn.click()
+            await asyncio.sleep(3.0)
+
+        # 2. Check for 'Autofill with Resume' or 'Apply Manually'
+        autofill_btn = await page.query_selector('a:has-text("Autofill with Resume"), button:has-text("Autofill with Resume")')
+        if autofill_btn:
+            await autofill_btn.click()
+            await asyncio.sleep(3.0)
+
+        # 3. Workday Account Wall Handling
+        email_input = await page.query_selector("input[data-automation-id='email'], input[id*='email' i], input[type='email']")
+        pass_input = await page.query_selector("input[data-automation-id='password'], input[id*='password' i], input[type='password']")
+
+        if email_input and pass_input:
+            existing = get_portal_account(domain)
+            if existing:
+                pwd = existing["password"]
+            else:
+                # Generate a compliant password (letters, digits, symbol, uppercase)
+                alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+                pwd = "".join(secrets.choice(alphabet) for _ in range(14)) + "Aa1!"
+                save_portal_account(domain, company, pers["email"], pwd, status="ACTIVE")
+
+            await human_type(email_input, pers["email"])
+            await human_type(pass_input, pwd)
+
+            # Check if there's a confirm password (Account creation)
+            confirm_pwd = await page.query_selector("input[data-automation-id='verifyPassword'], input[id*='confirm' i]")
+            if confirm_pwd:
+                await human_type(confirm_pwd, pwd)
+
+            # Check for terms / consent checkbox
+            consent = await page.query_selector("input[type='checkbox']")
+            if consent:
+                is_checked = await consent.is_checked()
+                if not is_checked:
+                    await consent.click()
+
+            # Click Sign In / Create Account
+            submit_auth = await page.query_selector("button[data-automation-id='signInSubmitButton'], button[data-automation-id='createAccountSubmitButton'], button:has-text('Create Account'), button:has-text('Sign In')")
+            if submit_auth:
+                await submit_auth.click()
+                await asyncio.sleep(4.0)
+
+            # 4. Check for PIN / Verification Screen
+            pin_input = await page.query_selector("input[data-automation-id='verificationCode'], input[id*='code' i], input[name*='pin' i]")
+            if pin_input:
+                print(f"[Workday Applier] Verification screen detected! Polling Gmail for 6-digit PIN...")
+                reader = GmailVerificationReader(user=pers["email"])
+                pin = reader.fetch_latest_verification_code(sender_keyword="workday", timeout_seconds=45)
+                if pin:
+                    await human_type(pin_input, pin)
+                    verify_btn = await page.query_selector("button:has-text('Verify'), button:has-text('Continue'), button[data-automation-id='verifyButton']")
+                    if verify_btn:
+                        await verify_btn.click()
+                        await asyncio.sleep(4.0)
+
+        # 5. Upload Resume
+        resume_path = self.profile.get("resume", {}).get("file_path", "resume.pdf")
+        if resume_path and os.path.exists(resume_path):
+            file_input = await page.query_selector("input[type='file']")
+            if file_input:
+                await file_input.set_input_files(resume_path)
+                await asyncio.sleep(2.0)
+
+        return True, f"Navigated Workday application portal for {company}, synced credentials in DB"
