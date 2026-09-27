@@ -33,8 +33,8 @@ def get_jobs(status: Optional[str] = None, tier: Optional[str] = None, platform:
     return {"jobs": jobs, "total": len(jobs)}
 
 @app.get("/api/stats")
-def get_stats(hours: Optional[int] = 24):
-    jobs = list_jobs(max_age_hours=hours)
+def get_stats(hours: Optional[int] = 24, platform: Optional[str] = None):
+    jobs = list_jobs(platform=platform, max_age_hours=hours)
     tiers = {"40-50LPA": 0, "50-60LPA": 0, "60-70LPA": 0, "70+LPA": 0}
     status_counts = {"DISCOVERED": 0, "APPLYING": 0, "APPLIED": 0, "READY_TO_SUBMIT (DRY_RUN)": 0, "FAILED": 0}
     platforms = {}
@@ -223,6 +223,17 @@ def dashboard_html():
             let chartInstance = null;
             let currentHours = 24; // Default to last 24h!
 
+            function updateFilterLabel() {
+                let timeText = 'Posted within last 24h';
+                if (currentHours === 48) timeText = 'Posted within last 48h';
+                else if (currentHours === 168) timeText = 'Posted within last 7 days';
+                else if (currentHours === 0) timeText = 'All time catalog';
+
+                const pSelect = document.getElementById('platformSelect');
+                const platText = pSelect.options[pSelect.selectedIndex].text;
+                document.getElementById('statTimeLabel').innerText = `${timeText} • ${platText}`;
+            }
+
             function setTimeFilter(hours) {
                 currentHours = hours;
                 document.querySelectorAll('.time-btn').forEach(btn => {
@@ -231,23 +242,23 @@ def dashboard_html():
                 });
 
                 let activeId = 'btnTime24';
-                let label = 'Posted within last 24 hours';
-                if (hours === 48) { activeId = 'btnTime48'; label = 'Posted within last 48 hours'; }
-                else if (hours === 168) { activeId = 'btnTime168'; label = 'Posted within last 7 days'; }
-                else if (hours === 0) { activeId = 'btnTimeAll'; label = 'All time historical data'; }
+                if (hours === 48) activeId = 'btnTime48';
+                else if (hours === 168) activeId = 'btnTime168';
+                else if (hours === 0) activeId = 'btnTimeAll';
 
                 const activeBtn = document.getElementById(activeId);
                 if (activeBtn) {
                     activeBtn.classList.remove('bg-slate-800', 'text-slate-300');
                     activeBtn.classList.add('bg-emerald-500', 'text-black');
                 }
-                document.getElementById('statTimeLabel').innerText = label;
-
+                updateFilterLabel();
                 loadAllData();
             }
 
             async function loadStats() {
-                const res = await fetch(`/api/stats?hours=${currentHours}`);
+                const platform = document.getElementById('platformSelect').value;
+                updateFilterLabel();
+                const res = await fetch(`/api/stats?hours=${currentHours}&platform=${platform}`);
                 const data = await res.json();
                 document.getElementById('statTotal').innerText = data.total_jobs;
                 document.getElementById('statTier70').innerText = data.tiers['70+LPA'] || 0;

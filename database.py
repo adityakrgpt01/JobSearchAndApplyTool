@@ -1,5 +1,6 @@
 import sqlite3
 import json
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 
@@ -175,6 +176,55 @@ def save_job(job: Dict[str, Any], db_path: str = DB_PATH) -> bool:
         print(f"Error saving job: {e}")
         return False
 
+def parse_posted_dt(val: Optional[str]) -> Optional[datetime]:
+    if not val:
+        return None
+    val = str(val).strip()
+    try:
+        dt = datetime.fromisoformat(val)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        pass
+    try:
+        return datetime.strptime(val, "%B %d, %Y").replace(tzinfo=timezone.utc)
+    except Exception:
+        pass
+    return None
+
+def is_within_age(posted_at: Optional[str], discovered_at: Optional[str], max_age_hours: Optional[int]) -> bool:
+    if not max_age_hours or max_age_hours <= 0:
+        return True
+    
+    # 1. Check relative strings
+    if posted_at:
+        p_lower = str(posted_at).lower().strip()
+        if any(w in p_lower for w in ["today", "hour", "minute", "just now"]):
+            return True
+        if any(w in p_lower for w in ["yesterday", "1 day ago"]):
+            return max_age_hours >= 24
+        m = re.search(r"(\d+)\s+days?\s+ago", p_lower)
+        if m:
+            days = int(m.group(1))
+            return max_age_hours >= (days * 24)
+            
+        dt = parse_posted_dt(posted_at)
+        if dt:
+            now = datetime.now(timezone.utc)
+            diff_hours = (now - dt).total_seconds() / 3600.0
+            return diff_hours <= max_age_hours
+
+    # 2. Fallback to discovered_at only if posted_at was absent
+    if not posted_at and discovered_at:
+        dt = parse_posted_dt(discovered_at)
+        if dt:
+            now = datetime.now(timezone.utc)
+            diff_hours = (now - dt).total_seconds() / 3600.0
+            return diff_hours <= max_age_hours
+
+    return False
+
 def list_jobs(
     status: Optional[str] = None,
     salary_tier: Optional[str] = None,
@@ -206,27 +256,14 @@ def list_jobs(
         query += " AND j.ats_platform = ?"
         params.append(platform)
 
-    # Time-based filtering (in hours from now)
-    if max_age_hours and max_age_hours > 0:
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
-        cutoff_iso = cutoff.isoformat()
-        cutoff_str = cutoff.strftime("%Y-%m-%d %H:%M:%S")
-
-        query += """ AND (
-            j.posted_at >= ? 
-            OR j.discovered_at >= ?
-            OR j.posted_at LIKE '%today%'
-            OR (j.posted_at LIKE '%yesterday%' AND ? >= 24)
-            OR (j.posted_at LIKE '%1 day ago%' AND ? >= 24)
-            OR (j.posted_at LIKE '%2 days ago%' AND ? >= 48)
-            OR (j.posted_at LIKE '%hours ago%')
-        )"""
-        params.extend([cutoff_iso, cutoff_str, max_age_hours, max_age_hours, max_age_hours])
-
     query += " ORDER BY j.posted_at DESC, j.discovered_at DESC"
     cursor.execute(query, params)
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
+
+    if max_age_hours and max_age_hours > 0:
+        rows = [r for r in rows if is_within_age(r.get("posted_at"), r.get("discovered_at"), max_age_hours)]
+
     return rows
 
 def update_job_status(job_id: str, status: str, apply_log: str = "", screenshot_path: str = "", db_path: str = DB_PATH):
