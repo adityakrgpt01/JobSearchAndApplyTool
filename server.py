@@ -183,6 +183,9 @@ def dashboard_html():
                     <p class="text-slate-400 text-sm mt-1">Autonomous Discovery • Senior Backend / SDE-2 (5 YoE) • 40L to 70L+ Compensation</p>
                 </div>
                 <div class="flex items-center gap-3">
+                    <span id="liveSyncStatus" class="hidden text-xs px-2.5 py-1.5 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1.5 animate-pulse">
+                        <i class="fa-solid fa-arrows-rotate animate-spin"></i> Syncing Fresh Jobs...
+                    </span>
                     <button onclick="triggerAudit()" id="auditBtn" class="px-3.5 py-2 bg-slate-900 border border-emerald-500/40 hover:bg-slate-800 text-emerald-400 font-semibold rounded-lg shadow flex items-center gap-2 transition text-xs">
                         <i class="fa-solid fa-shield-check text-emerald-400"></i> Audit Links
                     </button>
@@ -1048,9 +1051,37 @@ def dashboard_html():
                         }
                     });
                 }
+
+                // 1. Instantly render cached database listings & stats
                 loadAllData();
+
+                // 2. Automatically trigger live background discovery and failed company resync
+                triggerBackgroundAutoSync();
+
+                // 3. Periodic UI polling every 15s to display freshly scraped roles seamlessly
                 setInterval(loadAllData, 15000);
             });
+
+            async function triggerBackgroundAutoSync() {
+                const syncBadge = document.getElementById('liveSyncStatus');
+                if (syncBadge) syncBadge.classList.remove('hidden');
+
+                try {
+                    // Trigger retry of any failed endpoints automatically
+                    fetch('/api/failures/retry', { method: 'POST' }).catch(() => {});
+                    
+                    // Trigger live unified multi-platform crawl in background
+                    fetch('/api/scan?hours=24', { method: 'POST' }).catch(() => {});
+                } catch(e) {
+                    console.error("Auto-sync trigger error:", e);
+                }
+
+                // Poll to update UI with newly discovered roles
+                setTimeout(() => {
+                    loadAllData();
+                    if (syncBadge) syncBadge.classList.add('hidden');
+                }, 8000);
+            }
         </script>
     </body>
     </html>
