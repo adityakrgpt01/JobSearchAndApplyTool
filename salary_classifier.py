@@ -18,6 +18,9 @@ COMPANY_TIER_BENCHMARKS = {
     "tower research": {"tier": "70+LPA", "est_base": "₹60L - ₹75L", "est_ctc": "₹90L - ₹1.3Cr", "risk": "LOW"},
     "graviton": {"tier": "70+LPA", "est_base": "₹60L - ₹75L", "est_ctc": "₹90L - ₹1.2Cr", "risk": "LOW"},
     "de shaw": {"tier": "70+LPA", "est_base": "₹55L - ₹65L", "est_ctc": "₹80L - ₹1Cr", "risk": "LOW"},
+    "worldquant": {"tier": "70+LPA", "est_base": "₹55L - ₹65L", "est_ctc": "₹80L - ₹1Cr", "risk": "LOW"},
+    "jane street": {"tier": "70+LPA", "est_base": "₹70L - ₹90L", "est_ctc": "₹1Cr - ₹1.5Cr", "risk": "LOW"},
+    "jump trading": {"tier": "70+LPA", "est_base": "₹65L - ₹80L", "est_ctc": "₹95L - ₹1.4Cr", "risk": "LOW"},
 
     # 60-70 LPA (Tier-1 Giants & High-Paying Product Unicorns)
     "uber": {"tier": "60-70LPA", "est_base": "₹45L - ₹52L", "est_ctc": "₹62L - ₹72L", "risk": "LOW"},
@@ -26,8 +29,14 @@ COMPANY_TIER_BENCHMARKS = {
     "salesforce": {"tier": "60-70LPA", "est_base": "₹40L - ₹48L", "est_ctc": "₹60L - ₹68L", "risk": "LOW"},
     "linkedin": {"tier": "60-70LPA", "est_base": "₹42L - ₹48L", "est_ctc": "₹60L - ₹70L", "risk": "LOW"},
     "browserstack": {"tier": "60-70LPA", "est_base": "₹42L - ₹52L", "est_ctc": "₹60L - ₹70L", "risk": "LOW"},
+    "meta": {"tier": "60-70LPA", "est_base": "₹45L - ₹55L", "est_ctc": "₹65L - ₹80L", "risk": "LOW"},
+    "apple": {"tier": "60-70LPA", "est_base": "₹42L - ₹50L", "est_ctc": "₹60L - ₹75L", "risk": "LOW"},
+    "netflix": {"tier": "60-70LPA", "est_base": "₹55L - ₹65L", "est_ctc": "₹70L - ₹85L", "risk": "LOW"},
 
     # 50-60 LPA (Tier-2 Giants & Fast-Scaling Series C/D)
+    "nvidia": {"tier": "50-60LPA", "est_base": "₹38L - ₹46L", "est_ctc": "₹52L - ₹65L", "risk": "LOW"},
+    "goldman sachs": {"tier": "50-60LPA", "est_base": "₹38L - ₹45L", "est_ctc": "₹50L - ₹62L", "risk": "LOW"},
+    "morgan stanley": {"tier": "50-60LPA", "est_base": "₹36L - ₹44L", "est_ctc": "₹50L - ₹60L", "risk": "LOW"},
     "microsoft": {"tier": "50-60LPA", "est_base": "₹38L - ₹45L", "est_ctc": "₹52L - ₹62L (L61/L62)", "risk": "LOW"},
     "amazon": {"tier": "50-60LPA", "est_base": "₹36L - ₹44L", "est_ctc": "₹50L - ₹62L (SDE-2)", "risk": "MODERATE"},
     "phonepe": {"tier": "50-60LPA", "est_base": "₹38L - ₹46L", "est_ctc": "₹50L - ₹65L", "risk": "LOW"},
@@ -38,6 +47,10 @@ COMPANY_TIER_BENCHMARKS = {
     "servicenow": {"tier": "50-60LPA", "est_base": "₹36L - ₹42L", "est_ctc": "₹50L - ₹58L", "risk": "LOW"},
     "adobe": {"tier": "50-60LPA", "est_base": "₹35L - ₹42L", "est_ctc": "₹50L - ₹60L", "risk": "LOW"},
     "cred": {"tier": "50-60LPA", "est_base": "₹40L - ₹48L", "est_ctc": "₹52L - ₹65L", "risk": "LOW"},
+    "qualcomm": {"tier": "50-60LPA", "est_base": "₹34L - ₹42L", "est_ctc": "₹50L - ₹60L", "risk": "LOW"},
+    "broadcom": {"tier": "50-60LPA", "est_base": "₹36L - ₹44L", "est_ctc": "₹52L - ₹62L", "risk": "LOW"},
+    "blackrock": {"tier": "50-60LPA", "est_base": "₹35L - ₹42L", "est_ctc": "₹50L - ₹60L", "risk": "LOW"},
+    "visa": {"tier": "50-60LPA", "est_base": "₹35L - ₹42L", "est_ctc": "₹50L - ₹60L", "risk": "LOW"},
 
     # 40-50 LPA (Well-Funded Startups & High Product MNCs)
     "walmart": {"tier": "40-50LPA", "est_base": "₹30L - ₹36L", "est_ctc": "₹42L - ₹50L", "risk": "LOW"},
