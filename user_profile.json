@@ -2,17 +2,17 @@
   "personal": {
     "first_name": "Aditya",
     "last_name": "Kumar",
-    "email": "aditya.example@gmail.com",
-    "phone": "+91 9876543210",
-    "current_city": "Bangalore",
+    "email": "kradit.cse@gmail.com",
+    "phone": "+91 9643914225",
+    "current_city": "Bengaluru",
     "current_country": "India",
-    "linkedin_url": "https://www.linkedin.com/in/adityakumar",
-    "github_url": "https://github.com/adityakumar",
+    "linkedin_url": "https://www.linkedin.com/in/aditya-kumar-996292167/",
+    "github_url": "https://github.com/adityakrgpt01",
     "portfolio_url": ""
   },
   "professional": {
     "years_of_experience": 5.0,
-    "current_title": "Senior Software Engineer",
+    "current_title": "SDE II",
     "target_roles": [
       "Senior Backend Engineer",
       "Software Development Engineer 2",
@@ -21,30 +21,69 @@
       "Senior Software Engineer - Backend"
     ],
     "primary_skills": [
-      "Java",
-      "Spring Boot",
+      "Java 17",
+      "Springboot",
       "Microservices",
       "Distributed Systems",
+      "Low-level Design",
+      "High-level Design",
       "PostgreSQL",
+      "MySQL",
       "Redis",
+      "Aerospike",
+      "ElasticSearch",
       "Kafka",
+      "SQS",
       "AWS",
+      "Kubernetes",
       "Docker",
-      "System Design"
+      "CI/CD"
+    ],
+    "education": {
+      "degree": "B.Tech. in Computer Science Engineering",
+      "institution": "JSS Academy of Technical Education, Noida",
+      "graduation_year": 2021
+    },
+    "work_experience": [
+      {
+        "company": "73 Strings",
+        "title": "SDE II",
+        "start": "Nov 2025",
+        "end": "Present"
+      },
+      {
+        "company": "Sumo Logic",
+        "title": "SDE II",
+        "start": "Jun 2024",
+        "end": "Oct 2025"
+      },
+      {
+        "company": "Open Financial Technologies",
+        "title": "SDE",
+        "start": "Sep 2022",
+        "end": "May 2024"
+      },
+      {
+        "company": "Exotel",
+        "title": "SDE",
+        "start": "Sep 2021",
+        "end": "Sep 2022"
+      }
     ],
     "notice_period_days": 30,
-    "current_ctc_lpa": 32.0,
+    "current_ctc_lpa": 38.0,
     "expected_ctc_lpa": 55.0,
     "open_to_relocation": true,
     "work_preference": "Hybrid or Remote"
   },
   "resume": {
-    "file_path": "resume.pdf"
+    "file_path": "resume.pdf",
+    "file_name": "Aditya_Kumar_Resume.pdf"
   },
   "custom_answers": {
     "sponsorship_needed": "No",
     "authorized_to_work_in_india": "Yes",
     "gender": "Male",
-    "summary_for_recruiter": "Backend Engineer with 5 years of experience building high-throughput distributed systems, event-driven microservices in Java/Spring, and cloud infrastructure on AWS."
+    "summary_for_recruiter": "Backend engineer building scalable microservices and high-throughput APIs, focused on reliability, performance optimization, fault tolerance, and low-latency system design principles with 5 years experience across high-scale distributed systems."
   }
 }
