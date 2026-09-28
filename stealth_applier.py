@@ -27,6 +27,10 @@ async def human_type(element, text: str):
     """Types text with natural human delays between keystrokes."""
     if not text:
         return
+    try:
+        await element.fill("")
+    except Exception:
+        pass
     for char in text:
         await element.type(char, delay=random.uniform(25, 75))
         if random.random() < 0.04:
@@ -319,7 +323,20 @@ class StealthApplier:
         await page.mouse.wheel(0, 300)
         await asyncio.sleep(1.0)
 
-        # 2. Standard Ashby Fields
+        # 2. Resume File Upload FIRST (allows Ashby parser to run before we fill/override fields)
+        resume_path = self.profile.get("resume", {}).get("file_path", "resume.pdf")
+        if resume_path and os.path.exists(resume_path):
+            file_inputs = await page.query_selector_all("input[type='file']")
+            for fi in file_inputs:
+                try:
+                    await fi.set_input_files(resume_path)
+                    await asyncio.sleep(1.0)
+                except Exception:
+                    pass
+            # Wait for Ashby async autofill parser to complete
+            await asyncio.sleep(6.0)
+
+        # 3. Standard Ashby Fields (Guaranteed complete & non-conflicting)
         name_input = await page.query_selector("input[name*='name' i], input[id*='name' i]")
         if name_input:
             await human_type(name_input, f"{pers['first_name']} {pers['last_name']}")
@@ -361,58 +378,81 @@ class StealthApplier:
                 inst = self.profile.get("professional", {}).get("education", {}).get("institution", "JSS Academy of Technical Education")
                 await human_type(edu_inp, inst)
 
-        # LinkedIn Profile
-        li_container = await page.query_selector("div:has(> label:has-text('LinkedIn')), div:has(> span:has-text('LinkedIn'))")
-        if li_container:
-            li_inp = await li_container.query_selector("input[type='text']")
-            if li_inp and pers.get("linkedin_url"):
-                await human_type(li_inp, pers["linkedin_url"])
-
-        # 3. Resume File Upload
-        resume_path = self.profile.get("resume", {}).get("file_path", "resume.pdf")
-        if resume_path and os.path.exists(resume_path):
-            file_inputs = await page.query_selector_all("input[type='file']")
-            for fi in file_inputs:
-                try:
-                    await fi.set_input_files(resume_path)
-                    await asyncio.sleep(2.0)
-                except Exception:
-                    pass
+        # LinkedIn / Website Profile
+        li_div = await page.query_selector("div:has(> label:has-text('Linkedin')), div:has(> label:has-text('LinkedIn')), div:has(> label:has-text('Website'))")
+        li_input = await li_div.query_selector("input") if li_div else None
+        if not li_input:
+            li_input = await page.query_selector("input[type='url'], input[name*='linkedin' i], input[placeholder*='linkedin' i]")
+        if li_input and pers.get("linkedin_url"):
+            await human_type(li_input, pers["linkedin_url"])
 
         # 4. Ashby Styled Yes/No Buttons & Radios
         # 4a. Authorization buttons (Yes / No)
-        auth_section = await page.query_selector("div:has-text('legally authorized to work')")
-        if auth_section:
-            yes_btn = await auth_section.query_selector("button:has-text('Yes')")
-            if yes_btn:
-                try:
-                    await yes_btn.click(force=True)
-                    await asyncio.sleep(0.5)
-                except Exception:
-                    pass
+        try:
+            auth_yes = page.locator("div._yesno_1e3gg_148 button:has-text('Yes'), div:has-text('legally authorized') button:has-text('Yes')").first
+            if await auth_yes.count() > 0:
+                await auth_yes.click(force=True)
+                await asyncio.sleep(0.5)
+        except Exception:
+            pass
 
         # 4b. Sponsorship radio buttons (Profile requires No sponsorship)
-        spons_section = await page.query_selector("div:has-text('require employment visa sponsorship')")
-        if spons_section:
-            # Click the label containing 'No, I do not require'
-            no_spons = await spons_section.query_selector("label:has-text('No, I do not require'), label:has-text('No'), input[value*='No' i]")
-            if no_spons:
-                try:
-                    await no_spons.click(force=True)
-                    await asyncio.sleep(0.5)
-                except Exception:
-                    pass
+        try:
+            no_spons_loc = page.locator("label:has-text('No, I do not require sponsorship')").first
+            if await no_spons_loc.count() > 0:
+                await no_spons_loc.click(force=True)
+                await asyncio.sleep(0.5)
+        except Exception:
+            pass
 
         # 4c. Hybrid policy radio buttons
-        hybrid_section = await page.query_selector("div:has-text('Harvey Hybrid Policy'), div:has-text('in-office model')")
-        if hybrid_section:
-            yes_hybrid = await hybrid_section.query_selector("label:has-text('Yes, I’m able to work'), label:has-text('able to work from the office'), label:has-text('Yes')")
-            if yes_hybrid:
-                try:
-                    await yes_hybrid.click(force=True)
-                    await asyncio.sleep(0.5)
-                except Exception:
-                    pass
+        try:
+            hybrid_yes_loc = page.locator("label:has-text('Yes, I’m able to work from the office'), label:has-text('Yes, I\\'m able to work from the office')").first
+            if await hybrid_yes_loc.count() > 0:
+                await hybrid_yes_loc.click(force=True)
+                await asyncio.sleep(0.5)
+        except Exception:
+            pass
+
+        # 4d. Ashby Custom Text & Textarea Questions (LLM engine resolution)
+        custom_fields = await page.query_selector_all("div._field_1e3gg_1, div[class*='field' i], div[class*='question' i]")
+        for cf in custom_fields:
+            try:
+                lbl = await cf.query_selector("label, span[class*='label' i]")
+                if not lbl:
+                    continue
+                lbl_text = (await lbl.inner_text()).strip()
+                if not lbl_text or any(k in lbl_text.lower() for k in ["name", "email", "phone", "resume", "cv", "location", "employer", "school", "university"]):
+                    continue
+
+                txt_input = await cf.query_selector("textarea, input[type='text']")
+                if txt_input:
+                    existing_val = await txt_input.input_value()
+                    if not existing_val:
+                        ans = self.llm.answer_question(lbl_text)
+                        if ans:
+                            await human_type(txt_input, ans)
+            except Exception:
+                pass
+
+        # Also catch any unhandled textareas on the page
+        textareas = await page.query_selector_all("textarea:not([name*='recaptcha' i]):not([id*='recaptcha' i])")
+        for ta in textareas:
+            try:
+                if not await ta.is_visible():
+                    continue
+                curr_val = await ta.input_value()
+                if not curr_val:
+                    # Find closest label
+                    parent = await ta.evaluate_handle('el => el.closest("div") || el.parentElement')
+                    label_el = await parent.query_selector("label, p, span")
+                    q_text = (await label_el.inner_text()).strip() if label_el else ""
+                    if q_text:
+                        ans = self.llm.answer_question(q_text)
+                        if ans:
+                            await human_type(ta, ans)
+            except Exception:
+                pass
 
         # 5. Consent checkboxes
         consent_boxes = await page.query_selector_all("input[type='checkbox']")
@@ -424,7 +464,7 @@ class StealthApplier:
             except Exception:
                 pass
 
-        return True, "Filled Ashby fields, employer, location, LinkedIn, radios, and attached resume"
+        return True, "Filled Ashby fields, employer, location, LinkedIn, radios, custom questions, and attached resume"
 
     async def _fill_workday(self, page, job: Dict[str, Any]) -> (bool, str):
         from database import save_portal_account, get_portal_account

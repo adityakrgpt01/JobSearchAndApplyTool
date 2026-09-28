@@ -131,7 +131,7 @@ class FormLLMEngine:
             return "73 Strings"
 
         # How did you hear about this job
-        if any(w in q for w in ["how did you hear", "hear about this", "source of application", "referred"]):
+        if any(w in q for w in ["how did you hear", "hear about this", "source of application"]) or re.search(r'\b(referred|referral)\b', q):
             if options:
                 for opt in options:
                     if any(s in opt.lower() for s in ["linkedin", "job board", "career site", "company website", "online"]):
