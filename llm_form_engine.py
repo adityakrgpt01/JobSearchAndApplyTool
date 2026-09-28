@@ -81,7 +81,7 @@ class FormLLMEngine:
                 url,
                 headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
             )
-            with urllib.request.urlopen(req, timeout=8) as response:
+            with urllib.request.urlopen(req, timeout=2.5) as response:
                 result = response.read().decode('utf-8').strip()
                 # Clean up quotes
                 result = result.strip('"').strip("'")
@@ -119,8 +119,16 @@ class FormLLMEngine:
         if any(w in q for w in ["github", "git hub", "github profile"]):
             return pers.get("github_url", "")
 
+        # Twitter / X Profile
+        if any(w in q for w in ["twitter", "x profile", "twitter url"]):
+            return ""
+
         # Portfolio / Website
         if any(w in q for w in ["portfolio", "website", "personal site"]):
+            return pers.get("portfolio_url") or pers.get("github_url", "")
+
+        # Other links
+        if "other link" in q or "additional link" in q:
             return pers.get("portfolio_url") or pers.get("github_url", "")
 
         # Current Company

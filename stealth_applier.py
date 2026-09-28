@@ -173,7 +173,19 @@ class StealthApplier:
                                     sec_inputs.extend(si_list)
                                 except Exception:
                                     pass
-                            visible_sec = [si for si in sec_inputs if await si.is_visible()]
+                            # Filter distinct visible inputs by unique element handle
+                            visible_sec = []
+                            seen_ids = set()
+                            for si in sec_inputs:
+                                try:
+                                    if await si.is_visible():
+                                        el_id = await si.get_attribute("id") or str(id(si))
+                                        if el_id not in seen_ids:
+                                            seen_ids.add(el_id)
+                                            visible_sec.append(si)
+                                except Exception:
+                                    pass
+
                             if visible_sec:
                                 print(f"[{job_id}] Detected email verification code prompt with {len(visible_sec)} input boxes. Fetching PIN from Gmail...")
                                 from gmail_authenticator import GmailVerificationReader
@@ -181,12 +193,16 @@ class StealthApplier:
                                 code = reader.fetch_latest_verification_code(sender_keyword=platform, timeout_seconds=40, received_after_ts=submit_start_time)
                                 if code:
                                     print(f"[{job_id}] Injecting verification code: {code}")
-                                    if len(visible_sec) == len(code):
-                                        for idx, char in enumerate(code):
-                                            await visible_sec[idx].fill(char)
-                                            await asyncio.sleep(0.1)
-                                    else:
-                                        await visible_sec[0].fill(code)
+                                    try:
+                                        await visible_sec[0].focus()
+                                        await page.keyboard.type(code, delay=50)
+                                    except Exception:
+                                        if len(visible_sec) == len(code):
+                                            for idx, char in enumerate(code):
+                                                await visible_sec[idx].fill(char)
+                                                await asyncio.sleep(0.1)
+                                        else:
+                                            await visible_sec[0].fill(code)
                                     await asyncio.sleep(1.0)
 
                                     # Click resubmit
