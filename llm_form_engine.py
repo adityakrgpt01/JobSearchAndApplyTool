@@ -196,6 +196,22 @@ class FormLLMEngine:
         if any(w in q for w in ["relocate", "relocation"]):
             return self._pick_option(["yes", "open to relocation"], options, "Yes")
 
+        # Previously Employed
+        if any(w in q for w in ["previously been employed", "ever been employed", "worked here before", "former employee", "previously worked"]):
+            return self._pick_option(["no", "have not previously", "never"], options, "No")
+
+        # Currently Residing in country
+        if "currently residing" in q or "currently live in" in q:
+            if "india" in q:
+                return self._pick_option(["yes", "residing"], options, "Yes")
+            elif any(c in q for c in ["u.s.", "united states", "us", "uk", "eu", "canada"]):
+                return self._pick_option(["no", "not residing"], options, "No")
+            return self._pick_option(["yes", "residing"], options, "Yes")
+
+        # Future opportunities / Talent pool consent
+        if any(w in q for w in ["future job opportunities", "considered for future", "retain and use your application", "future opportunities"]):
+            return self._pick_option(["yes", "agree", "consent"], options, "Yes")
+
         # Privacy Policy / Agreement
         if any(w in q for w in ["privacy policy", "consent", "i agree", "agree", "terms"]):
             return self._pick_option(["agree", "yes", "i consent", "consent"], options, "I agree")

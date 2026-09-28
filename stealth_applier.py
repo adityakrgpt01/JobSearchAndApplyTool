@@ -162,29 +162,31 @@ class StealthApplier:
                             await asyncio.sleep(0.5)
                             submit_start_time = time.time()
                             await submit_btn.click()
-                            print(f"[{job_id}] Clicked Submit button!")
-                            await asyncio.sleep(4.0)
+                            print(f"[{job_id}] Clicked Submit button! Waiting for response or security verification...")
 
-                            # Check if email verification code / PIN was requested (e.g. Greenhouse security-input or Workday PIN)
-                            sec_inputs = []
-                            for st in search_targets:
-                                try:
-                                    si_list = await st.query_selector_all("input[id^='security-input-'], input[name*='code' i], input[id*='verification' i]")
-                                    sec_inputs.extend(si_list)
-                                except Exception:
-                                    pass
-                            # Filter distinct visible inputs by unique element handle
+                            # Check if email verification code / PIN was requested (poll up to 8s)
                             visible_sec = []
-                            seen_ids = set()
-                            for si in sec_inputs:
-                                try:
-                                    if await si.is_visible():
-                                        el_id = await si.get_attribute("id") or str(id(si))
-                                        if el_id not in seen_ids:
-                                            seen_ids.add(el_id)
-                                            visible_sec.append(si)
-                                except Exception:
-                                    pass
+                            for _ in range(8):
+                                await asyncio.sleep(1.0)
+                                sec_inputs = []
+                                for st in search_targets:
+                                    try:
+                                        si_list = await st.query_selector_all("input[id^='security-input-'], input[name*='code' i], input[id*='verification' i]")
+                                        sec_inputs.extend(si_list)
+                                    except Exception:
+                                        pass
+                                seen_ids = set()
+                                for si in sec_inputs:
+                                    try:
+                                        if await si.is_visible():
+                                            el_id = await si.get_attribute("id") or str(id(si))
+                                            if el_id not in seen_ids:
+                                                seen_ids.add(el_id)
+                                                visible_sec.append(si)
+                                    except Exception:
+                                        pass
+                                if visible_sec:
+                                    break
 
                             if visible_sec:
                                 print(f"[{job_id}] Detected email verification code prompt with {len(visible_sec)} input boxes. Fetching PIN from Gmail...")
@@ -214,12 +216,18 @@ class StealthApplier:
                                 else:
                                     print(f"[{job_id}] Warning: Could not retrieve fresh verification PIN from email.")
 
-                            await capture_clean_screenshot(page, screenshot_path)
+                            # Poll for final confirmation page/modal up to 10s
+                            has_confirm = False
+                            has_error = False
+                            for _ in range(10):
+                                page_content = (await page.content()).lower()
+                                has_confirm = any(w in page_content for w in ["thank you for your interest", "your application has been received", "application submitted", "thanks for applying", "we have received your application", "thank you for applying"])
+                                has_error = any(w in page_content for w in ["incorrect security code", "there was an error processing your application", "we couldn't submit your application", "flagged as possible spam", "403 error", "the request could not be satisfied", "request blocked"])
+                                if has_confirm or has_error:
+                                    break
+                                await asyncio.sleep(1.0)
 
-                            # Verify if submission genuinely passed
-                            page_content = (await page.content()).lower()
-                            has_confirm = any(w in page_content for w in ["thank you for your interest", "your application has been received", "application submitted", "thanks for applying", "we have received your application"])
-                            has_error = any(w in page_content for w in ["incorrect security code", "there was an error processing your application", "we couldn't submit your application", "flagged as possible spam"])
+                            await capture_clean_screenshot(page, screenshot_path)
 
                             if has_confirm and not has_error:
                                 status = "APPLIED"
@@ -286,22 +294,46 @@ class StealthApplier:
         city_input = await target.query_selector("#candidate-location, input[id*='location' i]")
         if city_input:
             try:
-                await city_input.focus()
-                await human_type(city_input, f"{pers.get('current_city', 'Bengaluru')}, Karnataka, India")
-                await asyncio.sleep(1.0)
-                await page.keyboard.press("ArrowDown")
-                await asyncio.sleep(0.3)
-                await page.keyboard.press("Enter")
+                await city_input.click()
+                await city_input.fill("")
+                await city_input.type("Bangalore", delay=70)
+                await asyncio.sleep(1.8)
+                menu_opt = await target.query_selector("div[id*='option-0'], div.select__option")
+                if menu_opt:
+                    await menu_opt.click(force=True)
+                else:
+                    await page.keyboard.press("ArrowDown")
+                    await asyncio.sleep(0.3)
+                    await page.keyboard.press("Enter")
             except Exception:
                 pass
 
         # 2. Resume File Upload
         resume_path = self.profile.get("resume", {}).get("file_path", "resume.pdf")
         if resume_path and os.path.exists(resume_path):
-            file_input = await target.query_selector("input[type='file']")
-            if file_input:
-                await file_input.set_input_files(resume_path)
-                await asyncio.sleep(1.5)
+            uploaded = False
+            # Check for modern Greenhouse "Attach" button for resume
+            try:
+                resume_label = await target.query_selector("label[for='resume']")
+                if resume_label:
+                    attach_btn = await resume_label.evaluate_handle("e => e.previousElementSibling")
+                    if attach_btn:
+                        async with page.expect_file_chooser(timeout=3000) as fc_info:
+                            await attach_btn.click()
+                        file_chooser = await fc_info.value
+                        await file_chooser.set_files(resume_path)
+                        uploaded = True
+                        print("[Greenhouse] Successfully attached resume via file chooser on Attach button.")
+                        await asyncio.sleep(1.5)
+            except Exception as e:
+                # Fallback to direct input file upload
+                pass
+
+            if not uploaded:
+                file_input = await target.query_selector("input#resume, input[type='file']")
+                if file_input:
+                    await file_input.set_input_files(resume_path)
+                    await asyncio.sleep(1.5)
 
         # 3. Dynamic Custom Question Resolution via LLM Engine
         # 3a. Handle standard text inputs and textareas
@@ -344,7 +376,8 @@ class StealthApplier:
                 if not label:
                     continue
                 lbl_txt = (await label.inner_text()).strip()
-                if not lbl_txt or "country" in lbl_txt.lower():
+                # Only skip pure Country dropdown, do NOT skip authorization or residency questions mentioning country
+                if not lbl_txt or (lbl_txt.lower() == "country*" or lbl_txt.lower() == "country"):
                     continue
 
                 # Check if already has value
@@ -352,8 +385,8 @@ class StealthApplier:
                 if has_val:
                     continue
 
-                await c.click()
-                await asyncio.sleep(0.6)
+                await c.click(force=True)
+                await asyncio.sleep(0.5)
                 options = await target.query_selector_all("div[class*='option' i]")
                 if options:
                     opt_texts = [(await o.inner_text()).strip() for o in options]
@@ -378,8 +411,11 @@ class StealthApplier:
                                 if chosen.lower() in ot.lower():
                                     matched_idx = idx
                                     break
-                    await options[matched_idx].click()
-                    await asyncio.sleep(0.5)
+                    try:
+                        await options[matched_idx].click(force=True, timeout=2500)
+                    except Exception:
+                        await options[matched_idx].evaluate('el => el.click()')
+                    await asyncio.sleep(0.4)
             except Exception:
                 pass
 
