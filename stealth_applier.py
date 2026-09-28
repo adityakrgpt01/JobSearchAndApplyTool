@@ -139,10 +139,18 @@ class StealthApplier:
         if phone_input:
             await human_type(phone_input, pers["phone"])
 
-        # Country / City if required
+        # Country / City if required (Greenhouse React-Select combobox)
         city_input = await page.query_selector("#candidate-location, input[id*='location' i]")
         if city_input:
-            await human_type(city_input, pers.get("current_city", "Bengaluru"))
+            try:
+                await city_input.focus()
+                await human_type(city_input, f"{pers.get('current_city', 'Bengaluru')}, Karnataka, India")
+                await asyncio.sleep(1.0)
+                await page.keyboard.press("ArrowDown")
+                await asyncio.sleep(0.3)
+                await page.keyboard.press("Enter")
+            except Exception:
+                pass
 
         # 2. Resume File Upload
         resume_path = self.profile.get("resume", {}).get("file_path", "resume.pdf")
@@ -150,11 +158,11 @@ class StealthApplier:
             file_input = await page.query_selector("input[type='file']")
             if file_input:
                 await file_input.set_input_files(resume_path)
-                await asyncio.sleep(1.0)
+                await asyncio.sleep(1.5)
 
         # 3. Dynamic Custom Question Resolution via LLM Engine
-        # Look for custom fields and question containers
-        fields = await page.query_selector_all("div.field, div[class*='field']")
+        # 3a. Handle standard text inputs and textareas
+        fields = await page.query_selector_all("div.field, div[class*='field'], div[class*='container' i]")
         for f in fields:
             try:
                 label_el = await f.query_selector("label")
@@ -164,8 +172,7 @@ class StealthApplier:
                 if not q_text or len(q_text) < 3:
                     continue
 
-                # Check text inputs
-                text_input = await f.query_selector("input[type='text'], textarea")
+                text_input = await f.query_selector("input[type='text']:not(.select__input), textarea")
                 if text_input:
                     current_val = await text_input.input_value()
                     if not current_val:
@@ -173,7 +180,7 @@ class StealthApplier:
                         if ans:
                             await human_type(text_input, ans)
 
-                # Check select dropdowns
+                # Check native HTML select dropdowns if any
                 select_el = await f.query_selector("select")
                 if select_el:
                     opts = await select_el.query_selector_all("option")
@@ -183,9 +190,53 @@ class StealthApplier:
                         if chosen:
                             await select_el.select_option(label=chosen)
             except Exception as e:
-                print(f"[Greenhouse Field Warning] {e}")
+                pass
 
-        return True, "Filled standard Greenhouse fields and resolved custom questions with LLM"
+        # 3b. Handle Modern Greenhouse React-Select Comboboxes (Authorization, Sponsorship, EEO, Privacy)
+        combos = await page.query_selector_all("div.select__control, div[class*='control' i]")
+        for c in combos:
+            try:
+                parent = await c.evaluate_handle('e => e.closest(".select__container") || e.parentElement')
+                label = await parent.query_selector("label")
+                if not label:
+                    continue
+                lbl_txt = (await label.inner_text()).strip()
+                if not lbl_txt or "country" in lbl_txt.lower():
+                    continue
+
+                # Check if already has value
+                has_val = await c.query_selector("div.select__single-value, div[class*='singleValue' i]")
+                if has_val:
+                    continue
+
+                await c.click()
+                await asyncio.sleep(0.6)
+                options = await page.query_selector_all("div[class*='option' i]")
+                if options:
+                    opt_texts = [(await o.inner_text()).strip() for o in options]
+                    chosen = self.llm.answer_question(lbl_txt, opt_texts)
+                    matched_idx = 0
+                    if chosen:
+                        for idx, ot in enumerate(opt_texts):
+                            if chosen.lower() in ot.lower() or ot.lower() in chosen.lower():
+                                matched_idx = idx
+                                break
+                    await options[matched_idx].click()
+                    await asyncio.sleep(0.4)
+            except Exception:
+                pass
+
+        # 3c. Accept demographic / survey consent checkbox if present
+        checkboxes = await page.query_selector_all("input[type='checkbox']")
+        for cb in checkboxes:
+            try:
+                is_checked = await cb.is_checked()
+                if not is_checked:
+                    await cb.click(force=True)
+            except Exception:
+                pass
+
+        return True, "Filled standard Greenhouse fields, resolved custom questions, comboboxes, and EEO with LLM"
 
     async def _fill_lever(self, page) -> (bool, str):
         pers = self.profile["personal"]
@@ -267,15 +318,88 @@ class StealthApplier:
         if phone_input:
             await human_type(phone_input, pers["phone"])
 
+        # Location Combobox on Ashby
+        loc_input = await page.query_selector("input[placeholder*='Start typing' i]")
+        if loc_input:
+            try:
+                await loc_input.focus()
+                await human_type(loc_input, f"{pers.get('current_city', 'Bengaluru')}, Karnataka, India")
+                await asyncio.sleep(1.0)
+                await page.keyboard.press("ArrowDown")
+                await asyncio.sleep(0.3)
+                await page.keyboard.press("Enter")
+            except Exception:
+                pass
+
+        # Current or Most Recent Employer
+        emp_container = await page.query_selector("div:has(> label:has-text('Current or Most Recent Employer')), div:has(> span:has-text('Current or Most Recent Employer'))")
+        if emp_container:
+            emp_inp = await emp_container.query_selector("input[type='text']")
+            if emp_inp:
+                curr_comp = self.profile.get("professional", {}).get("work_experience", [{}])[0].get("company", "73 Strings")
+                await human_type(emp_inp, curr_comp)
+
+        # University or School Attended
+        edu_container = await page.query_selector("div:has(> label:has-text('University or School')), div:has(> span:has-text('University or School'))")
+        if edu_container:
+            edu_inp = await edu_container.query_selector("input[type='text']")
+            if edu_inp:
+                inst = self.profile.get("professional", {}).get("education", {}).get("institution", "JSS Academy of Technical Education")
+                await human_type(edu_inp, inst)
+
+        # LinkedIn Profile
+        li_container = await page.query_selector("div:has(> label:has-text('LinkedIn')), div:has(> span:has-text('LinkedIn'))")
+        if li_container:
+            li_inp = await li_container.query_selector("input[type='text']")
+            if li_inp and pers.get("linkedin_url"):
+                await human_type(li_inp, pers["linkedin_url"])
+
         # 3. Resume File Upload
         resume_path = self.profile.get("resume", {}).get("file_path", "resume.pdf")
         if resume_path and os.path.exists(resume_path):
-            file_input = await page.query_selector("input[type='file']")
-            if file_input:
-                await file_input.set_input_files(resume_path)
-                await asyncio.sleep(2.0)
+            file_inputs = await page.query_selector_all("input[type='file']")
+            for fi in file_inputs:
+                try:
+                    await fi.set_input_files(resume_path)
+                    await asyncio.sleep(2.0)
+                except Exception:
+                    pass
 
-        # 4. Consent checkboxes
+        # 4. Ashby Styled Yes/No Buttons & Radios
+        # 4a. Authorization buttons (Yes / No)
+        auth_section = await page.query_selector("div:has-text('legally authorized to work')")
+        if auth_section:
+            yes_btn = await auth_section.query_selector("button:has-text('Yes')")
+            if yes_btn:
+                try:
+                    await yes_btn.click(force=True)
+                    await asyncio.sleep(0.5)
+                except Exception:
+                    pass
+
+        # 4b. Sponsorship radio buttons
+        spons_section = await page.query_selector("div:has-text('require employment visa sponsorship')")
+        if spons_section:
+            no_spons = await spons_section.query_selector("input[type='radio'][id*='radio-1'], label:has-text('No')")
+            if no_spons:
+                try:
+                    await no_spons.click(force=True)
+                    await asyncio.sleep(0.5)
+                except Exception:
+                    pass
+
+        # 4c. Hybrid policy radio buttons
+        hybrid_section = await page.query_selector("div:has-text('Harvey Hybrid Policy'), div:has-text('in-office model')")
+        if hybrid_section:
+            yes_hybrid = await hybrid_section.query_selector("input[type='radio'][id*='radio-0'], label:has-text('Yes')")
+            if yes_hybrid:
+                try:
+                    await yes_hybrid.click(force=True)
+                    await asyncio.sleep(0.5)
+                except Exception:
+                    pass
+
+        # 5. Consent checkboxes
         consent_boxes = await page.query_selector_all("input[type='checkbox']")
         for cb in consent_boxes:
             try:
@@ -285,7 +409,7 @@ class StealthApplier:
             except Exception:
                 pass
 
-        return True, "Filled Ashby fields, attached resume, and accepted consents"
+        return True, "Filled Ashby fields, employer, location, LinkedIn, radios, and attached resume"
 
     async def _fill_workday(self, page, job: Dict[str, Any]) -> (bool, str):
         from database import save_portal_account, get_portal_account
@@ -403,22 +527,64 @@ class StealthApplier:
                 await asyncio.sleep(3.5)
 
             # Check if we are on My Information step and fill missing fields
+            # 6a. Fix name capitalization if Workday auto-filled in ALL CAPS
+            fn_el = await page.query_selector("input[data-automation-id='legalNameSection_firstName']")
+            if fn_el:
+                val = await fn_el.input_value()
+                if val.isupper() or not val:
+                    await fn_el.fill(pers.get("first_name", "Aditya"))
+
+            ln_el = await page.query_selector("input[data-automation-id='legalNameSection_lastName']")
+            if ln_el:
+                val = await ln_el.input_value()
+                if val.isupper() or not val:
+                    await ln_el.fill(pers.get("last_name", "Kumar"))
+
+            # 6b. Address Line 1
             addr_input = await page.query_selector("input[data-automation-id='addressSection_addressLine1']")
             if addr_input:
                 curr_addr = await addr_input.input_value()
                 if not curr_addr:
-                    await human_type(addr_input, pers.get("current_city", "Bengaluru"))
+                    await human_type(addr_input, "Outer Ring Road, Bellandur")
 
+            # 6c. City
             city_input = await page.query_selector("input[data-automation-id='addressSection_city']")
             if city_input:
                 curr_city = await city_input.input_value()
                 if not curr_city:
                     await human_type(city_input, pers.get("current_city", "Bengaluru"))
 
+            # 6d. Postal Code
             postal_input = await page.query_selector("input[data-automation-id='addressSection_postalCode']")
             if postal_input:
                 curr_postal = await postal_input.input_value()
                 if not curr_postal:
                     await human_type(postal_input, "560103")
+
+            # 6e. State / Region Dropdown
+            state_btn = await page.query_selector("button[data-automation-id='addressSection_countryRegion']")
+            if state_btn:
+                try:
+                    await state_btn.click()
+                    await asyncio.sleep(0.8)
+                    karnataka_opt = await page.query_selector("div[data-automation-id='menuItem']:has-text('Karnataka'), li:has-text('Karnataka')")
+                    if karnataka_opt:
+                        await karnataka_opt.click()
+                        await asyncio.sleep(0.5)
+                except Exception:
+                    pass
+
+            # 6f. How Did You Hear About Us?
+            source_btn = await page.query_selector("button[data-automation-id='source'], div[data-automation-id='source'] button")
+            if source_btn:
+                try:
+                    await source_btn.click()
+                    await asyncio.sleep(0.8)
+                    li_opt = await page.query_selector("div[data-automation-id='menuItem']:has-text('LinkedIn'), div[data-automation-id='menuItem']:has-text('Career'), li:has-text('LinkedIn')")
+                    if li_opt:
+                        await li_opt.click()
+                        await asyncio.sleep(0.5)
+                except Exception:
+                    pass
 
         return True, f"Navigated Workday application portal for {company}, synced credentials in DB, uploaded resume, and populated multi-step information"

@@ -188,9 +188,17 @@ class FormLLMEngine:
         if any(w in q for w in ["relocate", "relocation"]):
             return self._pick_option(["yes", "open to relocation"], options, "Yes")
 
+        # Privacy Policy / Agreement
+        if any(w in q for w in ["privacy policy", "consent", "i agree", "agree", "terms"]):
+            return self._pick_option(["agree", "yes", "i consent", "consent"], options, "I agree")
+
+        # Hybrid / In-office policy
+        if any(w in q for w in ["hybrid", "office", "days a week", "in person"]):
+            return self._pick_option(["yes", "excited", "able to work"], options, "Yes, I'm able to work from the office 3 days a week")
+
         # Gender / Equal Opportunity
         if "gender" in q and not "transgender" in q:
-            return self._pick_option(["male", "man"], options, "Male")
+            return self._pick_option(["male", "man", "decline", "prefer not"], options, "Male")
 
         if "transgender" in q:
             return self._pick_option(["no", "decline", "prefer not"], options, "No")
@@ -203,6 +211,10 @@ class FormLLMEngine:
 
         if "veteran" in q or "military" in q:
             return self._pick_option(["not a protected veteran", "no", "not a veteran", "prefer not"], options, "I am not a protected veteran")
+
+        # Race / Ethnicity
+        if any(w in q for w in ["ethnicity", "race", "ethnic"]):
+            return self._pick_option(["asian", "south asian", "asian (not hispanic or latino)", "prefer not", "decline"], options, "Asian")
 
         return None
 
