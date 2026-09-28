@@ -240,29 +240,52 @@ class StealthApplier:
 
     async def _fill_ashby(self, page) -> (bool, str):
         pers = self.profile["personal"]
+        
+        # 1. If currently on job overview page, click Apply button or redirect to /application
+        if "/application" not in page.url:
+            apply_link = await page.query_selector('a:has-text("Apply for this Job"), button:has-text("Apply for this Job")')
+            if apply_link:
+                await apply_link.click(force=True)
+                await asyncio.sleep(2.5)
+            elif not page.url.endswith("/application"):
+                await page.goto(page.url.rstrip("/") + "/application", wait_until="networkidle")
+                await asyncio.sleep(2.0)
+
         await page.mouse.wheel(0, 300)
         await asyncio.sleep(1.0)
 
-        # Name
-        name_input = await page.query_selector("input[id*='name' i]")
+        # 2. Standard Ashby Fields
+        name_input = await page.query_selector("input[name*='name' i], input[id*='name' i]")
         if name_input:
             await human_type(name_input, f"{pers['first_name']} {pers['last_name']}")
 
-        email_input = await page.query_selector("input[type='email']")
+        email_input = await page.query_selector("input[type='email'], input[name*='email' i]")
         if email_input:
             await human_type(email_input, pers["email"])
 
-        phone_input = await page.query_selector("input[type='tel']")
+        phone_input = await page.query_selector("input[type='tel'], input[name*='phone' i]")
         if phone_input:
             await human_type(phone_input, pers["phone"])
 
+        # 3. Resume File Upload
         resume_path = self.profile.get("resume", {}).get("file_path", "resume.pdf")
         if resume_path and os.path.exists(resume_path):
             file_input = await page.query_selector("input[type='file']")
             if file_input:
                 await file_input.set_input_files(resume_path)
+                await asyncio.sleep(2.0)
 
-        return True, "Filled Ashby fields and attached resume"
+        # 4. Consent checkboxes
+        consent_boxes = await page.query_selector_all("input[type='checkbox']")
+        for cb in consent_boxes:
+            try:
+                is_checked = await cb.is_checked()
+                if not is_checked:
+                    await cb.click(force=True)
+            except Exception:
+                pass
+
+        return True, "Filled Ashby fields, attached resume, and accepted consents"
 
     async def _fill_workday(self, page, job: Dict[str, Any]) -> (bool, str):
         from database import save_portal_account, get_portal_account
@@ -301,23 +324,35 @@ class StealthApplier:
             await asyncio.sleep(1.5)
 
         # 4. Workday Account Wall Handling (Create Account / Sign In)
+        try:
+            await page.wait_for_selector("input[data-automation-id='email'], input[type='email'], input[data-automation-id='file-upload-input-ref']", timeout=12000)
+        except Exception:
+            pass
+
+        existing = get_portal_account(domain)
+        if existing:
+            pwd = existing["password"]
+            # If we already have an account and page is on 'Create Account', click 'Sign In'
+            sign_in_link = await page.query_selector('button[data-automation-id="signInLink"], a[data-automation-id="signInLink"], button:has-text("Sign In"), a:has-text("Sign In")')
+            if sign_in_link:
+                try:
+                    await sign_in_link.click(force=True)
+                    await asyncio.sleep(2.5)
+                except Exception:
+                    pass
+        else:
+            alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+            pwd = "".join(secrets.choice(alphabet) for _ in range(14)) + "Aa1!"
+            save_portal_account(domain, company, pers["email"], pwd, status="ACTIVE")
+
         email_input = await page.query_selector("input[data-automation-id='email'], input[id*='email' i], input[type='email']")
         pass_input = await page.query_selector("input[data-automation-id='password'], input[id*='password' i], input[type='password']")
 
         if email_input and pass_input:
-            existing = get_portal_account(domain)
-            if existing:
-                pwd = existing["password"]
-            else:
-                # Generate a compliant password (letters, digits, symbol, uppercase)
-                alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
-                pwd = "".join(secrets.choice(alphabet) for _ in range(14)) + "Aa1!"
-                save_portal_account(domain, company, pers["email"], pwd, status="ACTIVE")
-
             await human_type(email_input, pers["email"])
             await human_type(pass_input, pwd)
 
-            # Check if there's a confirm password (Account creation)
+            # Check if there's a confirm password (Account creation mode)
             confirm_pwd = await page.query_selector("input[data-automation-id='verifyPassword'], input[id*='confirm' i]")
             if confirm_pwd:
                 await human_type(confirm_pwd, pwd)
@@ -325,17 +360,20 @@ class StealthApplier:
             # Check for terms / consent checkbox
             consent = await page.query_selector("input[type='checkbox']")
             if consent:
-                is_checked = await consent.is_checked()
-                if not is_checked:
-                    await consent.click()
+                try:
+                    is_checked = await consent.is_checked()
+                    if not is_checked:
+                        await consent.click(force=True)
+                except Exception:
+                    pass
 
             # Click Sign In / Create Account
-            submit_auth = await page.query_selector('div[data-automation-id="click_filter"][aria-label="Create Account"], button:has-text("Create Account"), button[data-automation-id="createAccountSubmitButton"], button:has-text("Sign In")')
+            submit_auth = await page.query_selector('button[data-automation-id="signInSubmitButton"], button[data-automation-id="createAccountSubmitButton"], div[data-automation-id="click_filter"][aria-label="Sign In"], div[data-automation-id="click_filter"][aria-label="Create Account"], button:has-text("Sign In"), button:has-text("Create Account")')
             if submit_auth:
                 await submit_auth.click(force=True)
-                await asyncio.sleep(5.0)
+                await asyncio.sleep(6.0)
 
-            # 4. Check for PIN / Verification Screen
+            # 4b. Check for PIN / Verification Screen
             pin_input = await page.query_selector("input[data-automation-id='verificationCode'], input[id*='code' i], input[name*='pin' i]")
             if pin_input:
                 print(f"[Workday Applier] Verification screen detected! Polling Gmail for 6-digit PIN...")
@@ -345,15 +383,42 @@ class StealthApplier:
                     await human_type(pin_input, pin)
                     verify_btn = await page.query_selector("button:has-text('Verify'), button:has-text('Continue'), button[data-automation-id='verifyButton']")
                     if verify_btn:
-                        await verify_btn.click()
+                        await verify_btn.click(force=True)
                         await asyncio.sleep(4.0)
 
         # 5. Upload Resume
         resume_path = self.profile.get("resume", {}).get("file_path", "resume.pdf")
         if resume_path and os.path.exists(resume_path):
-            file_input = await page.query_selector("input[type='file']")
+            file_input = await page.query_selector("input[type='file'], input[data-automation-id='file-upload-input-ref']")
             if file_input:
                 await file_input.set_input_files(resume_path)
-                await asyncio.sleep(2.0)
+                await asyncio.sleep(4.0)
 
-        return True, f"Navigated Workday application portal for {company}, synced credentials in DB"
+        # 6. Click Continue / Save and Continue to advance across Workday steps
+        for step_idx in range(1, 4):
+            # Try clicking bottom navigation next/continue button
+            next_btn = await page.query_selector('button[data-automation-id="bottom-navigation-next-button"], button:has-text("Save and Continue"), button:has-text("Continue")')
+            if next_btn and await next_btn.is_visible():
+                await next_btn.click(force=True)
+                await asyncio.sleep(3.5)
+
+            # Check if we are on My Information step and fill missing fields
+            addr_input = await page.query_selector("input[data-automation-id='addressSection_addressLine1']")
+            if addr_input:
+                curr_addr = await addr_input.input_value()
+                if not curr_addr:
+                    await human_type(addr_input, pers.get("current_city", "Bengaluru"))
+
+            city_input = await page.query_selector("input[data-automation-id='addressSection_city']")
+            if city_input:
+                curr_city = await city_input.input_value()
+                if not curr_city:
+                    await human_type(city_input, pers.get("current_city", "Bengaluru"))
+
+            postal_input = await page.query_selector("input[data-automation-id='addressSection_postalCode']")
+            if postal_input:
+                curr_postal = await postal_input.input_value()
+                if not curr_postal:
+                    await human_type(postal_input, "560103")
+
+        return True, f"Navigated Workday application portal for {company}, synced credentials in DB, uploaded resume, and populated multi-step information"
