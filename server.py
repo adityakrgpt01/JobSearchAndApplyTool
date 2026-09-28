@@ -682,8 +682,104 @@ def dashboard_html():
             let customStartDate = '';
             let customEndDate = '';
             let searchDebounceTimer = null;
+            let activeTab = 'jobs';
+
+            function saveFilterState() {
+                try {
+                    const state = {
+                        currentHours,
+                        customStartDate,
+                        customEndDate,
+                        activeTab,
+                        search: document.getElementById('jobSearchInput') ? document.getElementById('jobSearchInput').value : '',
+                        tier: document.getElementById('tierSelect') ? document.getElementById('tierSelect').value : 'all',
+                        compType: document.getElementById('companyTypeSelect') ? document.getElementById('companyTypeSelect').value : 'all',
+                        compSize: document.getElementById('companySizeSelect') ? document.getElementById('companySizeSelect').value : 'all',
+                        culture: document.getElementById('cultureSelect') ? document.getElementById('cultureSelect').value : 'all',
+                        risk: document.getElementById('riskSelect') ? document.getElementById('riskSelect').value : 'all',
+                        platforms: Array.from(document.querySelectorAll('.plat-checkbox')).map(cb => ({ value: cb.value, checked: cb.checked }))
+                    };
+                    localStorage.setItem('agy_job_filter_state', JSON.stringify(state));
+                } catch(e) {}
+            }
+
+            function restoreFilterState() {
+                try {
+                    const raw = localStorage.getItem('agy_job_filter_state');
+                    if (!raw) return false;
+                    const state = JSON.parse(raw);
+
+                    if (state.currentHours !== undefined) currentHours = state.currentHours;
+                    if (state.customStartDate) customStartDate = state.customStartDate;
+                    if (state.customEndDate) customEndDate = state.customEndDate;
+                    if (state.activeTab) activeTab = state.activeTab;
+
+                    if (document.getElementById('jobSearchInput') && state.search !== undefined) {
+                        document.getElementById('jobSearchInput').value = state.search;
+                    }
+                    if (document.getElementById('tierSelect') && state.tier) {
+                        document.getElementById('tierSelect').value = state.tier;
+                    }
+                    if (document.getElementById('companyTypeSelect') && state.compType) {
+                        document.getElementById('companyTypeSelect').value = state.compType;
+                    }
+                    if (document.getElementById('companySizeSelect') && state.compSize) {
+                        document.getElementById('companySizeSelect').value = state.compSize;
+                    }
+                    if (document.getElementById('cultureSelect') && state.culture) {
+                        document.getElementById('cultureSelect').value = state.culture;
+                    }
+                    if (document.getElementById('riskSelect') && state.risk) {
+                        document.getElementById('riskSelect').value = state.risk;
+                    }
+
+                    if (Array.isArray(state.platforms)) {
+                        state.platforms.forEach(p => {
+                            const cb = document.querySelector(`.plat-checkbox[value='${p.value}']`);
+                            if (cb) cb.checked = p.checked;
+                        });
+                        onPlatformCheckboxChange();
+                    }
+
+                    // Update UI time buttons
+                    document.querySelectorAll('.time-btn').forEach(btn => {
+                        btn.classList.remove('bg-emerald-500', 'text-black', 'bg-cyan-500');
+                        btn.classList.add('bg-slate-800', 'text-slate-300');
+                    });
+
+                    if (currentHours === -1) {
+                        const customBtn = document.getElementById('btnTimeCustom');
+                        if (customBtn) {
+                            customBtn.classList.remove('bg-slate-800', 'text-slate-300');
+                            customBtn.classList.add('bg-cyan-500', 'text-black');
+                        }
+                        const bar = document.getElementById('customRangeBar');
+                        if (bar) bar.classList.remove('hidden');
+                        if (document.getElementById('customStartDate')) document.getElementById('customStartDate').value = customStartDate;
+                        if (document.getElementById('customEndDate')) document.getElementById('customEndDate').value = customEndDate;
+                    } else {
+                        let activeId = `btnTime${currentHours}`;
+                        if (currentHours === 0) activeId = 'btnTimeAll';
+                        const activeBtn = document.getElementById(activeId);
+                        if (activeBtn) {
+                            activeBtn.classList.remove('bg-slate-800', 'text-slate-300');
+                            activeBtn.classList.add('bg-emerald-500', 'text-black');
+                        }
+                    }
+
+                    if (activeTab && activeTab !== 'jobs') {
+                        switchTab(activeTab);
+                    }
+
+                    updateFilterLabel();
+                    return true;
+                } catch(e) {
+                    return false;
+                }
+            }
 
             function debounceFilter() {
+                saveFilterState();
                 clearTimeout(searchDebounceTimer);
                 searchDebounceTimer = setTimeout(() => {
                     loadAllData();
@@ -729,6 +825,7 @@ def dashboard_html():
                 }
 
                 updateFilterLabel();
+                saveFilterState();
                 loadAllData();
             }
 
@@ -789,6 +886,7 @@ def dashboard_html():
                         label.innerText = `Platforms (${cbs.length}/${total})`;
                     }
                 }
+                saveFilterState();
                 loadAllData();
             }
 
@@ -808,6 +906,9 @@ def dashboard_html():
                 if (cultEl) cultEl.value = 'all';
                 const riskEl = document.getElementById('riskSelect');
                 if (riskEl) riskEl.value = 'all';
+                try {
+                    localStorage.removeItem('agy_job_filter_state');
+                } catch(e) {}
                 clearCustomRange();
             }
 
@@ -913,6 +1014,7 @@ def dashboard_html():
                     activeBtn.classList.add('bg-emerald-500', 'text-black');
                 }
                 updateFilterLabel();
+                saveFilterState();
                 loadAllData();
             }
 
@@ -1109,6 +1211,7 @@ def dashboard_html():
             }
 
             function loadAllData() {
+                saveFilterState();
                 loadStats();
                 loadJobs();
                 loadFailures();
@@ -1326,6 +1429,7 @@ def dashboard_html():
             }
 
             function switchTab(tab) {
+                activeTab = tab;
                 const views = {
                     'jobs': document.getElementById('viewJobs'),
                     'mncs': document.getElementById('viewMncs'),
@@ -1353,6 +1457,7 @@ def dashboard_html():
                     }
                 }
 
+                saveFilterState();
                 if (tab === 'mncs') loadMncs();
                 if (tab === 'failures') loadFailures();
             }
@@ -1502,7 +1607,8 @@ def dashboard_html():
                     });
                 }
 
-                // 1. Instantly render cached database listings & stats
+                // 1. Restore any saved filter settings from localStorage, or load defaults
+                restoreFilterState();
                 loadAllData();
 
                 // 2. Automatically trigger live background discovery and failed company resync on page load
