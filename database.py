@@ -315,8 +315,20 @@ def list_jobs(
     """
     params = []
     if status and status != "all":
-        query += " AND j.status = ?"
-        params.append(status)
+        s_norm = status.lower().strip()
+        if s_norm == "applied":
+            query += " AND (j.status LIKE '%APPLIED%' OR j.status LIKE '%SUBMIT%')"
+        elif s_norm in ("not_applied", "unapplied"):
+            query += " AND (j.status NOT LIKE '%APPLIED%' AND j.status NOT LIKE '%SUBMIT%')"
+        elif s_norm in ("ready", "dry_run", "ready_to_submit"):
+            query += " AND j.status LIKE '%READY_TO_SUBMIT%'"
+        elif s_norm == "failed":
+            query += " AND j.status LIKE '%FAILED%'"
+        elif s_norm == "discovered":
+            query += " AND j.status = 'DISCOVERED'"
+        else:
+            query += " AND j.status = ?"
+            params.append(status)
     if salary_tier and salary_tier != "all":
         query += " AND j.salary_tier = ?"
         params.append(salary_tier)

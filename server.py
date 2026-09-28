@@ -130,8 +130,13 @@ def get_stats(
         plat = j.get("ats_platform", "other")
         platforms[plat] = platforms.get(plat, 0) + 1
 
+    total_applied = sum(v for k, v in status_counts.items() if "APPLIED" in k or "SUBMIT" in k)
+    total_unapplied = len(jobs) - total_applied
+
     return {
         "total_jobs": len(jobs),
+        "total_applied": total_applied,
+        "total_unapplied": total_unapplied,
         "tiers": tiers,
         "status_counts": status_counts,
         "platforms": platforms
@@ -478,15 +483,38 @@ def dashboard_html():
                             <option value="low_only">🛡️ Safe Only (Zero Layoffs / Low Risk)</option>
                         </select>
                     </div>
+
+                    <!-- Application Status Filter -->
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                            <i class="fa-solid fa-clipboard-check text-cyan-400 mr-1"></i>Status:
+                        </span>
+                        <select id="statusSelect" onchange="syncStatusFilter(this.value)" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
+                            <option value="all">All Statuses</option>
+                            <option value="applied">✅ Applied Only</option>
+                            <option value="not_applied">⏳ Not Applied Yet</option>
+                            <option value="ready">📋 Ready for Review (Dry-Run)</option>
+                            <option value="failed">⚠️ Failed / Requires Fix</option>
+                            <option value="discovered">🔍 Discovered Only</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
             <!-- Stats & Analytics Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 my-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 my-6">
                 <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-sm">
                     <div class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Filtered Jobs</div>
                     <div id="statTotal" class="text-3xl font-bold mt-2 text-white">--</div>
                     <div id="statTimeLabel" class="text-xs text-emerald-400 mt-1">Posted within last 24h</div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-sm cursor-pointer hover:border-emerald-700 transition" onclick="quickFilterStatus('applied')">
+                    <div class="text-emerald-400 text-xs font-semibold uppercase tracking-wider flex items-center justify-between">
+                        <span>✅ Submitted / Applied</span>
+                        <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                    </div>
+                    <div id="statApplied" class="text-3xl font-bold mt-2 text-emerald-300">--</div>
+                    <div id="statUnappliedLabel" class="text-xs text-slate-400 mt-1">-- unapplied</div>
                 </div>
                 <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-sm">
                     <div class="text-purple-400 text-xs font-semibold uppercase tracking-wider">🌟 70+ LPA Tier</div>
@@ -608,7 +636,56 @@ def dashboard_html():
                                     </div>
                                 </th>
                                 <th class="px-5 py-3">Location & Posted</th>
-                                <th class="px-5 py-3">Status</th>
+                                <th class="px-5 py-3 relative" id="statusHeaderTh">
+                                    <div class="flex items-center gap-1.5 cursor-pointer select-none" onclick="toggleStatusFilterMenu(event)">
+                                        <span>Status</span>
+                                        <button type="button" id="statusFilterBtn" class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition flex items-center justify-center">
+                                            <i id="statusFilterIcon" class="fa-solid fa-filter text-[11px]"></i>
+                                        </button>
+                                        <span id="statusActiveFilterBadge" class="hidden w-2 h-2 rounded-full bg-cyan-400"></span>
+                                    </div>
+
+                                    <!-- Status Filter Popover -->
+                                    <div id="statusFilterMenu" class="hidden absolute top-full left-0 mt-1 w-56 bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl p-3 z-50 normal-case font-normal text-slate-200">
+                                        <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-800">
+                                            <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                                <i class="fa-solid fa-clipboard-check text-cyan-400"></i> Application Status
+                                            </span>
+                                            <button type="button" onclick="resetStatusFilter(event)" class="text-[11px] text-slate-400 hover:text-amber-400 transition">
+                                                Reset
+                                            </button>
+                                        </div>
+
+                                        <div class="space-y-1 text-xs">
+                                            <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                                <input type="radio" name="statusHeaderRadio" value="all" onchange="syncStatusFilter(this.value)" checked class="text-cyan-500 focus:ring-0" />
+                                                <span>All Statuses</span>
+                                            </label>
+                                            <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-800 cursor-pointer text-emerald-300">
+                                                <input type="radio" name="statusHeaderRadio" value="applied" onchange="syncStatusFilter(this.value)" class="text-emerald-500 focus:ring-0" />
+                                                <span><i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i> Applied Only</span>
+                                            </label>
+                                            <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-800 cursor-pointer text-slate-300">
+                                                <input type="radio" name="statusHeaderRadio" value="not_applied" onchange="syncStatusFilter(this.value)" class="text-cyan-500 focus:ring-0" />
+                                                <span><i class="fa-regular fa-clock text-slate-400 mr-1"></i> Not Applied Yet</span>
+                                            </label>
+                                            <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-800 cursor-pointer text-amber-300">
+                                                <input type="radio" name="statusHeaderRadio" value="ready" onchange="syncStatusFilter(this.value)" class="text-amber-500 focus:ring-0" />
+                                                <span><i class="fa-solid fa-eye text-amber-400 mr-1"></i> Ready for Review</span>
+                                            </label>
+                                            <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-800 cursor-pointer text-rose-300">
+                                                <input type="radio" name="statusHeaderRadio" value="failed" onchange="syncStatusFilter(this.value)" class="text-rose-500 focus:ring-0" />
+                                                <span><i class="fa-solid fa-triangle-exclamation text-rose-400 mr-1"></i> Failed / Needs Fix</span>
+                                            </label>
+                                        </div>
+
+                                        <div class="pt-2 mt-2 border-t border-slate-800 flex justify-end">
+                                            <button type="button" onclick="closeStatusFilterMenu()" class="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white rounded-md text-xs font-semibold shadow transition">
+                                                Done
+                                            </button>
+                                        </div>
+                                    </div>
+                                </th>
                                 <th class="px-5 py-3 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -747,6 +824,7 @@ def dashboard_html():
                         compSize: document.getElementById('companySizeSelect') ? document.getElementById('companySizeSelect').value : 'all',
                         culture: document.getElementById('cultureSelect') ? document.getElementById('cultureSelect').value : 'all',
                         risk: document.getElementById('riskSelect') ? document.getElementById('riskSelect').value : 'all',
+                        status: document.getElementById('statusSelect') ? document.getElementById('statusSelect').value : 'all',
                         platforms: Array.from(document.querySelectorAll('.plat-checkbox')).map(cb => ({ value: cb.value, checked: cb.checked }))
                     };
                     localStorage.setItem('agy_job_filter_state', JSON.stringify(state));
@@ -781,6 +859,12 @@ def dashboard_html():
                     }
                     if (document.getElementById('riskSelect') && state.risk) {
                         document.getElementById('riskSelect').value = state.risk;
+                    }
+                    if (document.getElementById('statusSelect') && state.status) {
+                        document.getElementById('statusSelect').value = state.status;
+                        const radios = document.querySelectorAll("input[name='statusHeaderRadio']");
+                        radios.forEach(r => { r.checked = (r.value === state.status); });
+                        updateStatusHeaderUI();
                     }
 
                     if (Array.isArray(state.platforms)) {
@@ -960,12 +1044,72 @@ def dashboard_html():
                 }
             }
 
+            function toggleStatusFilterMenu(e) {
+                if (e) e.stopPropagation();
+                const menu = document.getElementById('statusFilterMenu');
+                if (menu) menu.classList.toggle('hidden');
+            }
+
+            function closeStatusFilterMenu() {
+                const menu = document.getElementById('statusFilterMenu');
+                if (menu) menu.classList.add('hidden');
+            }
+
+            function syncStatusFilter(val) {
+                const sSelect = document.getElementById('statusSelect');
+                if (sSelect && sSelect.value !== val) sSelect.value = val;
+
+                const radios = document.querySelectorAll("input[name='statusHeaderRadio']");
+                radios.forEach(r => {
+                    r.checked = (r.value === val);
+                });
+
+                updateStatusHeaderUI();
+                saveFilterState();
+                loadAllData();
+            }
+
+            function quickFilterStatus(val) {
+                syncStatusFilter(val);
+                // Ensure on jobs tab
+                if (activeTab !== 'jobs') switchTab('jobs');
+            }
+
+            function resetStatusFilter(e) {
+                if (e) e.stopPropagation();
+                syncStatusFilter('all');
+            }
+
+            function updateStatusHeaderUI() {
+                const sVal = document.getElementById('statusSelect') ? document.getElementById('statusSelect').value : 'all';
+                const badge = document.getElementById('statusActiveFilterBadge');
+                const icon = document.getElementById('statusFilterIcon');
+                const btn = document.getElementById('statusFilterBtn');
+                const isFiltered = (sVal !== 'all');
+
+                if (badge) {
+                    if (isFiltered) badge.classList.remove('hidden');
+                    else badge.classList.add('hidden');
+                }
+                if (icon && btn) {
+                    if (isFiltered) {
+                        icon.classList.remove('text-slate-400');
+                        icon.classList.add('text-cyan-400');
+                        btn.classList.add('bg-cyan-950', 'text-cyan-300');
+                    } else {
+                        icon.classList.remove('text-cyan-400');
+                        icon.classList.add('text-slate-400');
+                        btn.classList.remove('bg-cyan-950', 'text-cyan-300');
+                    }
+                }
+            }
+
             function togglePlatformDropdown() {
                 const menu = document.getElementById('platformDropdownMenu');
                 if (menu) menu.classList.toggle('hidden');
             }
 
-            // Close platform menu and DD filter menu when clicking outside
+            // Close platform menu, DD filter menu, and status filter menu when clicking outside
             document.addEventListener('click', (e) => {
                 const container = document.getElementById('platformDropdownContainer');
                 const menu = document.getElementById('platformDropdownMenu');
@@ -977,6 +1121,12 @@ def dashboard_html():
                 const ddMenu = document.getElementById('ddFilterMenu');
                 if (ddTh && ddMenu && !ddTh.contains(e.target)) {
                     ddMenu.classList.add('hidden');
+                }
+
+                const stTh = document.getElementById('statusHeaderTh');
+                const stMenu = document.getElementById('statusFilterMenu');
+                if (stTh && stMenu && !stTh.contains(e.target)) {
+                    stMenu.classList.add('hidden');
                 }
             });
 
@@ -1029,7 +1179,12 @@ def dashboard_html():
                 if (cultEl) cultEl.value = 'all';
                 const riskEl = document.getElementById('riskSelect');
                 if (riskEl) riskEl.value = 'all';
+                const statusEl = document.getElementById('statusSelect');
+                if (statusEl) statusEl.value = 'all';
+                const radios = document.querySelectorAll("input[name='statusHeaderRadio']");
+                radios.forEach(r => { r.checked = (r.value === 'all'); });
                 updateDDHeaderUI();
+                updateStatusHeaderUI();
                 try {
                     localStorage.removeItem('agy_job_filter_state');
                 } catch(e) {}
@@ -1044,6 +1199,7 @@ def dashboard_html():
                 const compSize = document.getElementById('companySizeSelect') ? document.getElementById('companySizeSelect').value : 'all';
                 const culture = document.getElementById('cultureSelect') ? document.getElementById('cultureSelect').value : 'all';
                 const risk = document.getElementById('riskSelect') ? document.getElementById('riskSelect').value : 'all';
+                const status = document.getElementById('statusSelect') ? document.getElementById('statusSelect').value : 'all';
                 const q = document.getElementById('jobSearchInput') ? document.getElementById('jobSearchInput').value.trim() : '';
 
                 let params = `platform=${encodeURIComponent(platform)}`;
@@ -1062,6 +1218,7 @@ def dashboard_html():
                 if (compSize && compSize !== 'all') params += `&company_size=${encodeURIComponent(compSize)}`;
                 if (culture && culture !== 'all') params += `&min_wlb=${encodeURIComponent(culture)}`;
                 if (risk && risk !== 'all') params += `&max_risk=${encodeURIComponent(risk)}`;
+                if (status && status !== 'all') params += `&status=${encodeURIComponent(status)}`;
                 if (q) params += `&q=${encodeURIComponent(q)}`;
                 return params;
             }
@@ -1110,7 +1267,14 @@ def dashboard_html():
                 let riskText = '';
                 if (risk === 'low_only') riskText = ' • Low Risk';
 
-                document.getElementById('statTimeLabel').innerText = `${timeText} • ${platText}${tierText}${remText}${typeText}${sizeText}${cultText}${riskText}`;
+                const status = document.getElementById('statusSelect') ? document.getElementById('statusSelect').value : 'all';
+                let statusText = '';
+                if (status === 'applied') statusText = ' • Applied Only';
+                else if (status === 'not_applied') statusText = ' • Unapplied Only';
+                else if (status === 'ready') statusText = ' • Ready for Review';
+                else if (status === 'failed') statusText = ' • Failed Only';
+
+                document.getElementById('statTimeLabel').innerText = `${timeText} • ${platText}${tierText}${statusText}${remText}${typeText}${sizeText}${cultText}${riskText}`;
             }
 
             function setTimeFilter(hours) {
@@ -1150,6 +1314,8 @@ def dashboard_html():
                     const data = await res.json();
                     
                     if (document.getElementById('statTotal')) document.getElementById('statTotal').innerText = data.total_jobs;
+                    if (document.getElementById('statApplied')) document.getElementById('statApplied').innerText = data.total_applied || 0;
+                    if (document.getElementById('statUnappliedLabel')) document.getElementById('statUnappliedLabel').innerText = `${data.total_unapplied || 0} unapplied`;
                     if (document.getElementById('statTier70')) document.getElementById('statTier70').innerText = data.tiers['70+LPA'] || 0;
                     if (document.getElementById('statTier5060')) document.getElementById('statTier5060').innerText = (data.tiers['50-60LPA'] || 0) + (data.tiers['60-70LPA'] || 0);
                     if (document.getElementById('statTier40')) document.getElementById('statTier40').innerText = data.tiers['40-50LPA'] || 0;
@@ -1305,12 +1471,19 @@ def dashboard_html():
                             ${j.is_remote ? '<span class="text-emerald-400 text-[10px] font-bold uppercase mt-1 inline-block">Remote Eligible</span>' : ''}
                         </td>
                         <td class="px-5 py-4">
-                            <span class="px-2.5 py-1 text-xs rounded-full font-medium ${
-                                j.status.includes('APPLIED') ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-700' :
-                                j.status.includes('DRY_RUN') ? 'bg-amber-900/60 text-amber-300 border border-amber-700' :
-                                j.status === 'APPLYING' ? 'bg-blue-900/60 text-blue-300 animate-pulse' :
-                                'bg-slate-800 text-slate-400'
-                            }">${j.status}</span>
+                            <span class="px-2.5 py-1 text-xs rounded-full font-semibold inline-flex items-center gap-1.5 ${
+                                j.status.includes('APPLIED') ? 'bg-emerald-950 text-emerald-300 border border-emerald-600 shadow-sm' :
+                                j.status.includes('DRY_RUN') ? 'bg-amber-950 text-amber-300 border border-amber-600' :
+                                j.status.includes('FAILED') ? 'bg-rose-950 text-rose-300 border border-rose-600' :
+                                j.status === 'APPLYING' ? 'bg-blue-900/60 text-blue-300 border border-blue-600 animate-pulse' :
+                                'bg-slate-800 text-slate-400 border border-slate-700'
+                            }">
+                                ${j.status.includes('APPLIED') ? '<i class="fa-solid fa-circle-check text-emerald-400 text-[11px]"></i> Applied' :
+                                  j.status.includes('DRY_RUN') ? '<i class="fa-solid fa-clipboard-check text-amber-400 text-[11px]"></i> Ready (Dry-Run)' :
+                                  j.status.includes('FAILED') ? '<i class="fa-solid fa-circle-exclamation text-rose-400 text-[11px]"></i> Failed' :
+                                  j.status === 'APPLYING' ? '<i class="fa-solid fa-spinner fa-spin text-blue-400 text-[11px]"></i> Applying...' :
+                                  '<i class="fa-regular fa-clock text-slate-500 text-[10px]"></i> Not Applied'}
+                            </span>
                         </td>
                         <td class="px-5 py-4 text-right space-x-1.5 whitespace-nowrap">
                             ${hasReview ? `
