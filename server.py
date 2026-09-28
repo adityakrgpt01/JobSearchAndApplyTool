@@ -657,6 +657,10 @@ def dashboard_html():
                         <p id="reviewModalSubtitle" class="text-xs text-slate-400 mt-0.5">Form auto-filled with candidate profile • Ready for final review</p>
                     </div>
                     <div class="flex items-center gap-3">
+                        <button id="reviewApproveBtn" onclick="submitReviewedApplication()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-bold flex items-center gap-1.5 shadow transition">
+                            <i class="fa-solid fa-paper-plane text-[10px]"></i>
+                            <span>Approve & Submit Now</span>
+                        </button>
                         <a id="reviewPortalLink" href="#" target="_blank" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-semibold flex items-center gap-1.5 transition">
                             <span>Open Live Portal</span>
                             <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
@@ -1197,21 +1201,55 @@ def dashboard_html():
                 }
             }
 
+            let activeReviewJobId = null;
+
             function openReviewModal(jobId, compName, title, applyUrl, screenshotPath) {
                 const modal = document.getElementById('reviewModal');
                 const titleEl = document.getElementById('reviewModalTitle');
                 const subEl = document.getElementById('reviewModalSubtitle');
                 const linkEl = document.getElementById('reviewPortalLink');
                 const imgEl = document.getElementById('reviewScreenshotImg');
+                const approveBtn = document.getElementById('reviewApproveBtn');
 
+                activeReviewJobId = decodeURIComponent(jobId);
                 titleEl.innerHTML = `<i class="fa-solid fa-file-signature text-emerald-400"></i> ${decodeURIComponent(title)} - ${decodeURIComponent(compName)}`;
-                subEl.innerText = `Verified in Safe Dry-Run Mode. All fields & resume loaded autonomously. Review proof below or click Open Live Portal.`;
+                subEl.innerText = `Verified in Safe Dry-Run Mode. All fields & resume loaded autonomously. Review proof below, click 'Approve & Submit Now', or open live portal.`;
                 linkEl.href = decodeURIComponent(applyUrl);
+
+                if (approveBtn) {
+                    approveBtn.innerHTML = `<i class="fa-solid fa-paper-plane text-[10px]"></i> <span>Approve & Submit Now</span>`;
+                    approveBtn.disabled = false;
+                }
 
                 // Screenshot URL
                 const cleanPath = decodeURIComponent(screenshotPath || '').replace(/^screenshots\//, '');
                 imgEl.src = `/screenshots/${cleanPath}?t=${Date.now()}`;
                 modal.classList.remove('hidden');
+            }
+
+            async function submitReviewedApplication() {
+                if (!activeReviewJobId) return;
+                const approveBtn = document.getElementById('reviewApproveBtn');
+                if (!confirm(`Are you sure you want to permanently submit this application now?`)) return;
+
+                if (approveBtn) {
+                    approveBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin text-[10px]"></i> <span>Submitting...</span>`;
+                    approveBtn.disabled = true;
+                }
+
+                try {
+                    const res = await fetch(`/api/apply/${encodeURIComponent(activeReviewJobId)}?dry_run=false`, { method: 'POST' });
+                    const d = await res.json();
+                    alert("🚀 Application submission initiated for real!\n\nThe stealth browser is executing final submission.");
+                    closeReviewModal();
+                    setTimeout(loadAllData, 4000);
+                } catch(e) {
+                    alert("Error submitting application: " + e.message);
+                    if (approveBtn) {
+                        approveBtn.innerHTML = `<i class="fa-solid fa-paper-plane text-[10px]"></i> <span>Approve & Submit Now</span>`;
+                        approveBtn.disabled = false;
+                    }
+                }
             }
 
             function closeReviewModal() {

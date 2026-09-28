@@ -198,23 +198,23 @@ class FormLLMEngine:
 
         # Gender / Equal Opportunity
         if "gender" in q and not "transgender" in q:
-            return self._pick_option(["male", "man", "decline", "prefer not"], options, "Male")
+            return self._pick_option(["\\bmale\\b", "\\bman\\b", "decline", "prefer not"], options, "Male")
 
         if "transgender" in q:
-            return self._pick_option(["no", "decline", "prefer not"], options, "No")
+            return self._pick_option(["\\bno\\b", "decline", "prefer not"], options, "No")
 
         if "sexual orientation" in q:
             return self._pick_option(["heterosexual", "straight", "decline", "prefer not"], options, "Heterosexual / Straight")
 
         if "disability" in q:
-            return self._pick_option(["no, i do not", "no", "do not have a disability", "prefer not"], options, "No, I do not have a disability")
+            return self._pick_option(["no, i do not", "\\bno\\b", "do not have a disability", "prefer not"], options, "No, I do not have a disability")
 
         if "veteran" in q or "military" in q:
-            return self._pick_option(["not a protected veteran", "no", "not a veteran", "prefer not"], options, "I am not a protected veteran")
+            return self._pick_option(["not a protected veteran", "\\bno\\b", "not a veteran", "prefer not"], options, "I am not a protected veteran")
 
         # Race / Ethnicity
         if any(w in q for w in ["ethnicity", "race", "ethnic"]):
-            return self._pick_option(["asian", "south asian", "asian (not hispanic or latino)", "prefer not", "decline"], options, "Asian")
+            return self._pick_option(["south asian", "asian (not hispanic", "\\basian\\b", "prefer not", "decline"], options, "Asian")
 
         return None
 
@@ -243,7 +243,17 @@ class FormLLMEngine:
         if not options:
             return default_val
         for kw in keywords:
+            is_regex = "\\" in kw
             for opt in options:
-                if kw.lower() in opt.lower():
-                    return opt
+                if is_regex:
+                    if re.search(kw, opt, re.IGNORECASE):
+                        # Avoid 'female' when searching for 'male'
+                        if kw == "\\bmale\\b" and "female" in opt.lower():
+                            continue
+                        return opt
+                else:
+                    if kw.lower() in opt.lower():
+                        if kw.lower() == "male" and "female" in opt.lower():
+                            continue
+                        return opt
         return options[0]

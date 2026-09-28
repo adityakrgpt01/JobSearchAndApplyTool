@@ -217,12 +217,26 @@ class StealthApplier:
                     chosen = self.llm.answer_question(lbl_txt, opt_texts)
                     matched_idx = 0
                     if chosen:
+                        # Prioritize exact match, then boundary match, then substring
+                        found = False
                         for idx, ot in enumerate(opt_texts):
-                            if chosen.lower() in ot.lower() or ot.lower() in chosen.lower():
+                            if chosen.strip().lower() == ot.strip().lower():
                                 matched_idx = idx
+                                found = True
                                 break
+                        if not found:
+                            for idx, ot in enumerate(opt_texts):
+                                if re.search(r'\b' + re.escape(chosen.lower()) + r'\b', ot.lower()):
+                                    matched_idx = idx
+                                    found = True
+                                    break
+                        if not found:
+                            for idx, ot in enumerate(opt_texts):
+                                if chosen.lower() in ot.lower():
+                                    matched_idx = idx
+                                    break
                     await options[matched_idx].click()
-                    await asyncio.sleep(0.4)
+                    await asyncio.sleep(0.5)
             except Exception:
                 pass
 
@@ -377,10 +391,11 @@ class StealthApplier:
                 except Exception:
                     pass
 
-        # 4b. Sponsorship radio buttons
+        # 4b. Sponsorship radio buttons (Profile requires No sponsorship)
         spons_section = await page.query_selector("div:has-text('require employment visa sponsorship')")
         if spons_section:
-            no_spons = await spons_section.query_selector("input[type='radio'][id*='radio-1'], label:has-text('No')")
+            # Click the label containing 'No, I do not require'
+            no_spons = await spons_section.query_selector("label:has-text('No, I do not require'), label:has-text('No'), input[value*='No' i]")
             if no_spons:
                 try:
                     await no_spons.click(force=True)
@@ -391,7 +406,7 @@ class StealthApplier:
         # 4c. Hybrid policy radio buttons
         hybrid_section = await page.query_selector("div:has-text('Harvey Hybrid Policy'), div:has-text('in-office model')")
         if hybrid_section:
-            yes_hybrid = await hybrid_section.query_selector("input[type='radio'][id*='radio-0'], label:has-text('Yes')")
+            yes_hybrid = await hybrid_section.query_selector("label:has-text('Yes, I’m able to work'), label:has-text('able to work from the office'), label:has-text('Yes')")
             if yes_hybrid:
                 try:
                     await yes_hybrid.click(force=True)
@@ -424,28 +439,41 @@ class StealthApplier:
         company = job.get("company_name", "Workday Employer")
 
         # 1. Handle Cookie Banner if present
-        cookie_btn = await page.query_selector('button:has-text("Accept Cookies"), button:has-text("Accept All"), button:has-text("I Accept")')
-        if cookie_btn:
-            await cookie_btn.click()
-            await asyncio.sleep(1.5)
+        for _ in range(2):
+            cookie_btn = await page.query_selector('button[id*="accept" i], button:has-text("Accept Cookies"), button:has-text("Accept All"), button:has-text("I Accept")')
+            if cookie_btn:
+                try:
+                    await cookie_btn.click(force=True)
+                    await asyncio.sleep(1.2)
+                except Exception:
+                    pass
 
         # 2. Click primary apply button
         apply_btn = await page.query_selector('a[data-automation-id*="apply" i], button[data-automation-id*="apply" i], a:has-text("Apply")')
         if apply_btn:
-            await apply_btn.click()
-            await asyncio.sleep(2.5)
+            try:
+                await apply_btn.click(force=True)
+                await asyncio.sleep(3.0)
+            except Exception:
+                pass
 
         # 3. Check for 'Autofill with Resume' or 'Apply Manually'
-        autofill_btn = await page.query_selector('a:has-text("Autofill with Resume"), button:has-text("Autofill with Resume")')
+        autofill_btn = await page.query_selector('a:has-text("Autofill with Resume"), button:has-text("Autofill with Resume"), a:has-text("Apply Manually"), button:has-text("Apply Manually")')
         if autofill_btn:
-            await autofill_btn.click()
-            await asyncio.sleep(3.0)
+            try:
+                await autofill_btn.click(force=True)
+                await asyncio.sleep(3.0)
+            except Exception:
+                pass
 
         # Handle cookie banner again if it reappears
         cookie_btn2 = await page.query_selector('button:has-text("Accept Cookies")')
         if cookie_btn2:
-            await cookie_btn2.click()
-            await asyncio.sleep(1.5)
+            try:
+                await cookie_btn2.click(force=True)
+                await asyncio.sleep(1.0)
+            except Exception:
+                pass
 
         # 4. Workday Account Wall Handling (Create Account / Sign In)
         try:
