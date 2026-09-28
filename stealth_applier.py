@@ -37,6 +37,35 @@ async def human_type(element, text: str):
         if random.random() < 0.04:
             await asyncio.sleep(random.uniform(0.08, 0.2))
 
+async def capture_clean_screenshot(page, screenshot_path: str):
+    """Takes a clean full-page screenshot by temporarily unsticking sticky/floating headers."""
+    try:
+        await page.evaluate('''() => {
+            const stickyElements = document.querySelectorAll('*');
+            stickyElements.forEach(el => {
+                const style = window.getComputedStyle(el);
+                if (style.position === 'sticky' || (style.position === 'fixed' && !el.className.includes('grecaptcha'))) {
+                    el.setAttribute('data-prev-position', el.style.position || '');
+                    el.style.position = 'static';
+                }
+            });
+        }''')
+    except Exception:
+        pass
+
+    await page.screenshot(path=screenshot_path, full_page=True)
+
+    try:
+        await page.evaluate('''() => {
+            const modified = document.querySelectorAll('[data-prev-position]');
+            modified.forEach(el => {
+                el.style.position = el.getAttribute('data-prev-position');
+                el.removeAttribute('data-prev-position');
+            });
+        }''')
+    except Exception:
+        pass
+
 class StealthApplier:
     def __init__(self, profile_path: str = "user_profile.json", dry_run: bool = True):
         self.profile = load_user_profile(profile_path)
@@ -91,7 +120,7 @@ class StealthApplier:
                 else:
                     success, msg = False, f"Unsupported platform for direct apply: {platform}"
 
-                await page.screenshot(path=screenshot_path, full_page=True)
+                await capture_clean_screenshot(page, screenshot_path)
 
                 if success:
                     if self.dry_run:
@@ -159,7 +188,7 @@ class StealthApplier:
                                 else:
                                     print(f"[{job_id}] Warning: Could not retrieve fresh verification PIN from email.")
 
-                            await page.screenshot(path=screenshot_path, full_page=True)
+                            await capture_clean_screenshot(page, screenshot_path)
 
                             # Verify if submission genuinely passed
                             page_content = (await page.content()).lower()
@@ -454,6 +483,14 @@ class StealthApplier:
                 inst = self.profile.get("professional", {}).get("education", {}).get("institution", "JSS Academy of Technical Education")
                 await human_type(edu_inp, inst)
 
+        # Pronouns
+        pronouns_val = self.profile.get("custom_answers", {}).get("pronouns") or ("He/Him" if "male" in self.profile.get("custom_answers", {}).get("gender", "Male").lower() else "They/Them")
+        pn_container = await page.query_selector("div:has(> label:has-text('Pronouns')), div:has(> span:has-text('Pronouns'))")
+        if pn_container:
+            pn_inp = await pn_container.query_selector("input[type='text']")
+            if pn_inp:
+                await human_type(pn_inp, pronouns_val)
+
         # LinkedIn / Website Profile
         li_div = await page.query_selector("div:has(> label:has-text('Linkedin')), div:has(> label:has-text('LinkedIn')), div:has(> label:has-text('Website'))")
         li_input = await li_div.query_selector("input") if li_div else None
@@ -465,9 +502,10 @@ class StealthApplier:
         # 4. Ashby Styled Yes/No Buttons & Radios
         # 4a. Authorization buttons (Yes / No)
         try:
-            auth_yes = page.locator("div._yesno_1e3gg_148 button:has-text('Yes'), div:has-text('legally authorized') button:has-text('Yes')").first
+            auth_yes = page.locator("button.ashby-application-form-input-yesno-option:has-text('Yes'), button[data-option='yes'], div._yesno_1e3gg_148 button:has-text('Yes'), div:has-text('legally authorized') button:has-text('Yes')").first
             if await auth_yes.count() > 0:
-                await auth_yes.click(force=True)
+                await auth_yes.scroll_into_view_if_needed()
+                await auth_yes.click()
                 await asyncio.sleep(0.5)
         except Exception:
             pass

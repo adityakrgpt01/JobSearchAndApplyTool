@@ -84,6 +84,7 @@
     "sponsorship_needed": "No",
     "authorized_to_work_in_india": "Yes",
     "gender": "Male",
+    "pronouns": "He/Him",
     "summary_for_recruiter": "Backend engineer with 5+ years building distributed, multi-tenant microservices in Java/Spring Boot and Go. Redesigned a configurable approval-workflow platform for 30+ tenants and worked on a metrics platform handling 70M+ datapoints/min, with hands-on experience in system design tradeoffs, performance optimization, production support, and cloud security."
   }
 }

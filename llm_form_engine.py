@@ -196,6 +196,12 @@ class FormLLMEngine:
         if any(w in q for w in ["hybrid", "office", "days a week", "in person"]):
             return self._pick_option(["yes", "excited", "able to work"], options, "Yes, I'm able to work from the office 3 days a week")
 
+        # Pronouns
+        if "pronoun" in q:
+            gender = self.profile.get("custom_answers", {}).get("gender", "Male").lower()
+            default_pn = "He/Him" if "male" in gender else "They/Them"
+            return self._pick_option(["he/him", "he / him", "prefer not", "decline"], options, default_pn)
+
         # Gender / Equal Opportunity
         if "gender" in q and not "transgender" in q:
             return self._pick_option(["\\bmale\\b", "\\bman\\b", "decline", "prefer not"], options, "Male")
