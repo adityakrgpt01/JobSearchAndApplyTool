@@ -556,7 +556,57 @@ def dashboard_html():
                                 </th>
                                 <th class="px-5 py-3">Company & Role</th>
                                 <th class="px-5 py-3">Salary Tier</th>
-                                <th class="px-5 py-3">Due Diligence (Rating / Risk)</th>
+                                <th class="px-5 py-3 relative" id="ddHeaderTh">
+                                    <div class="flex items-center gap-1.5 cursor-pointer select-none" onclick="toggleDDFilterMenu(event)">
+                                        <span>Due Diligence (Rating / Risk)</span>
+                                        <button type="button" id="ddFilterBtn" class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition flex items-center justify-center">
+                                            <i id="ddFilterIcon" class="fa-solid fa-filter text-[11px]"></i>
+                                        </button>
+                                        <span id="ddActiveFilterBadge" class="hidden w-2 h-2 rounded-full bg-emerald-400"></span>
+                                    </div>
+
+                                    <!-- Due Diligence Quick Filter / Sort Popover -->
+                                    <div id="ddFilterMenu" class="hidden absolute top-full left-0 mt-1 w-64 bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl p-3 z-50 normal-case font-normal text-slate-200">
+                                        <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-800">
+                                            <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                                <i class="fa-solid fa-sliders text-emerald-400"></i> Due Diligence Filters
+                                            </span>
+                                            <button type="button" onclick="resetDDFilters(event)" class="text-[11px] text-slate-400 hover:text-amber-400 transition">
+                                                Reset
+                                            </button>
+                                        </div>
+
+                                        <!-- Rating / WLB Selector -->
+                                        <div class="mb-3">
+                                            <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                                                <i class="fa-solid fa-star text-amber-400"></i> Min Rating / Culture:
+                                            </label>
+                                            <select id="headerCultureSelect" onchange="syncDDFilter('culture', this.value)" class="w-full bg-slate-950 border border-slate-700 text-xs rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-amber-500">
+                                                <option value="all">Any Rating</option>
+                                                <option value="4.2">⭐ 4.2+ Exceptional WLB</option>
+                                                <option value="4.0">⭐ 4.0+ High WLB & Glassdoor</option>
+                                                <option value="3.8">⭐ 3.8+ Above Average</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Stability & Layoff Risk Selector -->
+                                        <div class="mb-3">
+                                            <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                                                <i class="fa-solid fa-shield-halved text-emerald-400"></i> Stability & Risk:
+                                            </label>
+                                            <select id="headerRiskSelect" onchange="syncDDFilter('risk', this.value)" class="w-full bg-slate-950 border border-slate-700 text-xs rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-emerald-500">
+                                                <option value="all">All Risk Levels</option>
+                                                <option value="low_only">🛡️ Safe Only (0 Layoffs / Low Risk)</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="pt-2 border-t border-slate-800 flex justify-end">
+                                            <button type="button" onclick="closeDDFilterMenu()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-semibold shadow transition">
+                                                Done
+                                            </button>
+                                        </div>
+                                    </div>
+                                </th>
                                 <th class="px-5 py-3">Location & Posted</th>
                                 <th class="px-5 py-3">Status</th>
                                 <th class="px-5 py-3 text-right">Actions</th>
@@ -843,17 +893,90 @@ def dashboard_html():
                 setTimeFilter(24);
             }
 
+            function toggleDDFilterMenu(e) {
+                if (e) e.stopPropagation();
+                const menu = document.getElementById('ddFilterMenu');
+                if (menu) menu.classList.toggle('hidden');
+            }
+
+            function closeDDFilterMenu() {
+                const menu = document.getElementById('ddFilterMenu');
+                if (menu) menu.classList.add('hidden');
+            }
+
+            function syncDDFilter(type, value) {
+                if (type === 'culture') {
+                    const cultEl = document.getElementById('cultureSelect');
+                    if (cultEl) cultEl.value = value;
+                } else if (type === 'risk') {
+                    const riskEl = document.getElementById('riskSelect');
+                    if (riskEl) riskEl.value = value;
+                }
+                updateDDHeaderUI();
+                saveFilterState();
+                loadAllData();
+            }
+
+            function resetDDFilters(e) {
+                if (e) e.stopPropagation();
+                const cultH = document.getElementById('headerCultureSelect');
+                const riskH = document.getElementById('headerRiskSelect');
+                if (cultH) cultH.value = 'all';
+                if (riskH) riskH.value = 'all';
+                syncDDFilter('culture', 'all');
+                syncDDFilter('risk', 'all');
+            }
+
+            function updateDDHeaderUI() {
+                const cultVal = document.getElementById('cultureSelect') ? document.getElementById('cultureSelect').value : 'all';
+                const riskVal = document.getElementById('riskSelect') ? document.getElementById('riskSelect').value : 'all';
+
+                // Sync header selects to match toolbar selects
+                const cultH = document.getElementById('headerCultureSelect');
+                const riskH = document.getElementById('headerRiskSelect');
+                if (cultH && cultH.value !== cultVal) cultH.value = cultVal;
+                if (riskH && riskH.value !== riskVal) riskH.value = riskVal;
+
+                // Toggle active badge and highlight icon
+                const badge = document.getElementById('ddActiveFilterBadge');
+                const icon = document.getElementById('ddFilterIcon');
+                const btn = document.getElementById('ddFilterBtn');
+                const isFiltered = (cultVal !== 'all' || riskVal !== 'all');
+
+                if (badge) {
+                    if (isFiltered) badge.classList.remove('hidden');
+                    else badge.classList.add('hidden');
+                }
+                if (icon && btn) {
+                    if (isFiltered) {
+                        icon.classList.remove('text-slate-400');
+                        icon.classList.add('text-emerald-400');
+                        btn.classList.add('bg-emerald-950', 'text-emerald-300');
+                    } else {
+                        icon.classList.remove('text-emerald-400');
+                        icon.classList.add('text-slate-400');
+                        btn.classList.remove('bg-emerald-950', 'text-emerald-300');
+                    }
+                }
+            }
+
             function togglePlatformDropdown() {
                 const menu = document.getElementById('platformDropdownMenu');
                 if (menu) menu.classList.toggle('hidden');
             }
 
-            // Close platform menu when clicking outside
+            // Close platform menu and DD filter menu when clicking outside
             document.addEventListener('click', (e) => {
                 const container = document.getElementById('platformDropdownContainer');
                 const menu = document.getElementById('platformDropdownMenu');
                 if (container && menu && !container.contains(e.target)) {
                     menu.classList.add('hidden');
+                }
+
+                const ddTh = document.getElementById('ddHeaderTh');
+                const ddMenu = document.getElementById('ddFilterMenu');
+                if (ddTh && ddMenu && !ddTh.contains(e.target)) {
+                    ddMenu.classList.add('hidden');
                 }
             });
 
@@ -906,6 +1029,7 @@ def dashboard_html():
                 if (cultEl) cultEl.value = 'all';
                 const riskEl = document.getElementById('riskSelect');
                 if (riskEl) riskEl.value = 'all';
+                updateDDHeaderUI();
                 try {
                     localStorage.removeItem('agy_job_filter_state');
                 } catch(e) {}
@@ -1211,6 +1335,7 @@ def dashboard_html():
             }
 
             function loadAllData() {
+                updateDDHeaderUI();
                 saveFilterState();
                 loadStats();
                 loadJobs();
