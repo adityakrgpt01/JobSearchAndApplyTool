@@ -13,6 +13,7 @@ import asyncio
 import os
 import json
 import random
+import time
 from typing import Dict, Any, Optional
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
@@ -53,8 +54,9 @@ class StealthApplier:
         update_job_status(job_id, "APPLYING", f"Starting stealth application for {job['title']} at {job['company_name']}")
 
         async with async_playwright() as p:
+            headless_mode = os.environ.get("HEADLESS", "true").lower() in ("true", "1", "yes")
             browser = await p.chromium.launch(
-                headless=False,
+                headless=headless_mode,
                 args=[
                     "--disable-blink-features=AutomationControlled",
                     "--no-sandbox",
@@ -70,8 +72,13 @@ class StealthApplier:
 
             try:
                 print(f"Navigating to {url}...")
-                await page.goto(url, wait_until="domcontentloaded", timeout=40000)
-                await asyncio.sleep(random.uniform(1.5, 2.5))
+                try:
+                    await page.goto(url, wait_until="commit", timeout=30000)
+                    await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                except Exception:
+                    # Fallback if commit already fulfilled
+                    pass
+                await asyncio.sleep(random.uniform(2.0, 3.0))
 
                 if platform == "greenhouse":
                     success, msg = await self._fill_greenhouse(page)
@@ -91,17 +98,71 @@ class StealthApplier:
                         status = "READY_TO_SUBMIT (DRY_RUN)"
                         final_msg = f"{msg} [DRY RUN: Form filled completely with LLM resolution, skipped final click]"
                     else:
-                        # Attempt final submission click
-                        submit_btn = await page.query_selector("button[type='submit'], input[type='submit'], #submit_app, .template-btn-submit")
+                        # Attempt final submission click with comprehensive multi-ATS selectors
+                        submit_selectors = [
+                            "button[type='submit']",
+                            "input[type='submit']",
+                            "#submit_app",
+                            "#submit-button",
+                            "button:has-text('Submit Application')",
+                            "button:has-text('Submit application')",
+                            "button:has-text('Submit')",
+                            "button:has-text('Apply')",
+                            ".template-btn-submit",
+                            "button[data-automation-id='bottom-navigation-next-button']",
+                            "button[data-automation-id='submit-button']"
+                        ]
+                        
+                        submit_btn = None
+                        for sel in submit_selectors:
+                            try:
+                                btn = await page.query_selector(sel)
+                                if btn and await btn.is_visible() and await btn.is_enabled():
+                                    submit_btn = btn
+                                    print(f"[{job_id}] Found active submit button with selector: {sel}")
+                                    break
+                            except Exception:
+                                continue
+
                         if submit_btn:
+                            await submit_btn.scroll_into_view_if_needed()
+                            await asyncio.sleep(0.5)
+                            submit_start_time = time.time()
                             await submit_btn.click()
-                            await asyncio.sleep(3.0)
+                            print(f"[{job_id}] Clicked Submit button!")
+                            await asyncio.sleep(4.0)
+
+                            # Check if email verification code / PIN was requested (e.g. Greenhouse security-input or Workday PIN)
+                            sec_inputs = await page.query_selector_all("input[id^='security-input-'], input[name*='code' i], input[id*='verification' i]")
+                            visible_sec = [si for si in sec_inputs if await si.is_visible()]
+                            if visible_sec:
+                                print(f"[{job_id}] Detected email verification code prompt with {len(visible_sec)} input boxes. Fetching PIN from Gmail...")
+                                from gmail_authenticator import GmailVerificationReader
+                                reader = GmailVerificationReader()
+                                code = reader.fetch_latest_verification_code(sender_keyword=platform, timeout_seconds=40, received_after_ts=submit_start_time)
+                                if code:
+                                    print(f"[{job_id}] Injecting verification code: {code}")
+                                    if len(visible_sec) == len(code):
+                                        for idx, char in enumerate(code):
+                                            await visible_sec[idx].fill(char)
+                                            await asyncio.sleep(0.1)
+                                    else:
+                                        await visible_sec[0].fill(code)
+                                    await asyncio.sleep(1.0)
+
+                                    # Click resubmit
+                                    resubmit_btn = await page.query_selector("button[type='submit'], button:has-text('Submit application'), button:has-text('Submit Application')")
+                                    if resubmit_btn and await resubmit_btn.is_enabled():
+                                        await resubmit_btn.click()
+                                        print(f"[{job_id}] Clicked final Resubmit button with verified PIN!")
+                                        await asyncio.sleep(6.0)
+
                             await page.screenshot(path=screenshot_path, full_page=True)
                             status = "APPLIED"
                             final_msg = f"{msg} [Application submitted successfully]"
                         else:
                             status = "READY_TO_SUBMIT"
-                            final_msg = f"{msg} [Form filled, manual review recommended]"
+                            final_msg = f"{msg} [Form filled, manual review recommended: submit button selector not matched]"
                 else:
                     status = "FAILED"
                     final_msg = f"Failed to fill form: {msg}"

@@ -36,17 +36,22 @@ class GmailVerificationReader:
         self,
         sender_keyword: str = "workday",
         timeout_seconds: int = 60,
-        poll_interval: int = 4
+        poll_interval: int = 4,
+        received_after_ts: Optional[float] = None
     ) -> Optional[str]:
         """
         Polls Gmail inbox over SSL for a verification email matching sender_keyword
-        and extracts the 6-digit verification PIN.
+        and extracts the verification PIN received after received_after_ts.
         """
         if not self.app_password:
             print("[GmailReader] Note: GMAIL_APP_PASSWORD not set. Waiting for user setup.")
             return None
 
-        print(f"[GmailReader] Connecting to imap.gmail.com as {self.user} (Watching for '{sender_keyword}' email)...")
+        # Default received_after_ts to 30s before now if not provided
+        if received_after_ts is None:
+            received_after_ts = time.time() - 30.0
+
+        print(f"[GmailReader] Connecting to imap.gmail.com as {self.user} (Watching for '{sender_keyword}' email received after {int(received_after_ts)})...")
         start_time = time.time()
 
         while time.time() - start_time < timeout_seconds:
@@ -55,16 +60,13 @@ class GmailVerificationReader:
                 mail.login(self.user, self.app_password)
                 mail.select("inbox")
 
-                # Search unread / recent messages
-                status, messages = mail.search(None, "UNSEEN")
-                if status != "OK" or not messages[0]:
-                    # Also search latest messages
-                    status, messages = mail.search(None, "ALL")
+                # Search latest messages directly in reverse chronological order
+                status, messages = mail.search(None, "ALL")
 
                 if status == "OK" and messages[0]:
                     msg_ids = messages[0].split()
-                    # Inspect last 5 messages in reverse chronological order
-                    for msg_id in reversed(msg_ids[-5:]):
+                    # Inspect last 10 messages in reverse chronological order
+                    for msg_id in reversed(msg_ids[-10:]):
                         res, msg_data = mail.fetch(msg_id, "(RFC822)")
                         if res != "OK":
                             continue
@@ -72,6 +74,18 @@ class GmailVerificationReader:
                         raw_email = msg_data[0][1]
                         msg = email.message_from_bytes(raw_email)
                         
+                        # Check email date if available
+                        date_str = msg.get("Date", "")
+                        if date_str:
+                            try:
+                                import email.utils
+                                msg_dt = email.utils.parsedate_to_datetime(date_str)
+                                if msg_dt and msg_dt.timestamp() < (received_after_ts - 5.0):
+                                    # Message was received before this submission started
+                                    continue
+                            except Exception:
+                                pass
+
                         subject, encoding = decode_header(msg.get("Subject", ""))[0]
                         if isinstance(subject, bytes):
                             subject = subject.decode(encoding or "utf-8", errors="ignore")
@@ -84,7 +98,7 @@ class GmailVerificationReader:
                             body_text = self._extract_body(msg)
                             code = self._extract_pin(subject + " " + body_text)
                             if code:
-                                print(f"[GmailReader] ✅ Extracted Verification PIN: {code} from subject: '{subject}'")
+                                print(f"[GmailReader] ✅ Extracted FRESH Verification PIN: {code} from subject: '{subject}'")
                                 mail.logout()
                                 return code
 
@@ -102,8 +116,8 @@ class GmailVerificationReader:
         if msg.is_multipart():
             for part in msg.walk():
                 content_type = part.get_content_type()
-                content_disposition = str(part.get("Content-Disposition"))
-                if content_type == "text/plain" and "attachment" not in content_disposition:
+                content_disposition = str(part.get("Content-Disposition") or "")
+                if content_type in ("text/plain", "text/html") and "attachment" not in content_disposition:
                     payload = part.get_payload(decode=True)
                     if payload:
                         body += payload.decode("utf-8", errors="ignore") + " "
@@ -114,16 +128,29 @@ class GmailVerificationReader:
         return body
 
     def _extract_pin(self, text: str) -> Optional[str]:
-        """Extracts 6-digit verification code from email text."""
-        # Matches patterns like 'verification code is 123456' or 'code: 123456' or standalone 6-digit numbers
+        """Extracts verification code from email text (supports 6-digit PINs and 8-character Greenhouse security codes)."""
+        # 1. Look for Greenhouse / Portal 8-char security code: e.g. <h1>5BauOzP1</h1> or code into the security code field: 5BauOzP1
+        m_gh = re.search(r'(?:<h\d>|\bcode(?:\s+is|\s+into|\s*[:=-])?\s*)([A-Za-z0-9]{8})(?:</h\d>|\b|\s)', text, re.IGNORECASE)
+        if m_gh:
+            candidate = m_gh.group(1).strip()
+            # Verify candidate has both letters and numbers or is 8 chars
+            if len(candidate) == 8 and not candidate.lower() in ("security", "recruiti"):
+                return candidate
+
+        # 2. Look for explicit 6-digit or 4-8 digit numeric code
         m = re.search(r'(?:code|pin|verification|passcode)\D{1,15}(\b\d{6}\b)', text, re.IGNORECASE)
         if m:
             return m.group(1)
         
-        # Fallback: any isolated 6-digit block
+        # 3. Fallback: any isolated 6-digit block
         m2 = re.search(r'\b\d{6}\b', text)
         if m2:
             return m2.group(0)
+
+        # 4. Fallback 8-character alphanumeric tag
+        m3 = re.search(r'<h\d>([A-Za-z0-9]{6,10})</h\d>', text)
+        if m3:
+            return m3.group(1).strip()
 
         return None
 
