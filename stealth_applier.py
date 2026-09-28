@@ -143,15 +143,19 @@ class StealthApplier:
                         ]
                         
                         submit_btn = None
-                        for sel in submit_selectors:
-                            try:
-                                btn = await page.query_selector(sel)
-                                if btn and await btn.is_visible() and await btn.is_enabled():
-                                    submit_btn = btn
-                                    print(f"[{job_id}] Found active submit button with selector: {sel}")
-                                    break
-                            except Exception:
-                                continue
+                        search_targets = [page] + page.frames
+                        for st in search_targets:
+                            for sel in submit_selectors:
+                                try:
+                                    btn = await st.query_selector(sel)
+                                    if btn and await btn.is_visible() and await btn.is_enabled():
+                                        submit_btn = btn
+                                        print(f"[{job_id}] Found active submit button with selector: {sel}")
+                                        break
+                                except Exception:
+                                    continue
+                            if submit_btn:
+                                break
 
                         if submit_btn:
                             await submit_btn.scroll_into_view_if_needed()
@@ -162,7 +166,13 @@ class StealthApplier:
                             await asyncio.sleep(4.0)
 
                             # Check if email verification code / PIN was requested (e.g. Greenhouse security-input or Workday PIN)
-                            sec_inputs = await page.query_selector_all("input[id^='security-input-'], input[name*='code' i], input[id*='verification' i]")
+                            sec_inputs = []
+                            for st in search_targets:
+                                try:
+                                    si_list = await st.query_selector_all("input[id^='security-input-'], input[name*='code' i], input[id*='verification' i]")
+                                    sec_inputs.extend(si_list)
+                                except Exception:
+                                    pass
                             visible_sec = [si for si in sec_inputs if await si.is_visible()]
                             if visible_sec:
                                 print(f"[{job_id}] Detected email verification code prompt with {len(visible_sec)} input boxes. Fetching PIN from Gmail...")
@@ -231,25 +241,33 @@ class StealthApplier:
         await page.mouse.wheel(0, 300)
         await asyncio.sleep(0.8)
 
+        # Detect Greenhouse iframe if embedded on company custom career portal
+        target = page
+        frames = page.frames
+        for f in frames:
+            if "greenhouse.io" in f.url or "gh_jid" in f.url or "embed/job_app" in f.url:
+                target = f
+                break
+
         # 1. Standard Fields
-        fn_input = await page.query_selector("#first_name, input[name='first_name']")
+        fn_input = await target.query_selector("#first_name, input[name='first_name']")
         if fn_input:
             await human_type(fn_input, pers["first_name"])
 
-        ln_input = await page.query_selector("#last_name, input[name='last_name']")
+        ln_input = await target.query_selector("#last_name, input[name='last_name']")
         if ln_input:
             await human_type(ln_input, pers["last_name"])
 
-        email_input = await page.query_selector("#email, input[name='email']")
+        email_input = await target.query_selector("#email, input[name='email']")
         if email_input:
             await human_type(email_input, pers["email"])
 
-        phone_input = await page.query_selector("#phone, input[name='phone']")
+        phone_input = await target.query_selector("#phone, input[name='phone']")
         if phone_input:
             await human_type(phone_input, pers["phone"])
 
         # Country / City if required (Greenhouse React-Select combobox)
-        city_input = await page.query_selector("#candidate-location, input[id*='location' i]")
+        city_input = await target.query_selector("#candidate-location, input[id*='location' i]")
         if city_input:
             try:
                 await city_input.focus()
@@ -264,14 +282,14 @@ class StealthApplier:
         # 2. Resume File Upload
         resume_path = self.profile.get("resume", {}).get("file_path", "resume.pdf")
         if resume_path and os.path.exists(resume_path):
-            file_input = await page.query_selector("input[type='file']")
+            file_input = await target.query_selector("input[type='file']")
             if file_input:
                 await file_input.set_input_files(resume_path)
                 await asyncio.sleep(1.5)
 
         # 3. Dynamic Custom Question Resolution via LLM Engine
         # 3a. Handle standard text inputs and textareas
-        fields = await page.query_selector_all("div.field, div[class*='field'], div[class*='container' i]")
+        fields = await target.query_selector_all("div.field, div[class*='field'], div[class*='container' i]")
         for f in fields:
             try:
                 label_el = await f.query_selector("label")
@@ -302,7 +320,7 @@ class StealthApplier:
                 pass
 
         # 3b. Handle Modern Greenhouse React-Select Comboboxes (Authorization, Sponsorship, EEO, Privacy)
-        combos = await page.query_selector_all("div.select__control, div[class*='control' i]")
+        combos = await target.query_selector_all("div.select__control, div[class*='control' i]")
         for c in combos:
             try:
                 parent = await c.evaluate_handle('e => e.closest(".select__container") || e.parentElement')
@@ -320,7 +338,7 @@ class StealthApplier:
 
                 await c.click()
                 await asyncio.sleep(0.6)
-                options = await page.query_selector_all("div[class*='option' i]")
+                options = await target.query_selector_all("div[class*='option' i]")
                 if options:
                     opt_texts = [(await o.inner_text()).strip() for o in options]
                     chosen = self.llm.answer_question(lbl_txt, opt_texts)
@@ -350,7 +368,7 @@ class StealthApplier:
                 pass
 
         # 3c. Accept demographic / survey consent checkbox if present
-        checkboxes = await page.query_selector_all("input[type='checkbox']")
+        checkboxes = await target.query_selector_all("input[type='checkbox']")
         for cb in checkboxes:
             try:
                 is_checked = await cb.is_checked()
