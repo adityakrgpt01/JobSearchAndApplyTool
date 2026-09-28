@@ -192,6 +192,27 @@ def get_mncs(q: Optional[str] = None, industry: Optional[str] = None, tier: Opti
     conn.close()
     return {"mncs": rows, "total": len(rows)}
 
+from pydantic import BaseModel
+from typing import List
+
+class BulkApplyRequest(BaseModel):
+    job_ids: List[str]
+    dry_run: bool = True
+
+async def run_bulk_applications(job_ids: List[str], dry_run: bool = True):
+    applier = StealthApplier(dry_run=dry_run)
+    all_jobs = list_jobs()
+    job_map = {j["job_id"]: j for j in all_jobs}
+    for jid in job_ids:
+        job = job_map.get(jid)
+        if job:
+            try:
+                print(f"[Bulk Autofill] Processing {jid} ({job.get('company_name')} - {job.get('title')})...")
+                await applier.apply_to_job(job)
+            except Exception as e:
+                print(f"[Bulk Autofill Error] {jid}: {e}")
+            await asyncio.sleep(2.0)
+
 @app.post("/api/apply/{job_id}")
 async def apply_single_job(job_id: str, background_tasks: BackgroundTasks, dry_run: bool = True):
     jobs = list_jobs()
@@ -202,6 +223,17 @@ async def apply_single_job(job_id: str, background_tasks: BackgroundTasks, dry_r
     applier = StealthApplier(dry_run=dry_run)
     background_tasks.add_task(applier.apply_to_job, target_job)
     return {"status": "Application process initiated", "dry_run": dry_run}
+
+@app.post("/api/bulk-apply")
+async def bulk_apply_jobs(req: BulkApplyRequest, background_tasks: BackgroundTasks):
+    if not req.job_ids:
+        raise HTTPException(status_code=400, detail="No job IDs specified")
+    background_tasks.add_task(run_bulk_applications, req.job_ids, req.dry_run)
+    return {
+        "status": f"Bulk auto-fill initiated for {len(req.job_ids)} jobs in safe review mode",
+        "total_jobs": len(req.job_ids),
+        "dry_run": req.dry_run
+    }
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard_html():
@@ -499,16 +531,29 @@ def dashboard_html():
 
             <!-- VIEW 1: Jobs Table -->
             <div id="viewJobs" class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
-                <div class="p-4 border-b border-slate-800 flex justify-between items-center">
-                    <h2 class="text-lg font-bold flex items-center gap-2">
-                        <i class="fa-solid fa-briefcase text-blue-400"></i> Active Opportunities
-                    </h2>
-                    <span id="jobCountBadge" class="px-2.5 py-1 bg-slate-800 text-xs font-medium rounded-full text-slate-300">Loading...</span>
+                <div class="p-4 border-b border-slate-800 flex flex-wrap justify-between items-center gap-3">
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-lg font-bold flex items-center gap-2">
+                            <i class="fa-solid fa-briefcase text-blue-400"></i> Active Opportunities
+                        </h2>
+                        <span id="jobCountBadge" class="px-2.5 py-1 bg-slate-800 text-xs font-medium rounded-full text-slate-300">Loading...</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span id="selectedCountBadge" class="hidden text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700 font-semibold">
+                            <span id="selectedCount" class="text-emerald-400 font-bold">0</span> selected
+                        </span>
+                        <button onclick="triggerBulkApply(true)" id="bulkApplyBtn" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow transition">
+                            <i class="fa-solid fa-bolt"></i> Bulk Auto-Fill (Dry-Run Review)
+                        </button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-300">
                         <thead class="bg-slate-950 text-slate-400 uppercase text-xs border-b border-slate-800">
                             <tr>
+                                <th class="px-4 py-3 w-8 text-center">
+                                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" class="rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-0 cursor-pointer" />
+                                </th>
                                 <th class="px-5 py-3">Company & Role</th>
                                 <th class="px-5 py-3">Salary Tier</th>
                                 <th class="px-5 py-3">Due Diligence (Rating / Risk)</th>
@@ -518,7 +563,7 @@ def dashboard_html():
                             </tr>
                         </thead>
                         <tbody id="jobsTableBody" class="divide-y divide-slate-800">
-                            <tr><td colspan="6" class="text-center py-8 text-slate-500">Loading opportunities...</td></tr>
+                            <tr><td colspan="7" class="text-center py-8 text-slate-500">Loading opportunities...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -598,6 +643,32 @@ def dashboard_html():
                     <i class="fa-solid fa-xmark"></i>
                 </button>
                 <div id="modalContent"></div>
+            </div>
+        </div>
+
+        <!-- Application Review & Verification Modal -->
+        <div id="reviewModal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4 z-50">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl relative overflow-hidden">
+                <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+                    <div>
+                        <h3 id="reviewModalTitle" class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-eye text-emerald-400"></i> Application Verification & Review
+                        </h3>
+                        <p id="reviewModalSubtitle" class="text-xs text-slate-400 mt-0.5">Form auto-filled with candidate profile • Ready for final review</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <a id="reviewPortalLink" href="#" target="_blank" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-semibold flex items-center gap-1.5 transition">
+                            <span>Open Live Portal</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                        <button onclick="closeReviewModal()" class="text-slate-400 hover:text-white text-lg px-2">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-4 overflow-y-auto flex-1 bg-slate-900 text-center" id="reviewModalBody">
+                    <img id="reviewScreenshotImg" src="" alt="Application Form Screenshot" class="max-w-full rounded-lg border border-slate-800 mx-auto shadow-lg" />
+                </div>
             </div>
         </div>
 
@@ -947,19 +1018,28 @@ def dashboard_html():
                     const tbody = document.getElementById('jobsTableBody');
                     if (!tbody) return;
                     if (data.jobs.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500">No jobs found matching your filters. Try adjusting your search term, tier, or expanding the time window.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-slate-500">No jobs found matching your filters. Try adjusting your search term, tier, or expanding the time window.</td></tr>';
                         return;
                     }
 
                 tbody.innerHTML = data.jobs.map(j => {
                     const encComp = encodeURIComponent(j.company_name || '');
                     const encId = encodeURIComponent(j.job_id || '');
+                    const encTitle = encodeURIComponent(j.title || '');
+                    const encUrl = encodeURIComponent(j.apply_url || '');
+                    const encScreenshot = encodeURIComponent(j.screenshot_path || '');
                     const displayTime = formatPostedTime(j.posted_at, j.discovered_at, j.ats_platform);
                     const isVeryRecent = displayTime.includes('h ago') || displayTime.includes('m ago') || displayTime.toLowerCase().includes('today') || displayTime.toLowerCase().includes('just now');
                     const compStage = j.stage_or_type ? `<span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">${j.stage_or_type}</span>` : '';
                     const compSize = j.headcount_range ? `<span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-cyan-950/60 text-cyan-300 border border-cyan-800/60 ml-1"><i class="fa-solid fa-users text-[9px] mr-1"></i>${j.headcount_range}</span>` : '';
+                    const isChecked = selectedJobIds.has(j.job_id) ? 'checked' : '';
+                    const hasReview = j.screenshot_path && j.screenshot_path.trim() !== '';
+
                     return `
                     <tr class="hover:bg-slate-800/40 transition">
+                        <td class="px-4 py-4 text-center">
+                            <input type="checkbox" value="${j.job_id}" ${isChecked} onchange="onJobCheckboxChange(this)" class="job-checkbox rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-0 cursor-pointer" />
+                        </td>
                         <td class="px-5 py-4">
                             <div class="font-semibold text-white">${j.title || 'Untitled Role'}</div>
                             <div class="text-xs text-slate-400 mt-0.5 font-medium">${j.company_name} • <span class="capitalize text-slate-500">${j.ats_platform}</span></div>
@@ -1002,21 +1082,25 @@ def dashboard_html():
                                 'bg-slate-800 text-slate-400'
                             }">${j.status}</span>
                         </td>
-                        <td class="px-5 py-4 text-right space-x-2">
-                            <a href="${j.apply_url}" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md text-xs font-semibold transition">
+                        <td class="px-5 py-4 text-right space-x-1.5 whitespace-nowrap">
+                            ${hasReview ? `
+                            <button data-jobid="${encId}" data-company="${encComp}" data-title="${encTitle}" data-url="${encUrl}" data-screenshot="${encScreenshot}" class="btn-review px-2.5 py-1.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/80 rounded-md text-xs font-semibold shadow transition inline-flex items-center gap-1.5">
+                                <i class="fa-solid fa-eye text-emerald-400"></i> Review Application
+                            </button>` : ''}
+                            <a href="${j.apply_url}" target="_blank" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md text-xs font-semibold transition inline-flex items-center gap-1">
                                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Job Link
                             </a>
-                            <button data-jobid="${encId}" class="btn-apply px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-semibold shadow transition">
-                                <i class="fa-solid fa-robot"></i> Stealth Apply
+                            <button data-jobid="${encId}" class="btn-apply px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-semibold shadow transition inline-flex items-center gap-1">
+                                <i class="fa-solid fa-robot"></i> Auto-Fill
                             </button>
                         </td>
                     </tr>
-                `;
+                    `;
                 }).join('');
                 } catch(err) {
                     console.error("Error in loadJobs:", err);
                     const tbody = document.getElementById('jobsTableBody');
-                    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-red-400">Failed to render jobs: ${err.message}</td></tr>`;
+                    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-red-400">Failed to render jobs: ${err.message}</td></tr>`;
                 }
             }
 
@@ -1052,11 +1136,93 @@ def dashboard_html():
                 }
             }
 
+            let selectedJobIds = new Set();
+
+            function toggleSelectAll(masterCheckbox) {
+                const checkboxes = document.querySelectorAll('.job-checkbox');
+                checkboxes.forEach(cb => {
+                    cb.checked = masterCheckbox.checked;
+                    if (masterCheckbox.checked) selectedJobIds.add(cb.value);
+                    else selectedJobIds.delete(cb.value);
+                });
+                updateSelectedCountUI();
+            }
+
+            function onJobCheckboxChange(cb) {
+                if (cb.checked) selectedJobIds.add(cb.value);
+                else selectedJobIds.delete(cb.value);
+                
+                const masterCheckbox = document.getElementById('selectAllCheckbox');
+                const checkboxes = document.querySelectorAll('.job-checkbox');
+                if (masterCheckbox) {
+                    masterCheckbox.checked = checkboxes.length > 0 && Array.from(checkboxes).every(c => c.checked);
+                }
+                updateSelectedCountUI();
+            }
+
+            function updateSelectedCountUI() {
+                const badge = document.getElementById('selectedCountBadge');
+                const countSpan = document.getElementById('selectedCount');
+                if (badge && countSpan) {
+                    countSpan.innerText = selectedJobIds.size;
+                    if (selectedJobIds.size > 0) badge.classList.remove('hidden');
+                    else badge.classList.add('hidden');
+                }
+            }
+
+            async function triggerBulkApply(dryRun = true) {
+                const ids = Array.from(selectedJobIds);
+                if (ids.length === 0) {
+                    alert("Please select at least one job using the checkboxes to bulk auto-fill.");
+                    return;
+                }
+                const confirmMsg = `Launch stealth auto-filler for ${ids.length} selected applications in Safe Review Mode (dry-run)?\n\n• The browser will auto-fill every form & attach your resume.\n• It will NOT submit the applications.\n• Verification screenshots and portal review links will be provided for your review.`;
+                if (!confirm(confirmMsg)) return;
+
+                const btn = document.getElementById('bulkApplyBtn');
+                btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Auto-Filling (${ids.length})...`;
+                try {
+                    const res = await fetch('/api/bulk-apply', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ job_ids: ids, dry_run: dryRun })
+                    });
+                    const d = await res.json();
+                    alert("⚡ " + d.status + "!\n\nThe stealth browser is now filling forms in the background. Completed jobs will show a green 'Review Application' button.");
+                    setTimeout(loadAllData, 3000);
+                } catch(e) {
+                    alert("Error initiating bulk application: " + e.message);
+                } finally {
+                    btn.innerHTML = `<i class="fa-solid fa-bolt"></i> Bulk Auto-Fill (Dry-Run Review)`;
+                }
+            }
+
+            function openReviewModal(jobId, compName, title, applyUrl, screenshotPath) {
+                const modal = document.getElementById('reviewModal');
+                const titleEl = document.getElementById('reviewModalTitle');
+                const subEl = document.getElementById('reviewModalSubtitle');
+                const linkEl = document.getElementById('reviewPortalLink');
+                const imgEl = document.getElementById('reviewScreenshotImg');
+
+                titleEl.innerHTML = `<i class="fa-solid fa-file-signature text-emerald-400"></i> ${decodeURIComponent(title)} - ${decodeURIComponent(compName)}`;
+                subEl.innerText = `Verified in Safe Dry-Run Mode. All fields & resume loaded autonomously. Review proof below or click Open Live Portal.`;
+                linkEl.href = decodeURIComponent(applyUrl);
+
+                // Screenshot URL
+                const cleanPath = decodeURIComponent(screenshotPath || '').replace(/^screenshots\//, '');
+                imgEl.src = `/screenshots/${cleanPath}?t=${Date.now()}`;
+                modal.classList.remove('hidden');
+            }
+
+            function closeReviewModal() {
+                document.getElementById('reviewModal').classList.add('hidden');
+            }
+
             async function triggerApply(jobId) {
-                if (!confirm("Launch stealth browser to auto-fill this application? (Safe Dry-Run mode with screenshot verification)")) return;
+                if (!confirm("Launch stealth browser to auto-fill this application? (Safe Dry-Run mode with screenshot verification & portal review link)")) return;
                 await fetch(`/api/apply/${jobId}?dry_run=true`, { method: 'POST' });
-                alert("Stealth Applier launched! Watch browser window or refresh table to see screenshot.");
-                setTimeout(loadAllData, 5000);
+                alert("Stealth Applier launched! Watch browser window or refresh table to review.");
+                setTimeout(loadAllData, 4000);
             }
 
             async function openDueDiligence(companyName) {
@@ -1277,6 +1443,17 @@ def dashboard_html():
                         const ddBtn = e.target.closest('.btn-dd');
                         if (ddBtn && ddBtn.dataset.company) {
                             openDueDiligence(decodeURIComponent(ddBtn.dataset.company));
+                            return;
+                        }
+                        const reviewBtn = e.target.closest('.btn-review');
+                        if (reviewBtn && reviewBtn.dataset.jobid) {
+                            openReviewModal(
+                                decodeURIComponent(reviewBtn.dataset.jobid),
+                                decodeURIComponent(reviewBtn.dataset.company),
+                                decodeURIComponent(reviewBtn.dataset.title),
+                                decodeURIComponent(reviewBtn.dataset.url),
+                                decodeURIComponent(reviewBtn.dataset.screenshot)
+                            );
                             return;
                         }
                         const applyBtn = e.target.closest('.btn-apply');
