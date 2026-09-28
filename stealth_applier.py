@@ -156,10 +156,25 @@ class StealthApplier:
                                         await resubmit_btn.click()
                                         print(f"[{job_id}] Clicked final Resubmit button with verified PIN!")
                                         await asyncio.sleep(6.0)
+                                else:
+                                    print(f"[{job_id}] Warning: Could not retrieve fresh verification PIN from email.")
 
                             await page.screenshot(path=screenshot_path, full_page=True)
-                            status = "APPLIED"
-                            final_msg = f"{msg} [Application submitted successfully]"
+
+                            # Verify if submission genuinely passed
+                            page_content = (await page.content()).lower()
+                            has_confirm = any(w in page_content for w in ["thank you for your interest", "your application has been received", "application submitted", "thanks for applying", "we have received your application"])
+                            has_error = any(w in page_content for w in ["incorrect security code", "there was an error processing your application", "we couldn't submit your application", "flagged as possible spam"])
+
+                            if has_confirm and not has_error:
+                                status = "APPLIED"
+                                final_msg = f"{msg} [Application submitted successfully & confirmation verified]"
+                            elif has_error:
+                                status = "FAILED"
+                                final_msg = f"{msg} [Submission encountered portal error or incorrect code; review screenshot]"
+                            else:
+                                status = "READY_TO_SUBMIT (REVIEW_REQUIRED)"
+                                final_msg = f"{msg} [Form filled, final confirmation pending manual verification]"
                         else:
                             status = "READY_TO_SUBMIT"
                             final_msg = f"{msg} [Form filled, manual review recommended: submit button selector not matched]"

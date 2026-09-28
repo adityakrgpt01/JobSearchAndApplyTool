@@ -8,6 +8,7 @@ import os
 import re
 import time
 import email
+import email.utils as email_utils
 import imaplib
 from email.header import decode_header
 from typing import Optional
@@ -78,8 +79,7 @@ class GmailVerificationReader:
                         date_str = msg.get("Date", "")
                         if date_str:
                             try:
-                                import email.utils
-                                msg_dt = email.utils.parsedate_to_datetime(date_str)
+                                msg_dt = email_utils.parsedate_to_datetime(date_str)
                                 if msg_dt and msg_dt.timestamp() < (received_after_ts - 5.0):
                                     # Message was received before this submission started
                                     continue
