@@ -317,18 +317,22 @@ def list_jobs(
     if status and status != "all":
         s_norm = status.lower().strip()
         if s_norm == "applied":
-            query += " AND (j.status LIKE '%APPLIED%' OR j.status LIKE '%SUBMIT%')"
+            query += " AND j.status = 'APPLIED'"
         elif s_norm in ("not_applied", "unapplied"):
-            query += " AND (j.status NOT LIKE '%APPLIED%' AND j.status NOT LIKE '%SUBMIT%')"
+            query += " AND j.status NOT LIKE '%APPLIED%'"
         elif s_norm in ("ready", "dry_run", "ready_to_submit"):
-            query += " AND j.status LIKE '%READY_TO_SUBMIT%'"
+            query += " AND (j.status LIKE '%READY_TO_SUBMIT%' OR j.status LIKE '%DRY_RUN%')"
+        elif s_norm in ("review_required", "review"):
+            query += " AND j.status LIKE '%REVIEW_REQUIRED%'"
         elif s_norm == "failed":
             query += " AND j.status LIKE '%FAILED%'"
+        elif s_norm == "applying":
+            query += " AND j.status = 'APPLYING'"
         elif s_norm == "discovered":
             query += " AND j.status = 'DISCOVERED'"
         else:
-            query += " AND j.status = ?"
-            params.append(status)
+            query += " AND (j.status = ? OR LOWER(j.status) = ?)"
+            params.extend([status, s_norm])
     if salary_tier and salary_tier != "all":
         query += " AND j.salary_tier = ?"
         params.append(salary_tier)
@@ -409,7 +413,9 @@ def list_jobs(
         if is_qualified_seniority_and_exp(r.get("title", ""), r.get("jd_content", ""))
     ]
 
-    if (max_age_hours and max_age_hours > 0) or (min_age_hours and min_age_hours > 0) or start_date or end_date:
+    # Only enforce age filtering on DISCOVERED / unapplied jobs, or when not explicitly filtering by a specific application status
+    is_status_filtered = bool(status and status.lower().strip() not in ("all", "discovered"))
+    if not is_status_filtered and ((max_age_hours and max_age_hours > 0) or (min_age_hours and min_age_hours > 0) or start_date or end_date):
         rows = [
             r for r in rows
             if is_within_age(

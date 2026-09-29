@@ -119,7 +119,7 @@ def get_stats(
         max_risk=max_risk
     )
     tiers = {"40-50LPA": 0, "50-60LPA": 0, "60-70LPA": 0, "70+LPA": 0}
-    status_counts = {"DISCOVERED": 0, "APPLYING": 0, "APPLIED": 0, "READY_TO_SUBMIT (DRY_RUN)": 0, "FAILED": 0}
+    status_counts = {"DISCOVERED": 0, "APPLYING": 0, "APPLIED": 0, "READY_TO_SUBMIT (DRY_RUN)": 0, "READY_TO_SUBMIT (REVIEW_REQUIRED)": 0, "FAILED": 0}
     platforms = {}
 
     for j in jobs:
@@ -130,7 +130,7 @@ def get_stats(
         plat = j.get("ats_platform", "other")
         platforms[plat] = platforms.get(plat, 0) + 1
 
-    total_applied = sum(v for k, v in status_counts.items() if "APPLIED" in k or "SUBMIT" in k)
+    total_applied = status_counts.get("APPLIED", 0)
     total_unapplied = len(jobs) - total_applied
 
     return {
@@ -491,9 +491,10 @@ def dashboard_html():
                         </span>
                         <select id="statusSelect" onchange="syncStatusFilter(this.value)" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
                             <option value="all">All Statuses</option>
-                            <option value="applied">✅ Applied Only</option>
-                            <option value="not_applied">⏳ Not Applied Yet</option>
+                            <option value="applied">✅ Applied Only (Submitted)</option>
                             <option value="ready">📋 Ready for Review (Dry-Run)</option>
+                            <option value="review_required">🔍 Review Required</option>
+                            <option value="not_applied">⏳ Not Applied Yet</option>
                             <option value="failed">⚠️ Failed / Requires Fix</option>
                             <option value="discovered">🔍 Discovered Only</option>
                         </select>
@@ -663,15 +664,19 @@ def dashboard_html():
                                             </label>
                                             <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-800 cursor-pointer text-emerald-300">
                                                 <input type="radio" name="statusHeaderRadio" value="applied" onchange="syncStatusFilter(this.value)" class="text-emerald-500 focus:ring-0" />
-                                                <span><i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i> Applied Only</span>
+                                                <span><i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i> Applied Only (Submitted)</span>
+                                            </label>
+                                            <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-800 cursor-pointer text-amber-300">
+                                                <input type="radio" name="statusHeaderRadio" value="ready" onchange="syncStatusFilter(this.value)" class="text-amber-500 focus:ring-0" />
+                                                <span><i class="fa-solid fa-eye text-amber-400 mr-1"></i> Ready for Review (Dry-Run)</span>
+                                            </label>
+                                            <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-800 cursor-pointer text-purple-300">
+                                                <input type="radio" name="statusHeaderRadio" value="review_required" onchange="syncStatusFilter(this.value)" class="text-purple-500 focus:ring-0" />
+                                                <span><i class="fa-solid fa-file-signature text-purple-400 mr-1"></i> Review Required</span>
                                             </label>
                                             <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-800 cursor-pointer text-slate-300">
                                                 <input type="radio" name="statusHeaderRadio" value="not_applied" onchange="syncStatusFilter(this.value)" class="text-cyan-500 focus:ring-0" />
                                                 <span><i class="fa-regular fa-clock text-slate-400 mr-1"></i> Not Applied Yet</span>
-                                            </label>
-                                            <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-800 cursor-pointer text-amber-300">
-                                                <input type="radio" name="statusHeaderRadio" value="ready" onchange="syncStatusFilter(this.value)" class="text-amber-500 focus:ring-0" />
-                                                <span><i class="fa-solid fa-eye text-amber-400 mr-1"></i> Ready for Review</span>
                                             </label>
                                             <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-800 cursor-pointer text-rose-300">
                                                 <input type="radio" name="statusHeaderRadio" value="failed" onchange="syncStatusFilter(this.value)" class="text-rose-500 focus:ring-0" />
@@ -1270,9 +1275,11 @@ def dashboard_html():
                 const status = document.getElementById('statusSelect') ? document.getElementById('statusSelect').value : 'all';
                 let statusText = '';
                 if (status === 'applied') statusText = ' • Applied Only';
+                else if (status === 'ready') statusText = ' • Ready (Dry-Run)';
+                else if (status === 'review_required') statusText = ' • Review Required';
                 else if (status === 'not_applied') statusText = ' • Unapplied Only';
-                else if (status === 'ready') statusText = ' • Ready for Review';
                 else if (status === 'failed') statusText = ' • Failed Only';
+                else if (status === 'discovered') statusText = ' • Discovered Only';
 
                 document.getElementById('statTimeLabel').innerText = `${timeText} • ${platText}${tierText}${statusText}${remText}${typeText}${sizeText}${cultText}${riskText}`;
             }
@@ -1472,13 +1479,15 @@ def dashboard_html():
                         </td>
                         <td class="px-5 py-4">
                             <span class="px-2.5 py-1 text-xs rounded-full font-semibold inline-flex items-center gap-1.5 ${
-                                j.status.includes('APPLIED') ? 'bg-emerald-950 text-emerald-300 border border-emerald-600 shadow-sm' :
+                                j.status === 'APPLIED' ? 'bg-emerald-950 text-emerald-300 border border-emerald-600 shadow-sm' :
+                                j.status.includes('REVIEW_REQUIRED') ? 'bg-purple-950 text-purple-300 border border-purple-600' :
                                 j.status.includes('DRY_RUN') ? 'bg-amber-950 text-amber-300 border border-amber-600' :
                                 j.status.includes('FAILED') ? 'bg-rose-950 text-rose-300 border border-rose-600' :
                                 j.status === 'APPLYING' ? 'bg-blue-900/60 text-blue-300 border border-blue-600 animate-pulse' :
                                 'bg-slate-800 text-slate-400 border border-slate-700'
                             }">
-                                ${j.status.includes('APPLIED') ? '<i class="fa-solid fa-circle-check text-emerald-400 text-[11px]"></i> Applied' :
+                                ${j.status === 'APPLIED' ? '<i class="fa-solid fa-circle-check text-emerald-400 text-[11px]"></i> Applied' :
+                                  j.status.includes('REVIEW_REQUIRED') ? '<i class="fa-solid fa-file-signature text-purple-400 text-[11px]"></i> Review Required' :
                                   j.status.includes('DRY_RUN') ? '<i class="fa-solid fa-clipboard-check text-amber-400 text-[11px]"></i> Ready (Dry-Run)' :
                                   j.status.includes('FAILED') ? '<i class="fa-solid fa-circle-exclamation text-rose-400 text-[11px]"></i> Failed' :
                                   j.status === 'APPLYING' ? '<i class="fa-solid fa-spinner fa-spin text-blue-400 text-[11px]"></i> Applying...' :
