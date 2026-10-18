@@ -109,12 +109,17 @@ async def heal_job_url(session: aiohttp.ClientSession, job: Dict[str, Any]) -> T
             fallbacks.append(f"https://jobs.lever.co/{comp_slug}/{real_jid}")
 
     elif platform == "workday":
-        m_wd = re.match(r'https://([^/]+)(?:/[^/]+)?(/job/.+)', url)
+        m_wd = re.match(r'https://([^/]+)(?:/[^/]+)?(?:/[^/]+)?(/job/.+)', url)
         if m_wd:
             host, path = m_wd.group(1), m_wd.group(2)
+            # Match tenant/board or fallback to en-US
+            m_full = re.match(r'https://([^/]+)/([^/]+)/([^/]+)(/job/.+)', url)
+            if m_full:
+                board = m_full.group(3)
+                fallbacks.append(f"https://{host}/en-US/{board}{path}")
             norm = comp.lower().replace(" ", "")
-            fallbacks.append(f"https://{host}/{norm}{path}")
             fallbacks.append(f"https://{host}/en-US/{norm}{path}")
+            fallbacks.append(f"https://{host}/en-US/job{path}")
 
     # Test reconstructed fallbacks
     for fb in fallbacks:

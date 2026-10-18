@@ -111,12 +111,7 @@ async def scan_single_workday_adaptive(
                         tenant = comp.get("tenant", "")
                         board = comp.get("board", "job")
                         host = comp.get("host", "")
-                        if tenant == "en-US":
-                            apply_url = f"https://{host}/en-US/{board}{external_path}"
-                        elif tenant:
-                            apply_url = f"https://{host}/{tenant}/{board}{external_path}"
-                        else:
-                            apply_url = f"https://{host}{external_path}"
+                        apply_url = f"https://{host}/en-US/{board}{external_path}"
 
                         import hashlib
                         path_hash = hashlib.md5((external_path or title).encode()).hexdigest()[:12]

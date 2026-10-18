@@ -18,7 +18,7 @@ from database import save_job, get_company_intelligence, log_failure
 from smart_due_diligence import perform_smart_due_diligence
 from salary_classifier import classify_salary
 
-from experience_filter import is_qualified_seniority_and_exp
+from experience_filter import is_qualified_seniority_and_exp, is_qualified_location
 
 BACKEND_KEYWORDS = [
     "backend", "back end", "back-end", "distributed", "sde 2", "sde-2",
@@ -120,7 +120,7 @@ async def scan_greenhouse_job(session: aiohttp.ClientSession, comp: Dict[str, st
                         continue
                     loc = j.get("location", {}).get("name", "Remote / Multiple")
                     loc_low = loc.lower()
-                    if not any(hub in loc_low for hub in INDIA_TECH_HUBS):
+                    if not is_qualified_location(loc):
                         continue
                     updated_at_str = j.get("updated_at")
                     if updated_at_str:
@@ -168,7 +168,7 @@ async def scan_lever_job(session: aiohttp.ClientSession, comp: Dict[str, str], s
                         continue
                     loc = j.get("categories", {}).get("location", "Remote")
                     loc_low = loc.lower()
-                    if not any(hub in loc_low for hub in INDIA_TECH_HUBS):
+                    if not is_qualified_location(loc):
                         continue
                     created_at_ms = j.get("createdAt")
                     if created_at_ms:
@@ -213,7 +213,7 @@ async def scan_ashby_job(session: aiohttp.ClientSession, comp: Dict[str, str], s
                         continue
                     loc = j.get("location", "Remote")
                     loc_low = loc.lower()
-                    if not any(hub in loc_low for hub in INDIA_TECH_HUBS):
+                    if not is_qualified_location(loc):
                         continue
                     published_str = j.get("publishedDate")
                     if published_str:
