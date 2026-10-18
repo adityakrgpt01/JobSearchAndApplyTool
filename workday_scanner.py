@@ -181,6 +181,19 @@ def load_verified_workday_endpoints() -> List[Dict[str, Any]]:
     except Exception:
         pass
 
+    # Filter out permanently retired endpoints (e.g. 404s or persistent 422s) from jobs.db scraper_failures
+    try:
+        import sqlite3
+        conn = sqlite3.connect("jobs.db")
+        c = conn.cursor()
+        c.execute("SELECT target_url FROM scraper_failures WHERE source = 'workday' AND resolved = 1")
+        retired_urls = set(r[0] for r in c.fetchall())
+        conn.close()
+        active_endpoints = [e for e in endpoints.values() if e["api_url"] not in retired_urls]
+        return active_endpoints
+    except Exception:
+        pass
+
     return list(endpoints.values())
 
 async def scan_single_workday(session: aiohttp.ClientSession, comp: Dict[str, Any], sem: asyncio.Semaphore) -> List[Dict[str, Any]]:
@@ -197,78 +210,111 @@ async def scan_single_workday(session: aiohttp.ClientSession, comp: Dict[str, An
 
     async with sem:
         try:
+            resp_data = None
+            board = comp.get("board", "")
+            host = comp.get("host", "")
+            tenant = comp.get("tenant", "")
+
+            # 1. Primary endpoint attempt
             async with session.post(api_url, json=payload, timeout=aiohttp.ClientTimeout(total=7)) as resp:
-                if resp.status != 200:
+                if resp.status == 200:
+                    resp_data = await resp.json()
+                    mark_failure_resolved(api_url)
+                elif resp.status == 404:
+                    # 2. Board Fallback Probing: Try standard Workday board aliases
+                    fallback_boards = [
+                        "External", "Careers", "jobs", "External_Career_Site",
+                        f"{tenant}_Careers", f"{name.replace(' ', '_')}_Careers", "External_Careers"
+                    ]
+                    fallback_boards = [b for b in fallback_boards if b.lower() != board.lower()]
+                    
+                    for fb_board in fallback_boards:
+                        fb_url = f"https://{host}/wday/cxs/{tenant}/{fb_board}/jobs"
+                        try:
+                            async with session.post(fb_url, json=payload, timeout=aiohttp.ClientTimeout(total=5)) as fb_resp:
+                                if fb_resp.status == 200:
+                                    resp_data = await fb_resp.json()
+                                    api_url = fb_url
+                                    comp["board"] = fb_board
+                                    comp["api_url"] = fb_url
+                                    mark_failure_resolved(api_url)
+                                    break
+                        except Exception:
+                            continue
+                    if not resp_data:
+                        log_failure("workday", name, api_url, f"HTTP {resp.status}", resp.status)
+                        return []
+                else:
                     log_failure("workday", name, api_url, f"HTTP {resp.status}", resp.status)
                     return []
-                data = await resp.json()
-                mark_failure_resolved(api_url)
-                postings = list(data.get("jobPostings", []))
 
-                # Fetch second page if more Software India listings exist
-                total_count = data.get("total", 0)
-                if total_count > 20:
-                    try:
-                        p2 = {
-                            "appliedFacets": {},
-                            "limit": 20,
-                            "offset": 20,
-                            "searchText": "Software India"
-                        }
-                        async with session.post(api_url, json=p2, timeout=aiohttp.ClientTimeout(total=5)) as resp2:
-                            if resp2.status == 200:
-                                d2 = await resp2.json()
-                                postings.extend(d2.get("jobPostings", []))
-                    except Exception:
-                        pass
+            data = resp_data
+            postings = list(data.get("jobPostings", []))
 
-                for j in postings:
-                    title = j.get("title", "")
-                    if not is_backend_role(title):
-                        continue
-
-                    posted_on = j.get("postedOn", "")
-                    if not is_recent(posted_on):
-                        continue
-
-                    raw_loc = j.get("locationsText", "")
-                    external_path = j.get("externalPath", "")
-                    if not external_path:
-                        continue
-
-                    resolved_loc = resolve_workday_location(raw_loc, external_path)
-                    if not resolved_loc:
-                        continue
-
-                    tenant = comp.get("tenant", "")
-                    board = comp.get("board", "job")
-                    host = comp.get("host", "")
-                    apply_url = f"https://{host}/en-US/{board}{external_path}"
-
-                    import hashlib
-                    path_hash = hashlib.md5((external_path or title).encode()).hexdigest()[:12]
-                    job_id = f"wd_{tenant or 'wday'}_{path_hash}"
-
-                    tier, est_ctc = classify_salary(name, title)
-                    await perform_smart_due_diligence(name)
-
-                    rec = {
-                        "job_id": job_id,
-                        "company_name": name,
-                        "title": title,
-                        "location": resolved_loc,
-                        "is_remote": "remote" in resolved_loc.lower(),
-                        "ats_platform": "workday",
-                        "apply_url": apply_url,
-                        "jd_content": f"{title} at {name}. Location: {resolved_loc}. Posted: {posted_on}.",
-                        "posted_at": posted_on,
-                        "experience_required": "4-6 Years (SDE-2 / Senior)",
-                        "salary_tier": tier,
-                        "estimated_ctc": est_ctc,
-                        "status": "DISCOVERED"
+            # Fetch second page if more Software India listings exist
+            total_count = data.get("total", 0)
+            if total_count > 20:
+                try:
+                    p2 = {
+                        "appliedFacets": {},
+                        "limit": 20,
+                        "offset": 20,
+                        "searchText": "Software India"
                     }
-                    save_job(rec)
-                    discovered.append(rec)
+                    async with session.post(api_url, json=p2, timeout=aiohttp.ClientTimeout(total=5)) as resp2:
+                        if resp2.status == 200:
+                            d2 = await resp2.json()
+                            postings.extend(d2.get("jobPostings", []))
+                except Exception:
+                    pass
+
+            for j in postings:
+                title = j.get("title", "")
+                if not is_backend_role(title):
+                    continue
+
+                posted_on = j.get("postedOn", "")
+                if not is_recent(posted_on):
+                    continue
+
+                raw_loc = j.get("locationsText", "")
+                external_path = j.get("externalPath", "")
+                if not external_path:
+                    continue
+
+                resolved_loc = resolve_workday_location(raw_loc, external_path)
+                if not resolved_loc:
+                    continue
+
+                tenant = comp.get("tenant", "")
+                board = comp.get("board", "job")
+                host = comp.get("host", "")
+                apply_url = f"https://{host}/en-US/{board}{external_path}"
+
+                import hashlib
+                path_hash = hashlib.md5((external_path or title).encode()).hexdigest()[:12]
+                job_id = f"wd_{tenant or 'wday'}_{path_hash}"
+
+                tier, est_ctc = classify_salary(name, title)
+                await perform_smart_due_diligence(name)
+
+                rec = {
+                    "job_id": job_id,
+                    "company_name": name,
+                    "title": title,
+                    "location": resolved_loc,
+                    "is_remote": "remote" in resolved_loc.lower(),
+                    "ats_platform": "workday",
+                    "apply_url": apply_url,
+                    "jd_content": f"{title} at {name}. Location: {resolved_loc}. Posted: {posted_on}.",
+                    "posted_at": posted_on,
+                    "experience_required": "4-6 Years (SDE-2 / Senior)",
+                    "salary_tier": tier,
+                    "estimated_ctc": est_ctc,
+                    "status": "DISCOVERED"
+                }
+                save_job(rec)
+                discovered.append(rec)
         except asyncio.TimeoutError:
             log_failure("workday", name, api_url, "Connection Timeout (WAF/Akamai rate-limit)", 408)
         except Exception as e:

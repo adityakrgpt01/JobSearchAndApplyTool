@@ -623,7 +623,7 @@ def log_failure(source: str, company_name: str, target_url: str, failure_reason:
     try:
         conn = sqlite3.connect(db_path)
         c = conn.cursor()
-        # Auto-resolve permanent 404s so they don't bloat the retry queue
+        # Auto-resolve permanent 404s and persistent 422s so they don't bloat the retry queue or crawl batches
         is_permanent = 1 if http_status == 404 else 0
         c.execute("""
         INSERT INTO scraper_failures (source, company_name, target_url, failure_reason, http_status, retry_count, resolved, last_attempted)
@@ -634,7 +634,11 @@ def log_failure(source: str, company_name: str, target_url: str, failure_reason:
             failure_reason = excluded.failure_reason,
             http_status = excluded.http_status,
             retry_count = scraper_failures.retry_count + 1,
-            resolved = CASE WHEN excluded.http_status = 404 THEN 1 ELSE scraper_failures.resolved END,
+            resolved = CASE 
+                WHEN excluded.http_status = 404 THEN 1 
+                WHEN excluded.http_status = 422 AND (scraper_failures.retry_count + 1) >= 2 THEN 1
+                ELSE scraper_failures.resolved 
+            END,
             last_attempted = CURRENT_TIMESTAMP;
         """, (source, company_name, target_url, failure_reason, http_status, is_permanent))
         conn.commit()
