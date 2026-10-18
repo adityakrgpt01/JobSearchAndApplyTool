@@ -21,15 +21,31 @@ from salary_classifier import classify_salary
 from experience_filter import is_qualified_seniority_and_exp
 
 BACKEND_KEYWORDS = [
-    "backend", "back end", "back-end", "distributed systems", "sde 2", "sde-2",
-    "sde ii", "software engineer ii", "senior software engineer", "software development engineer ii"
+    "backend", "back end", "back-end", "distributed", "sde 2", "sde-2",
+    "sde ii", "software engineer ii", "senior software engineer", "software development engineer ii",
+    "software engineer", "sr software engineer", "software development engineer", "software dev engineer",
+    "java developer", "java engineer", "java software engineer", "platform engineer", "systems engineer", "mts"
+]
+
+DISALLOWED_ATS_KEYWORDS = [
+    "frontend", "front-end", "front end", "android", "androis", "ios", "mobile", "flutter", "swift", "react native", "react-native",
+    "qa tester", "qa engineer", "sdet", "intern", "internship", "director", "manager",
+    "servicenow developer", "service now developer", "service-now developer", "servicenow dev", "service now dev",
+    "servicenow consultant", "servicenow admin",
+    "mobile app", "mobile developer", "mobile application", "mobile engineer"
+]
+
+INDIA_TECH_HUBS = [
+    "india", "bengaluru", "bangalore", "hyderabad", "pune", "mumbai",
+    "gurgaon", "gurugram", "delhi", "ncr", "noida", "chennai", "kolkata",
+    "ahmedabad", "chandigarh", "coimbatore", "kochi", "cochin", "remote"
 ]
 
 def is_senior_backend_or_sde2(title: str, jd_text: str = "") -> bool:
     if not is_qualified_seniority_and_exp(title, jd_text):
         return False
     t = title.lower()
-    if any(neg in t for neg in ["frontend", "front-end", "front end", "android", "ios", "qa tester", "sdet", "intern", "director", "manager"]):
+    if any(neg in t for neg in DISALLOWED_ATS_KEYWORDS):
         return False
     return any(k in t for k in BACKEND_KEYWORDS)
 
@@ -86,7 +102,7 @@ def load_all_target_companies() -> Dict[str, List[Dict[str, str]]]:
     return grouped
 
 # --- 1. Greenhouse Scanner ---
-async def scan_greenhouse_job(session: aiohttp.ClientSession, comp: Dict[str, str], sem: asyncio.Semaphore, max_age_hours: int = 72) -> List[Dict[str, Any]]:
+async def scan_greenhouse_job(session: aiohttp.ClientSession, comp: Dict[str, str], sem: asyncio.Semaphore, max_age_hours: int = 168) -> List[Dict[str, Any]]:
     url = f"https://boards-api.greenhouse.io/v1/boards/{comp['token']}/jobs?content=true"
     discovered = []
     async with sem:
@@ -104,7 +120,7 @@ async def scan_greenhouse_job(session: aiohttp.ClientSession, comp: Dict[str, st
                         continue
                     loc = j.get("location", {}).get("name", "Remote / Multiple")
                     loc_low = loc.lower()
-                    if not ("india" in loc_low or "bengaluru" in loc_low or "bangalore" in loc_low or "remote" in loc_low):
+                    if not any(hub in loc_low for hub in INDIA_TECH_HUBS):
                         continue
                     updated_at_str = j.get("updated_at")
                     if updated_at_str:
@@ -117,11 +133,12 @@ async def scan_greenhouse_job(session: aiohttp.ClientSession, comp: Dict[str, st
 
                     tier, est_ctc = classify_salary(comp["name"], j.get("content", ""))
                     await perform_smart_due_diligence(comp["name"], comp["token"])
+                    apply_link = j.get("absolute_url") or f"https://job-boards.greenhouse.io/{comp['token']}/jobs/{j['id']}"
                     rec = {
                         "job_id": f"gh_{comp['token']}_{j['id']}",
                         "company_name": comp["name"],
                         "title": title, "location": loc, "is_remote": "remote" in loc_low,
-                        "ats_platform": "greenhouse", "apply_url": j.get("absolute_url", ""),
+                        "ats_platform": "greenhouse", "apply_url": apply_link,
                         "jd_content": j.get("content", "")[:2000],
                         "posted_at": updated_at_str or datetime.utcnow().isoformat(),
                         "experience_required": "4-6 Years (SDE-2 / Senior)",
@@ -134,7 +151,7 @@ async def scan_greenhouse_job(session: aiohttp.ClientSession, comp: Dict[str, st
     return discovered
 
 # --- 2. Lever Scanner ---
-async def scan_lever_job(session: aiohttp.ClientSession, comp: Dict[str, str], sem: asyncio.Semaphore, max_age_hours: int = 72) -> List[Dict[str, Any]]:
+async def scan_lever_job(session: aiohttp.ClientSession, comp: Dict[str, str], sem: asyncio.Semaphore, max_age_hours: int = 168) -> List[Dict[str, Any]]:
     url = f"https://api.lever.co/v0/postings/{comp['token']}?mode=json"
     discovered = []
     async with sem:
@@ -151,7 +168,7 @@ async def scan_lever_job(session: aiohttp.ClientSession, comp: Dict[str, str], s
                         continue
                     loc = j.get("categories", {}).get("location", "Remote")
                     loc_low = loc.lower()
-                    if not ("india" in loc_low or "bengaluru" in loc_low or "bangalore" in loc_low or "remote" in loc_low):
+                    if not any(hub in loc_low for hub in INDIA_TECH_HUBS):
                         continue
                     created_at_ms = j.get("createdAt")
                     if created_at_ms:
@@ -178,7 +195,7 @@ async def scan_lever_job(session: aiohttp.ClientSession, comp: Dict[str, str], s
     return discovered
 
 # --- 3. Ashby Scanner ---
-async def scan_ashby_job(session: aiohttp.ClientSession, comp: Dict[str, str], sem: asyncio.Semaphore, max_age_hours: int = 72) -> List[Dict[str, Any]]:
+async def scan_ashby_job(session: aiohttp.ClientSession, comp: Dict[str, str], sem: asyncio.Semaphore, max_age_hours: int = 168) -> List[Dict[str, Any]]:
     url = f"https://api.ashbyhq.com/posting-api/job-board/{comp['token']}"
     discovered = []
     async with sem:
@@ -196,7 +213,7 @@ async def scan_ashby_job(session: aiohttp.ClientSession, comp: Dict[str, str], s
                         continue
                     loc = j.get("location", "Remote")
                     loc_low = loc.lower()
-                    if not ("india" in loc_low or "bengaluru" in loc_low or "bangalore" in loc_low or "remote" in loc_low):
+                    if not any(hub in loc_low for hub in INDIA_TECH_HUBS):
                         continue
                     published_str = j.get("publishedDate")
                     if published_str:

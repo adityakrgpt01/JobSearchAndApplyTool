@@ -15,30 +15,38 @@ from database import save_job, log_failure, mark_failure_resolved
 from smart_due_diligence import perform_smart_due_diligence
 from salary_classifier import classify_salary
 
-from experience_filter import is_qualified_seniority_and_exp
+from experience_filter import is_qualified_seniority_and_exp, is_qualified_job
+from workday_scanner import resolve_workday_location
 
 BACKEND_KEYWORDS = [
     "backend", "back end", "back-end", "distributed", "sde 2", "sde-2",
-    "sde ii", "software engineer ii", "senior software engineer", "software development engineer ii"
+    "sde ii", "software engineer ii", "senior software engineer", "software development engineer ii",
+    "software engineer", "sr software engineer", "software development engineer", "software dev engineer",
+    "system software engineer", "systems software engineer", "system software developer",
+    "java developer", "java engineer", "java software engineer", "java backend",
+    "platform engineer", "systems engineer", "mts", "computer scientist", "cloud engineer"
+]
+
+DISALLOWED_WORKDAY_KEYWORDS = [
+    "frontend", "front-end", "intern", "internship", "qa", "sdet", "warehouse", "sales", "account manager",
+    "android", "androis", "ios", "mobile", "flutter", "swift", "react native", "react-native",
+    "servicenow", "service now", "service-now",
+    "mobile app", "mobile developer", "mobile application", "mobile engineer"
 ]
 
 def is_backend_role(title: str, jd_text: str = "") -> bool:
     if not is_qualified_seniority_and_exp(title, jd_text):
         return False
     t = title.lower()
-    if any(neg in t for neg in ["frontend", "front-end", "intern", "qa", "sdet", "warehouse", "sales", "account manager"]):
+    if any(neg in t for neg in DISALLOWED_WORKDAY_KEYWORDS):
+        return False
+    import re
+    if re.search(r'\b(ios)\b', t):
         return False
     return any(k in t for k in BACKEND_KEYWORDS)
 
-def is_recent(posted_on: str, max_age_hours: int = 24) -> bool:
-    p = posted_on.lower()
-    if "today" in p or "hour" in p or "minute" in p or "just now" in p:
-        return True
-    if "yesterday" in p or "1 day ago" in p:
-        return max_age_hours >= 24
-    if "2 days ago" in p:
-        return max_age_hours >= 48
-    return False
+def is_recent(posted_on: str, max_age_hours: int = 720) -> bool:
+    return True
 
 async def scan_single_workday_adaptive(
     session: aiohttp.ClientSession,
@@ -54,7 +62,7 @@ async def scan_single_workday_adaptive(
         "appliedFacets": {},
         "limit": 20,
         "offset": 0,
-        "searchText": ""
+        "searchText": "Software India"
     }
 
     async with sem:
@@ -63,8 +71,24 @@ async def scan_single_workday_adaptive(
             async with session.post(api_url, json=payload, timeout=aiohttp.ClientTimeout(total=8)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    postings = data.get("jobPostings", [])
+                    postings = list(data.get("jobPostings", []))
                     mark_failure_resolved(api_url)
+
+                    total_count = data.get("total", 0)
+                    if total_count > 20:
+                        try:
+                            p2 = {
+                                "appliedFacets": {},
+                                "limit": 20,
+                                "offset": 20,
+                                "searchText": "Software India"
+                            }
+                            async with session.post(api_url, json=p2, timeout=aiohttp.ClientTimeout(total=6)) as resp2:
+                                if resp2.status == 200:
+                                    d2 = await resp2.json()
+                                    postings.extend(d2.get("jobPostings", []))
+                        except Exception:
+                            pass
 
                     for j in postings:
                         title = j.get("title", "")
@@ -75,17 +99,28 @@ async def scan_single_workday_adaptive(
                         if not is_recent(posted_on):
                             continue
 
-                        locations = j.get("locationsText", "")
-                        loc_low = locations.lower()
-                        if not ("india" in loc_low or "bengaluru" in loc_low or "bangalore" in loc_low or "hyderabad" in loc_low or "pune" in loc_low or "remote" in loc_low):
+                        raw_loc = j.get("locationsText", "")
+                        external_path = j.get("externalPath", "")
+                        if not external_path:
                             continue
 
-                        external_path = j.get("externalPath", "")
-                        if comp.get('tenant') == 'en-US':
-                            apply_url = f"https://{comp['host']}/en-US/{comp.get('board', 'job')}{external_path}" if external_path else f"https://{comp['host']}"
+                        resolved_loc = resolve_workday_location(raw_loc, external_path)
+                        if not resolved_loc:
+                            continue
+
+                        tenant = comp.get("tenant", "")
+                        board = comp.get("board", "job")
+                        host = comp.get("host", "")
+                        if tenant == "en-US":
+                            apply_url = f"https://{host}/en-US/{board}{external_path}"
+                        elif tenant:
+                            apply_url = f"https://{host}/{tenant}/{board}{external_path}"
                         else:
-                            apply_url = f"https://{comp['host']}/{comp['tenant']}{external_path}" if external_path else f"https://{comp['host']}"
-                        job_id = f"wd_{comp['tenant']}_{abs(hash(external_path or title))}"
+                            apply_url = f"https://{host}{external_path}"
+
+                        import hashlib
+                        path_hash = hashlib.md5((external_path or title).encode()).hexdigest()[:12]
+                        job_id = f"wd_{tenant or 'wday'}_{path_hash}"
 
                         tier, est_ctc = classify_salary(name, title)
                         await perform_smart_due_diligence(name)
@@ -94,11 +129,11 @@ async def scan_single_workday_adaptive(
                             "job_id": job_id,
                             "company_name": name,
                             "title": title,
-                            "location": locations,
-                            "is_remote": "remote" in loc_low,
+                            "location": resolved_loc,
+                            "is_remote": "remote" in resolved_loc.lower(),
                             "ats_platform": "workday",
                             "apply_url": apply_url,
-                            "jd_content": f"{title} at {name}. Location: {locations}. Posted: {posted_on}.",
+                            "jd_content": f"{title} at {name}. Location: {resolved_loc}. Posted: {posted_on}.",
                             "posted_at": posted_on,
                             "experience_required": "4-6 Years (SDE-2 / Senior)",
                             "salary_tier": tier,

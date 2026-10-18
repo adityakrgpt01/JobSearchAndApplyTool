@@ -71,7 +71,7 @@
       }
     ],
     "notice_period_days": 30,
-    "current_ctc_lpa": 38.0,
+    "current_ctc_lpa": 28.0,
     "expected_ctc_lpa": 55.0,
     "open_to_relocation": true,
     "work_preference": "Hybrid or Remote"
@@ -83,8 +83,25 @@
   "custom_answers": {
     "sponsorship_needed": "No",
     "authorized_to_work_in_india": "Yes",
+    "authorized_to_work_in_us": "No",
+    "require_us_visa_sponsorship": "No",
     "gender": "Male",
     "pronouns": "He/Him",
-    "summary_for_recruiter": "Backend engineer with 5+ years building distributed, multi-tenant microservices in Java/Spring Boot and Go. Redesigned a configurable approval-workflow platform for 30+ tenants and worked on a metrics platform handling 70M+ datapoints/min, with hands-on experience in system design tradeoffs, performance optimization, production support, and cloud security."
+    "veteran_status": "No, I am not a protected veteran",
+    "disability_status": "No, I do not have a disability",
+    "ethnicity": "Asian (South Asian)",
+    "security_clearance": "None / Not Applicable",
+    "previously_employed_at_company": "No",
+    "willing_to_relocate": "Yes",
+    "hybrid_in_office_agreement": "Yes, I am comfortable with hybrid/in-office requirements",
+    "technical_achievement": "• Owned performance and reliability improvements on Sumo Logic's metrics ingestion and query platform handling 70M+ datapoints/min.\n• Re-engineered Kafka consumer partition assignment strategy to fix uneven partition distribution across pods during horizontal scaling, reducing ingestion-lag alerts from 2–3 per day down to 5–6 per week.\n• Reworked the in-memory data store to eliminate read/write lock contention via partition retuning and merging; validated with benchmarks, unit, and end-to-end tests so queries serve at real-time latency even during ingestion lag.",
+    "approval_workflow_project": "• Redesigned the core approval workflow engine at 73 Strings from a fixed sequential flow into a configurable multi-level platform for 30+ enterprise tenants (featuring entity-scoped access control, send-back to any prior level, and audit-safe condition versioning).\n• Replaced sequential orchestration with parallelized downstream calls and distributed caching (Redis), slashing p99 latency from ~900ms to ~350ms across 4–5 microservices.\n• Built an AI-agent-based modernization tool upgrading legacy Java services (Java 8 to 21) across 10+ repositories, reducing migration turnaround from 1–2 weeks to 2–3 days per repo.\n• Handled production reliability, profiling and root-causing OOMKills with Datadog APM, resolving latency bottlenecks and hardening Azure Blob Storage security.",
+    "leadership_experience": "• Drove end-to-end technical delivery for User Access Management (UAM) and Approval Services on Kubernetes using Spring Boot, MySQL, and Elasticsearch.\n• Led architecture discussions, code reviews, and mentored junior engineers on microservices best practices, concurrency, and multi-tenant isolation to ensure safe, zero-downtime releases.\n• Collaborated cross-functionally with product managers and security teams to align technical roadmaps with business compliance.",
+    "why_join_company": "• Proven track record of owning distributed microservices handling 70M+ datapoints/min and low-latency financial workflows.\n• Deep hands-on expertise in Java 17/21, Go, Spring Boot, Kafka streaming, Redis, Kubernetes, and distributed systems design tradeoffs.\n• Passionate about solving complex scaling bottlenecks, optimizing query latency, and building resilient backend architectures.",
+    "ai_dev_tools": "Yes, I regularly use AI developer tools including Cursor, Claude Code, and GitHub Copilot to accelerate development, modernize legacy codebases, and streamline code reviews.",
+    "preferred_tech_stack": "Core strengths and preferences: Java 17/21, Spring Boot, Microservices, Go, Kafka, Redis, PostgreSQL/MySQL, Docker, Kubernetes, and AWS.",
+    "notice_period_days_text": "30",
+    "banking_experience": "• Built Go microservices on a unified integration layer for partner banks (IDFC, IndusInd, Axis), processing 3–5K transactions/day with retries, idempotency keys, and automated reconciliation.\n• Designed and launched the Axis Current Account onboarding service with integrated vKYC, cutting customer onboarding time from ~1 week to ~2 hours.",
+    "summary_for_recruiter": "Backend Engineer with 5+ years of experience designing and scaling distributed, multi-tenant microservices in Java 17/21, Spring Boot, and Go. Key accomplishments include redesigning a configurable multi-tenant approval platform for 30+ enterprise clients (cutting p99 latency from 900ms to 350ms at 73 Strings) and optimizing a high-throughput metrics ingestion pipeline processing 70M+ datapoints/min at Sumo Logic. Strong expertise in Kafka, Redis, PostgreSQL/MySQL, AWS/Kubernetes, and Datadog APM."
   }
 }

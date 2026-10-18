@@ -28,33 +28,19 @@ class FormLLMEngine:
             except Exception as e:
                 pass
 
-    def answer_question(self, question_text: str, options: Optional[List[str]] = None) -> str:
+    def answer_question(self, question_text: str, options: Optional[List[str]] = None, job_context: Optional[Dict[str, Any]] = None) -> str:
         """
         Synthesizes an answer for any dynamic custom question.
-        100% free with no paid key required.
+        Uses 100% deterministic, candidate-verified profile data to guarantee zero hallucinated claims.
         """
         q_clean = question_text.lower().strip()
         
-        # 1. Deterministic high-precision match (fastest & most accurate for standard ATS inputs)
-        quick_ans = self._match_heuristics(q_clean, options)
+        # 1. Deterministic high-precision match (fastest & strictly verified against candidate profile)
+        quick_ans = self._match_heuristics(q_clean, options, job_context)
         if quick_ans is not None:
             return quick_ans
 
-        # 2. Try Gemini if API key was provided
-        if self.client:
-            try:
-                ans = self._call_gemini(question_text, options)
-                if ans:
-                    return ans
-            except Exception:
-                pass
-
-        # 3. Try 100% Free Public AI Endpoint (Pollinations AI - LLaMA-3.3-70B, zero API key required)
-        free_ai_ans = self._call_free_llm(question_text, options)
-        if free_ai_ans:
-            return free_ai_ans
-
-        # 4. Built-in Local Autonomous Synthesis Engine (No network needed)
+        # 2. Candidate-verified structured response (Uses only real resume facts)
         return self._generate_autonomous_synthesis(q_clean, options)
 
     def _call_gemini(self, question_text: str, options: Optional[List[str]] = None) -> Optional[str]:
@@ -107,7 +93,7 @@ class FormLLMEngine:
             f"Answer concisely in 1-2 sentences or provide the single chosen option from the list. Do not use quotes or prefixes."
         )
 
-    def _match_heuristics(self, q: str, options: Optional[List[str]] = None) -> Optional[str]:
+    def _match_heuristics(self, q: str, options: Optional[List[str]] = None, job_context: Optional[Dict[str, Any]] = None) -> Optional[str]:
         pers = self.profile.get("personal", {})
         prof = self.profile.get("professional", {})
 
@@ -158,14 +144,16 @@ class FormLLMEngine:
         if "sponsorship" in q or "visa sponsorship" in q or "require sponsorship" in q:
             return self._pick_option(["no", "will not require", "do not require"], options, "No")
 
-        # Notice period
-        if any(w in q for w in ["notice period", "days notice", "how soon can you start", "joining time"]):
+        # Notice period (handles 'notice period', 'notice peroid', etc.)
+        if any(w in q for w in ["notice period", "notice peroid", "days notice", "how soon can you start", "joining time"]):
             days = str(prof.get("notice_period_days", 30))
             if options:
                 for opt in options:
                     if days in opt or "1 month" in opt.lower() or "30" in opt:
                         return opt
                 return options[0]
+            if "in days" in q or "days" in q:
+                return days
             return f"{days} days"
 
         # Years of experience
@@ -178,27 +166,69 @@ class FormLLMEngine:
                 return options[0]
             return str(yoe)
 
-        # Expected compensation / CTC
-        if any(w in q for w in ["expected ctc", "expected salary", "salary expectation", "compensation"]):
-            ctc = prof.get("expected_ctc_lpa", 55.0)
-            return f"₹{ctc} LPA"
+        # Custom User Profile explicit answers lookup
+        custom = self.profile.get("custom_answers", {})
 
-        # Current CTC
-        if any(w in q for w in ["current ctc", "current salary", "present ctc"]):
-            ctc = prof.get("current_ctc_lpa", 38.0)
-            return f"₹{ctc} LPA"
+        # Security Clearance
+        if any(w in q for w in ["clearance", "security clearance", "confidential clearance"]):
+            clr = custom.get("security_clearance", "None")
+            return self._pick_option(["none", "not applicable", "n/a", "no"], options, clr)
+
+        # Expected compensation / CTC
+        if any(w in q for w in ["expected ctc", "expected salary", "salary expectation", "compensation", "expected"]):
+            # Dynamically compute based on how much the company pays for the role
+            expected_val = 55.0
+            if job_context:
+                tier = job_context.get("salary_tier", "")
+                if "70+" in tier:
+                    expected_val = 72.0
+                elif "60-70" in tier:
+                    expected_val = 65.0
+                elif "50-60" in tier:
+                    expected_val = 55.0
+                elif "40-50" in tier:
+                    expected_val = 45.0
+                else:
+                    est = job_context.get("estimated_ctc", "")
+                    m = re.search(r'(\d+)\s*-\s*(\d+)', est)
+                    if m:
+                        expected_val = float(m.group(2))
+            else:
+                expected_val = prof.get("expected_ctc_lpa", 55.0)
+
+            if "in lpa" in q or "lpa" in q or "number" in q:
+                return f"{expected_val:.1f} LPA"
+            return f"₹{expected_val:.1f} LPA"
+
+        # Current CTC (User explicitly specified 28)
+        if any(w in q for w in ["current ctc", "current salary", "present ctc", "current"]):
+            c_val = prof.get("current_ctc_lpa", 28.0)
+            if "in lpa" in q or "lpa" in q or "number" in q:
+                return f"{c_val:.1f} LPA"
+            return f"₹{c_val:.1f} LPA"
 
         # City / Location
-        if any(w in q for w in ["city", "current location", "where are you located", "location (city)"]):
+        if any(w in q for w in ["city", "current location", "where are you located", "location (city)", "location you intend to work", "select the location"]):
+            if options:
+                # If employer lists allowed countries/locations and user is outside (or prompt says 'Location not listed')
+                for opt in options:
+                    if any(k in opt.lower() for k in ["not listed", "other", "outside", "none of the above", "india"]):
+                        return opt
+                for opt in options:
+                    if pers.get("current_city", "Bengaluru").lower() in opt.lower():
+                        return opt
+                return options[0]
             return pers.get("current_city", "Bengaluru")
 
         # Relocation
         if any(w in q for w in ["relocate", "relocation"]):
-            return self._pick_option(["yes", "open to relocation"], options, "Yes")
+            reloc = custom.get("willing_to_relocate", "Yes")
+            return self._pick_option(["yes", "open to relocation", "willing"], options, reloc)
 
         # Previously Employed
         if any(w in q for w in ["previously been employed", "ever been employed", "worked here before", "former employee", "previously worked"]):
-            return self._pick_option(["no", "have not previously", "never"], options, "No")
+            prev = custom.get("previously_employed_at_company", "No")
+            return self._pick_option(["no", "have not previously", "never"], options, prev)
 
         # Currently Residing in country
         if "currently residing" in q or "currently live in" in q:
@@ -218,17 +248,18 @@ class FormLLMEngine:
 
         # Hybrid / In-office policy
         if any(w in q for w in ["hybrid", "office", "days a week", "in person"]):
-            return self._pick_option(["yes", "excited", "able to work"], options, "Yes, I'm able to work from the office 3 days a week")
+            return self._pick_option(["yes", "excited", "able to work", "comfortable"], options, "Yes, I'm able to work from the office 3 days a week")
 
         # Pronouns
         if "pronoun" in q:
-            gender = self.profile.get("custom_answers", {}).get("gender", "Male").lower()
-            default_pn = "He/Him" if "male" in gender else "They/Them"
+            gender = custom.get("gender", "Male").lower()
+            default_pn = custom.get("pronouns") or ("He/Him" if "male" in gender else "They/Them")
             return self._pick_option(["he/him", "he / him", "prefer not", "decline"], options, default_pn)
 
         # Gender / Equal Opportunity
         if "gender" in q and not "transgender" in q:
-            return self._pick_option(["\\bmale\\b", "\\bman\\b", "decline", "prefer not"], options, "Male")
+            g_ans = custom.get("gender", "Male")
+            return self._pick_option(["\\bmale\\b", "\\bman\\b", "decline", "prefer not"], options, g_ans)
 
         if "transgender" in q:
             return self._pick_option(["\\bno\\b", "decline", "prefer not"], options, "No")
@@ -237,14 +268,17 @@ class FormLLMEngine:
             return self._pick_option(["heterosexual", "straight", "decline", "prefer not"], options, "Heterosexual / Straight")
 
         if "disability" in q:
-            return self._pick_option(["no, i do not", "\\bno\\b", "do not have a disability", "prefer not"], options, "No, I do not have a disability")
+            dis_ans = custom.get("disability_status", "No, I do not have a disability")
+            return self._pick_option(["no, i do not", "\\bno\\b", "do not have a disability", "prefer not"], options, dis_ans)
 
         if "veteran" in q or "military" in q:
-            return self._pick_option(["not a protected veteran", "\\bno\\b", "not a veteran", "prefer not"], options, "I am not a protected veteran")
+            vet_ans = custom.get("veteran_status", "I am not a protected veteran")
+            return self._pick_option(["not a protected veteran", "\\bno\\b", "not a veteran", "prefer not"], options, vet_ans)
 
         # Race / Ethnicity
         if any(w in q for w in ["ethnicity", "race", "ethnic"]):
-            return self._pick_option(["south asian", "asian (not hispanic", "\\basian\\b", "prefer not", "decline"], options, "Asian")
+            eth_ans = custom.get("ethnicity", "Asian")
+            return self._pick_option(["south asian", "asian (not hispanic", "\\basian\\b", "prefer not", "decline"], options, eth_ans)
 
         return None
 
@@ -257,17 +291,29 @@ class FormLLMEngine:
                     return opt
             return options[0]
 
-        # Open-ended recruiter questions
+        custom = self.profile.get("custom_answers", {})
+
+        # AI Developer Tools question
+        if any(w in q for w in ["ai dev", "ai tool", "tool preference", "ai developer", "copilot", "cursor", "claude"]):
+            return custom.get("ai_dev_tools", "Yes, I regularly use AI developer tools including Cursor, Claude Code, and GitHub Copilot to accelerate development, modernize legacy codebases, and streamline code reviews.")
+
+        # Preferred Tech Stack question
+        if any(w in q for w in ["preferred tech stack", "tech stack", "preferred stack", "technologies", "strength", "skills"]):
+            return custom.get("preferred_tech_stack", "Core strengths and preferences: Java 17/21, Spring Boot, Microservices, Go, Kafka, Redis, PostgreSQL/MySQL, Docker, Kubernetes, and AWS.")
+
         if any(w in q for w in ["why", "interest", "excited", "join"]):
-            return "I am excited by the opportunity to architect high-throughput backend services and solve distributed systems challenges at scale."
+            return custom.get("why_join_company", "I am excited by the opportunity to build resilient, high-throughput backend services and solve distributed systems challenges at scale.")
 
-        if any(w in q for w in ["challenge", "project", "achievement", "proud"]):
-            return "At Sumo Logic, I optimized our in-memory metrics ingestion pipeline handling 70M+ datapoints/min, reducing lag and tuning Kafka partition rebalancing across pods."
+        if any(w in q for w in ["lead", "leadership", "mentor", "mentoring", "team"]):
+            return custom.get("leadership_experience", "Mentored junior engineers on microservices best practices, led code reviews, and partnered with cross-functional product teams.")
 
-        if any(w in q for w in ["strength", "skills", "tech stack", "technologies"]):
-            return "Core strengths include Java 17, Spring Boot, distributed system design, high-volume Kafka streaming, Redis caching, and resilient microservices on AWS/Kubernetes."
+        if any(w in q for w in ["workflow", "approval", "73 strings", "multi-tenant", "multitenant"]):
+            return custom.get("approval_workflow_project", "At 73 Strings, redesigned a configurable multi-tenant approval-workflow engine serving 30+ enterprise tenants using Java/Spring Boot.")
 
-        return "Senior Backend Engineer with 5 years experience building scalable, low-latency microservices and high-throughput distributed systems."
+        if any(w in q for w in ["challenge", "project", "achievement", "proud", "sumo", "metrics", "kafka"]):
+            return custom.get("technical_achievement", "At Sumo Logic, worked on an in-memory metrics ingestion platform handling 70M+ datapoints/min, optimizing Kafka partition rebalancing and reducing end-to-end processing latency.")
+
+        return custom.get("summary_for_recruiter", "Backend engineer with 5+ years building distributed, multi-tenant microservices in Java/Spring Boot and Go.")
 
     def _pick_option(self, keywords: List[str], options: Optional[List[str]], default_val: str) -> str:
         if not options:

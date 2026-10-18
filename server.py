@@ -16,7 +16,7 @@ import os
 import json
 import sqlite3
 from typing import Optional
-from database import list_jobs, get_company_intelligence, init_db, get_failures_summary, get_unresolved_failures
+from database import list_jobs, get_company_intelligence, init_db, get_failures_summary, get_unresolved_failures, update_job_status
 from unified_pipeline import run_unified_discovery, audit_and_clean_database_links
 from workday_resilient_scanner import rerun_failed_endpoints
 from stealth_applier import StealthApplier
@@ -34,8 +34,8 @@ async def continuous_crawler_worker():
     while True:
         try:
             _IS_CRAWLING = True
-            # 1. Run main rotating discovery
-            await run_unified_discovery(24)
+            # 1. Run main rotating discovery across 1-week window
+            await run_unified_discovery(168)
             # 2. Automatically retry previously failed endpoints with adaptive backoff
             await rerun_failed_endpoints()
         except Exception as e:
@@ -44,18 +44,32 @@ async def continuous_crawler_worker():
             _IS_CRAWLING = False
         await asyncio.sleep(15)  # Wait 15 seconds between completion and next rotating batch
 
+async def continuous_elite_spider_worker():
+    from elite_spider import run_elite_spider
+    while True:
+        try:
+            print("Running native background Playwright scan for Elite companies...")
+            await run_elite_spider()
+        except Exception as e:
+            print(f"Elite spider error: {e}")
+        # Run every 6 hours to avoid Playwright overhead
+        await asyncio.sleep(6 * 3600)
+
 @app.on_event("startup")
 async def on_startup():
     init_db()
     # Launch persistent background crawler that cycles continuously across all 6,000+ companies
     asyncio.create_task(continuous_crawler_worker())
-
+    # Launch persistent Playwright spider for bespoke Elite FAANG portals
+    asyncio.create_task(continuous_elite_spider_worker())
 @app.get("/api/jobs")
 def get_jobs(
     status: Optional[str] = None,
     tier: Optional[str] = None,
     platform: Optional[str] = None,
     q: Optional[str] = None,
+    location_filter: Optional[str] = None,
+    elite: Optional[bool] = None,
     remote: Optional[bool] = None,
     exclude_remote: Optional[bool] = None,
     hours: Optional[float] = 24,
@@ -65,13 +79,17 @@ def get_jobs(
     company_type: Optional[str] = None,
     company_size: Optional[str] = None,
     min_wlb: Optional[float] = None,
-    max_risk: Optional[str] = None
+    max_risk: Optional[str] = None,
+    exclude_companies: Optional[str] = None,
+    exclude_locations: Optional[str] = None
 ):
     jobs = list_jobs(
         status=status,
         salary_tier=tier,
         platform=platform,
         search_query=q,
+        location_filter=location_filter,
+        elite_only=elite,
         remote_only=remote,
         exclude_remote=exclude_remote,
         max_age_hours=hours,
@@ -81,7 +99,9 @@ def get_jobs(
         company_type=company_type,
         company_size=company_size,
         min_wlb=min_wlb,
-        max_risk=max_risk
+        max_risk=max_risk,
+        exclude_companies=exclude_companies,
+        exclude_locations=exclude_locations
     )
     return {"jobs": jobs, "total": len(jobs)}
 
@@ -95,18 +115,24 @@ def get_stats(
     tier: Optional[str] = None,
     status: Optional[str] = None,
     q: Optional[str] = None,
+    location_filter: Optional[str] = None,
+    elite: Optional[bool] = None,
     remote: Optional[bool] = None,
     exclude_remote: Optional[bool] = None,
     company_type: Optional[str] = None,
     company_size: Optional[str] = None,
     min_wlb: Optional[float] = None,
-    max_risk: Optional[str] = None
+    max_risk: Optional[str] = None,
+    exclude_companies: Optional[str] = None,
+    exclude_locations: Optional[str] = None
 ):
     jobs = list_jobs(
         status=status,
         salary_tier=tier,
         platform=platform,
         search_query=q,
+        location_filter=location_filter,
+        elite_only=elite,
         remote_only=remote,
         exclude_remote=exclude_remote,
         max_age_hours=hours,
@@ -116,7 +142,9 @@ def get_stats(
         company_type=company_type,
         company_size=company_size,
         min_wlb=min_wlb,
-        max_risk=max_risk
+        max_risk=max_risk,
+        exclude_companies=exclude_companies,
+        exclude_locations=exclude_locations
     )
     tiers = {"40-50LPA": 0, "50-60LPA": 0, "60-70LPA": 0, "70+LPA": 0}
     status_counts = {"DISCOVERED": 0, "APPLYING": 0, "APPLIED": 0, "READY_TO_SUBMIT (DRY_RUN)": 0, "READY_TO_SUBMIT (REVIEW_REQUIRED)": 0, "FAILED": 0}
@@ -156,6 +184,16 @@ async def trigger_scan(background_tasks: BackgroundTasks, hours: Optional[int] =
         background_tasks.add_task(run_unified_discovery, hours)
         return {"status": "Discovery crawl launched"}
     return {"status": "Background crawler is already actively scanning the next batch"}
+
+@app.post("/api/scan-elite")
+async def trigger_elite_scan(background_tasks: BackgroundTasks):
+    import subprocess
+    import sys
+    def run_elite_spider():
+        subprocess.run([sys.executable, "elite_spider.py"])
+    background_tasks.add_task(run_elite_spider)
+    return {"status": "Elite Playwright Spider launched to scroll FAANG career sites natively."}
+
 
 @app.post("/api/audit")
 async def trigger_audit():
@@ -203,14 +241,25 @@ from typing import List
 class BulkApplyRequest(BaseModel):
     job_ids: List[str]
     dry_run: bool = True
+    headed: bool = True
+    keep_open: bool = True
 
-async def run_bulk_applications(job_ids: List[str], dry_run: bool = True):
-    applier = StealthApplier(dry_run=dry_run)
+async def run_bulk_applications(job_ids: List[str], dry_run: bool = True, headed: bool = True, keep_open: bool = True):
     all_jobs = list_jobs()
     job_map = {j["job_id"]: j for j in all_jobs}
-    for jid in job_ids:
-        job = job_map.get(jid)
-        if job:
+    target_jobs = [job_map[jid] for jid in job_ids if jid in job_map]
+
+    if not target_jobs:
+        return
+
+    if headed:
+        # Launch real Chrome window on screen with all jobs as prefilled tabs
+        applier = StealthApplier(dry_run=dry_run, headless=False, keep_open=keep_open)
+        await applier.apply_batch_headed(target_jobs, dry_run=dry_run)
+    else:
+        applier = StealthApplier(dry_run=dry_run, headless=True)
+        for job in target_jobs:
+            jid = job["job_id"]
             try:
                 print(f"[Bulk Autofill] Processing {jid} ({job.get('company_name')} - {job.get('title')})...")
                 await applier.apply_to_job(job)
@@ -219,26 +268,169 @@ async def run_bulk_applications(job_ids: List[str], dry_run: bool = True):
             await asyncio.sleep(2.0)
 
 @app.post("/api/apply/{job_id}")
-async def apply_single_job(job_id: str, background_tasks: BackgroundTasks, dry_run: bool = True):
+async def apply_single_job(job_id: str, background_tasks: BackgroundTasks, dry_run: bool = True, headed: bool = True, keep_open: bool = True):
     jobs = list_jobs()
     target_job = next((j for j in jobs if j["job_id"] == job_id), None)
     if not target_job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    applier = StealthApplier(dry_run=dry_run)
+    # When single job autofill is triggered from UI, default to headed=True, keep_open=True so user sees editable prefilled form
+    headless_flag = False if headed else True
+    applier = StealthApplier(dry_run=dry_run, headless=headless_flag, keep_open=keep_open)
     background_tasks.add_task(applier.apply_to_job, target_job)
-    return {"status": "Application process initiated", "dry_run": dry_run}
+    return {"status": "Application process initiated in interactive headed mode", "dry_run": dry_run, "headed": headed, "keep_open": keep_open}
 
 @app.post("/api/bulk-apply")
 async def bulk_apply_jobs(req: BulkApplyRequest, background_tasks: BackgroundTasks):
     if not req.job_ids:
         raise HTTPException(status_code=400, detail="No job IDs specified")
-    background_tasks.add_task(run_bulk_applications, req.job_ids, req.dry_run)
-    return {
-        "status": f"Bulk auto-fill initiated for {len(req.job_ids)} jobs in safe review mode",
-        "total_jobs": len(req.job_ids),
-        "dry_run": req.dry_run
-    }
+    background_tasks.add_task(run_bulk_applications, req.job_ids, req.dry_run, req.headed, req.keep_open)
+class UpdateStatusRequest(BaseModel):
+    status: str = "APPLIED"
+
+class BulkStatusRequest(BaseModel):
+    job_ids: List[str]
+    status: str = "INVALID"
+
+class CompanySalaryRequest(BaseModel):
+    company_name: str
+    max_lpa: float
+
+class CompanySizeRequest(BaseModel):
+    company_name: str
+    min_size: int
+    max_size: int
+
+class CompanyRatingRequest(BaseModel):
+    company_name: str
+    glassdoor_rating: Optional[float] = None
+    ambitionbox_rating: Optional[float] = None
+    wlb_score: Optional[float] = None
+
+
+@app.post("/api/job/{job_id}/status")
+def update_status_endpoint(job_id: str, req: UpdateStatusRequest):
+    new_status = req.status.upper().strip()
+    update_job_status(job_id, new_status, f"Status updated to {new_status} manually by user in dashboard UI")
+    return {"status": "success", "job_id": job_id, "new_status": new_status}
+
+@app.post("/api/bulk-status")
+def bulk_status_endpoint(req: BulkStatusRequest):
+    if not req.job_ids:
+        raise HTTPException(status_code=400, detail="No job IDs specified")
+    new_status = req.status.upper().strip()
+    for jid in req.job_ids:
+        update_job_status(jid, new_status, f"Bulk status update to {new_status} by user in dashboard UI")
+    return {"status": "success", "updated_count": len(req.job_ids), "new_status": new_status}
+
+@app.post("/api/company/salary")
+def update_company_salary_endpoint(req: CompanySalaryRequest):
+    import sqlite3
+    
+    if req.max_lpa >= 70.0:
+        new_tier = "70+LPA"
+    elif req.max_lpa >= 60.0:
+        new_tier = "60-70LPA"
+    elif req.max_lpa >= 50.0:
+        new_tier = "50-60LPA"
+    elif req.max_lpa >= 40.0:
+        new_tier = "40-50LPA"
+    elif req.max_lpa >= 30.0:
+        new_tier = "30-40LPA"
+    elif req.max_lpa >= 20.0:
+        new_tier = "20-30LPA"
+    else:
+        new_tier = "<20LPA"
+        
+    formatted_ctc = f"₹{req.max_lpa:.1f} LPA (Verified)"
+        
+    try:
+        conn = sqlite3.connect('jobs.db', timeout=10)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO companies_intelligence (company_name, normalized_name, salary_max_lpa, salary_benchmark_tier)
+            VALUES (?, LOWER(TRIM(?)), ?, ?)
+            ON CONFLICT(normalized_name) DO UPDATE SET
+                salary_max_lpa = excluded.salary_max_lpa,
+                salary_benchmark_tier = excluded.salary_benchmark_tier
+        """, (req.company_name, req.company_name, req.max_lpa, new_tier))
+        
+        cursor.execute("""
+            UPDATE job_postings
+            SET salary_tier = ?, estimated_ctc = ?
+            WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(?))
+        """, (new_tier, formatted_ctc, req.company_name))
+        
+        conn.commit()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+        
+    return {"status": "success", "company_name": req.company_name, "new_tier": new_tier, "max_lpa": req.max_lpa}
+
+@app.post("/api/company/size")
+def update_company_size_endpoint(req: CompanySizeRequest):
+    import sqlite3
+    
+    if req.max_size >= req.min_size * 10:
+        new_range = f"{req.min_size}+"
+    else:
+        new_range = f"{req.min_size} - {req.max_size}"
+        
+    try:
+        conn = sqlite3.connect('jobs.db', timeout=10)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE companies_intelligence 
+            SET headcount_min = ?, headcount_max = ?, headcount_range = ?
+            WHERE LOWER(company_name) = LOWER(?)
+        """, (req.min_size, req.max_size, new_range, req.company_name))
+        
+        conn.commit()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+        
+    return {"status": "success", "company_name": req.company_name, "new_range": new_range}
+
+@app.post("/api/company/rating")
+def update_company_rating_endpoint(req: CompanyRatingRequest):
+    import sqlite3
+    try:
+        conn = sqlite3.connect('jobs.db', timeout=10)
+        cursor = conn.cursor()
+        
+        fields = []
+        params = []
+        if req.glassdoor_rating is not None:
+            fields.append("glassdoor_rating = ?")
+            params.append(req.glassdoor_rating)
+        if req.ambitionbox_rating is not None:
+            fields.append("ambitionbox_rating = ?")
+            params.append(req.ambitionbox_rating)
+        if req.wlb_score is not None:
+            fields.append("engineering_wlb_score = ?")
+            params.append(req.wlb_score)
+            
+        if not fields:
+            return {"status": "no_changes"}
+            
+        params.append(req.company_name)
+        
+        query = f"UPDATE companies_intelligence SET {', '.join(fields)} WHERE LOWER(company_name) = LOWER(?)"
+        cursor.execute(query, tuple(params))
+        conn.commit()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+        
+    return {"status": "success", "company_name": req.company_name}
+
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard_html():
@@ -264,9 +456,6 @@ def dashboard_html():
                     <p class="text-slate-400 text-sm mt-1">Autonomous Discovery • Senior Backend / SDE-2 (5 YoE) • 40L to 70L+ Compensation</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span id="autoRefreshBadge" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-900 text-slate-300 border border-slate-700 flex items-center gap-1.5">
-                        <i class="fa-solid fa-arrows-rotate text-emerald-400"></i> Auto-updates in <span id="autoRefreshCountdown" class="font-bold text-emerald-400">15</span>s
-                    </span>
                     <span id="liveSyncStatus" class="hidden text-xs px-2.5 py-1.5 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1.5 animate-pulse">
                         <i class="fa-solid fa-arrows-rotate animate-spin"></i> Syncing Fresh Jobs...
                     </span>
@@ -371,6 +560,56 @@ def dashboard_html():
                         <input type="text" id="jobSearchInput" oninput="debounceFilter()" placeholder="Search title, company, skills (Go, Java, K8s, Python)..." class="w-full bg-slate-950 border border-slate-700 text-xs rounded-lg pl-8 pr-3 py-2 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500" />
                     </div>
 
+                    <!-- Location Search -->
+                    <div class="relative flex-1 min-w-[140px]">
+                        <i class="fa-solid fa-location-dot absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                        <input type="text" id="locationSearchInput" oninput="debounceFilter()" placeholder="Location (e.g. London, India)..." class="w-full bg-slate-950 border border-slate-700 text-xs rounded-lg pl-8 pr-3 py-2 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500" />
+                    </div>
+
+                    <!-- Exclude Locations Input -->
+                    <div class="relative flex-1 min-w-[160px]">
+                        <i class="fa-solid fa-location-crosshairs absolute left-3 top-2.5 text-rose-500/70 text-xs"></i>
+                        <input type="text" id="excludeLocationsInput" oninput="debounceFilter()" placeholder="Exclude Locs (e.g. Hyderabad, Pune)..." class="w-full bg-slate-950 border border-slate-700 text-xs rounded-lg pl-8 pr-3 py-2 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-rose-500" />
+                    </div>
+
+                    <!-- Exclude Companies Input -->
+                    <div class="relative flex-1 min-w-[180px]">
+                        <i class="fa-solid fa-ban absolute left-3 top-2.5 text-rose-500/70 text-xs"></i>
+                        <input type="text" id="excludeCompaniesInput" oninput="debounceFilter()" placeholder="Exclude Companies (e.g. Wipro, Amazon)..." class="w-full bg-slate-950 border border-slate-700 text-xs rounded-lg pl-8 pr-3 py-2 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-rose-500" />
+                    </div>
+
+                    <!-- Elite Tech Toggle -->
+                    <label class="flex items-center gap-2 cursor-pointer bg-slate-900 border border-slate-700 px-3 py-2 rounded-lg hover:bg-slate-800 transition text-slate-200 text-xs font-medium">
+                        <input type="checkbox" id="eliteTechToggle" onchange="debounceFilter()" class="accent-fuchsia-500 rounded" />
+                        <span class="text-fuchsia-400 font-bold"><i class="fa-solid fa-crown mr-1"></i> FAANG & Elite</span>
+                    </label>
+                    <button onclick="forceEliteScan()" class="bg-fuchsia-950/60 border border-fuchsia-800 text-fuchsia-400 hover:bg-fuchsia-900/60 transition px-3 py-2 rounded-lg text-xs font-medium shadow flex items-center gap-2">
+                        <i class="fa-solid fa-robot"></i> Scroll Careers Native
+                    </button>
+
+                    <!-- Elite Links Dropdown -->
+                    <div class="relative" id="eliteLinksDropdownContainer">
+                        <button type="button" onclick="toggleEliteLinksDropdown()" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 hover:bg-slate-800 transition focus:outline-none flex items-center gap-2">
+                            <i class="fa-solid fa-link text-slate-400"></i>
+                            <span class="font-medium">Direct Links</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] text-slate-500 ml-1"></i>
+                        </button>
+                        <div id="eliteLinksMenu" class="hidden absolute left-0 mt-1 w-48 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 p-2 space-y-1 text-xs">
+                            <a href="https://jobs.careers.microsoft.com/global/en/search" target="_blank" class="block px-2 py-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white"><i class="fa-brands fa-microsoft mr-2 w-3 text-center"></i>Microsoft</a>
+                            <a href="https://www.google.com/about/careers/applications/jobs/results/" target="_blank" class="block px-2 py-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white"><i class="fa-brands fa-google mr-2 w-3 text-center"></i>Google</a>
+                            <a href="https://jobs.apple.com/en-in/search" target="_blank" class="block px-2 py-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white"><i class="fa-brands fa-apple mr-2 w-3 text-center"></i>Apple</a>
+                            <a href="https://salesforce.wd1.myworkdayjobs.com/en-US/External_Career_Site" target="_blank" class="block px-2 py-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white"><i class="fa-solid fa-cloud mr-2 w-3 text-center"></i>Salesforce</a>
+                            <a href="https://careers.airbnb.com/positions/" target="_blank" class="block px-2 py-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white"><i class="fa-brands fa-airbnb mr-2 w-3 text-center"></i>Airbnb</a>
+                            <a href="https://careers.booking.com/" target="_blank" class="block px-2 py-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white"><i class="fa-solid fa-bed mr-2 w-3 text-center"></i>Booking.com</a>
+                            <a href="https://careers.linkedin.com/" target="_blank" class="block px-2 py-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white"><i class="fa-brands fa-linkedin mr-2 w-3 text-center"></i>LinkedIn</a>
+                            <a href="https://jobs.intuit.com/" target="_blank" class="block px-2 py-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white"><i class="fa-solid fa-calculator mr-2 w-3 text-center"></i>Intuit</a>
+                            <a href="https://careers.wayfair.com/" target="_blank" class="block px-2 py-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white"><i class="fa-solid fa-couch mr-2 w-3 text-center"></i>Wayfair</a>
+                            <a href="https://careers.servicenow.com/" target="_blank" class="block px-2 py-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white"><i class="fa-solid fa-server mr-2 w-3 text-center"></i>ServiceNow</a>
+                            <a href="https://workday.wd5.myworkdayjobs.com/Workday" target="_blank" class="block px-2 py-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white"><i class="fa-solid fa-briefcase mr-2 w-3 text-center"></i>Workday</a>
+                            <a href="https://careers.adobe.com/" target="_blank" class="block px-2 py-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white"><i class="fa-solid fa-file-pdf mr-2 w-3 text-center"></i>Adobe</a>
+                        </div>
+                    </div>
+
                     <!-- Multi-Platform Dropdown / Select -->
                     <div class="relative" id="platformDropdownContainer">
                         <button type="button" onclick="togglePlatformDropdown()" id="platformDropdownBtn" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-purple-400 flex items-center gap-2">
@@ -414,90 +653,265 @@ def dashboard_html():
                         </div>
                     </div>
 
-                    <!-- Salary Tier Select -->
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                            <i class="fa-solid fa-money-bill-wave text-emerald-400 mr-1"></i>Tier:
-                        </span>
-                        <select id="tierSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500">
-                            <option value="all">All Tiers (40+ LPA)</option>
-                            <option value="70+LPA">🌟 70+ LPA (HFT / Tier-1 US)</option>
-                            <option value="60-70LPA">🟣 60-70 LPA</option>
-                            <option value="50-60LPA">🔵 50-60 LPA</option>
-                            <option value="40-50LPA">🟢 40-50 LPA</option>
-                        </select>
+                    <!-- Salary Tier Multi-Select Dropdown -->
+                    <div class="relative" id="tierDropdownContainer">
+                        <button type="button" onclick="toggleTierDropdown()" id="tierDropdownBtn" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500 flex items-center gap-2">
+                            <i class="fa-solid fa-money-bill-wave text-emerald-400"></i>
+                            <span id="tierDropdownLabel" class="font-medium">Tier (All)</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 ml-1"></i>
+                        </button>
+                        <div id="tierDropdownMenu" class="hidden absolute left-0 mt-1 w-60 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 p-2.5 space-y-1.5 text-xs">
+                            <div class="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[11px] font-semibold text-slate-400">
+                                <span>SELECT TIERS</span>
+                                <div class="space-x-2">
+                                    <button type="button" onclick="selectAllTiers(true)" class="text-emerald-400 hover:underline">All</button>
+                                    <span class="text-slate-600">|</span>
+                                    <button type="button" onclick="selectAllTiers(false)" class="text-slate-400 hover:underline">Clear</button>
+                                </div>
+                            </div>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="70+LPA" class="tier-checkbox accent-emerald-500 rounded" checked onchange="onTierCheckboxChange()" />
+                                <span>🌟 70+ LPA (HFT / Tier-1 US)</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="60-70LPA" class="tier-checkbox accent-emerald-500 rounded" checked onchange="onTierCheckboxChange()" />
+                                <span>🟣 60-70 LPA</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="50-60LPA" class="tier-checkbox accent-emerald-500 rounded" checked onchange="onTierCheckboxChange()" />
+                                <span>🔵 50-60 LPA</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="40-50LPA" class="tier-checkbox accent-emerald-500 rounded" checked onchange="onTierCheckboxChange()" />
+                                <span>🟢 40-50 LPA</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="30-40LPA" class="tier-checkbox accent-emerald-500 rounded" checked onchange="onTierCheckboxChange()" />
+                                <span>🟡 30-40 LPA</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="20-30LPA" class="tier-checkbox accent-emerald-500 rounded" checked onchange="onTierCheckboxChange()" />
+                                <span>🟠 20-30 LPA</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="<20LPA" class="tier-checkbox accent-emerald-500 rounded" checked onchange="onTierCheckboxChange()" />
+                                <span>⚪ &lt; 20 LPA</span>
+                            </label>
+                        </div>
                     </div>
 
-                    <!-- Company Type / Stage Filter -->
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                            <i class="fa-solid fa-shapes text-pink-400 mr-1"></i>Type:
-                        </span>
-                        <select id="companyTypeSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-pink-500">
-                            <option value="all">All Types</option>
-                            <option value="product">🚀 Product-Based</option>
-                            <option value="startup">⚡ Startup / Scaleup</option>
-                            <option value="unicorn">🦄 Unicorns</option>
-                            <option value="enterprise">🏢 Enterprise / Fortune 500</option>
-                        </select>
+                    <!-- Remote Location Multi-Select Filter -->
+                    <div class="relative" id="remoteModeDropdownContainer">
+                        <button type="button" onclick="toggleRemoteModeDropdown()" id="remoteModeDropdownBtn" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 flex items-center gap-2">
+                            <i class="fa-solid fa-house-laptop text-indigo-400"></i>
+                            <span id="remoteModeDropdownLabel" class="font-medium">Location (All)</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 ml-1"></i>
+                        </button>
+                        <div id="remoteModeDropdownMenu" class="hidden absolute left-0 mt-1 w-64 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 p-2.5 space-y-1.5 text-xs">
+                            <div class="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[11px] font-semibold text-slate-400">
+                                <span>SELECT LOCATIONS</span>
+                                <div class="space-x-2">
+                                    <button type="button" onclick="selectAllRemoteModes(true)" class="text-indigo-400 hover:underline">All</button>
+                                    <span class="text-slate-600">|</span>
+                                    <button type="button" onclick="selectAllRemoteModes(false)" class="text-slate-400 hover:underline">Clear</button>
+                                </div>
+                            </div>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="remote_only" class="remote-checkbox accent-indigo-500 rounded" checked onchange="onRemoteModeCheckboxChange()" />
+                                <span>🌐 Remote Jobs Only</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="exclude_remote" class="remote-checkbox accent-indigo-500 rounded" checked onchange="onRemoteModeCheckboxChange()" />
+                                <span>🏢 Onsite / Hybrid Only</span>
+                            </label>
+                        </div>
                     </div>
 
-                    <!-- Company Size / Headcount Filter -->
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                            <i class="fa-solid fa-users text-cyan-400 mr-1"></i>Size:
-                        </span>
-                        <select id="companySizeSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
-                            <option value="all">All Sizes</option>
-                            <option value="0-10">🔬 0 - 10 (Stealth / Boutique)</option>
-                            <option value="10-50">🌱 10 - 50 (Seed / Early Stage)</option>
-                            <option value="50-100">🌿 50 - 100 (Series A Startup)</option>
-                            <option value="100-500">⚡ 100 - 500 (Series B Growth)</option>
-                            <option value="500-1000">🚀 500 - 1,000 (Series C/D Scale)</option>
-                            <option value="1000-5000">📈 1,000 - 5,000 (Scaleup / Unicorn)</option>
-                            <option value="5000+">🏛️ 5,000+ (Enterprise / MNC)</option>
-                            <option value="50000+">🌐 50,000+ (Global Megacorp)</option>
-                        </select>
+                    <!-- Company Type Multi-Select Filter -->
+                    <div class="relative" id="companyTypeDropdownContainer">
+                        <button type="button" onclick="toggleCompanyTypeDropdown()" id="companyTypeDropdownBtn" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-pink-500 flex items-center gap-2">
+                            <i class="fa-solid fa-shapes text-pink-400"></i>
+                            <span id="companyTypeDropdownLabel" class="font-medium">Type (All)</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 ml-1"></i>
+                        </button>
+                        <div id="companyTypeDropdownMenu" class="hidden absolute left-0 mt-1 w-60 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 p-2.5 space-y-1.5 text-xs">
+                            <div class="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[11px] font-semibold text-slate-400">
+                                <span>SELECT TYPES</span>
+                                <div class="space-x-2">
+                                    <button type="button" onclick="selectAllCompanyTypes(true)" class="text-pink-400 hover:underline">All</button>
+                                    <span class="text-slate-600">|</span>
+                                    <button type="button" onclick="selectAllCompanyTypes(false)" class="text-slate-400 hover:underline">Clear</button>
+                                </div>
+                            </div>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="product" class="type-checkbox accent-pink-500 rounded" checked onchange="onCompanyTypeCheckboxChange()" />
+                                <span>🚀 Product-Based</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="startup" class="type-checkbox accent-pink-500 rounded" checked onchange="onCompanyTypeCheckboxChange()" />
+                                <span>⚡ Startup / Scaleup</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="unicorn" class="type-checkbox accent-pink-500 rounded" checked onchange="onCompanyTypeCheckboxChange()" />
+                                <span>🦄 Unicorns</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="enterprise" class="type-checkbox accent-pink-500 rounded" checked onchange="onCompanyTypeCheckboxChange()" />
+                                <span>🏢 Enterprise / Fortune 500</span>
+                            </label>
+                        </div>
                     </div>
 
-                    <!-- Culture / WLB Rating Filter -->
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                            <i class="fa-solid fa-heart-pulse text-amber-400 mr-1"></i>Culture:
-                        </span>
-                        <select id="cultureSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-amber-500">
-                            <option value="all">Any Culture Rating</option>
-                            <option value="4.2">⭐ 4.2+ Exceptional WLB</option>
-                            <option value="4.0">⭐ 4.0+ High WLB & Glassdoor</option>
-                            <option value="3.8">⭐ 3.8+ Above Average</option>
-                        </select>
+                    <!-- Company Size Multi-Select Filter -->
+                    <div class="relative" id="companySizeDropdownContainer">
+                        <button type="button" onclick="toggleCompanySizeDropdown()" id="companySizeDropdownBtn" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 flex items-center gap-2">
+                            <i class="fa-solid fa-users text-cyan-400"></i>
+                            <span id="companySizeDropdownLabel" class="font-medium">Size (All)</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 ml-1"></i>
+                        </button>
+                        <div id="companySizeDropdownMenu" class="hidden absolute left-0 mt-1 w-64 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 p-2.5 space-y-1.5 text-xs">
+                            <div class="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[11px] font-semibold text-slate-400">
+                                <span>SELECT SIZES</span>
+                                <div class="space-x-2">
+                                    <button type="button" onclick="selectAllCompanySizes(true)" class="text-cyan-400 hover:underline">All</button>
+                                    <span class="text-slate-600">|</span>
+                                    <button type="button" onclick="selectAllCompanySizes(false)" class="text-slate-400 hover:underline">Clear</button>
+                                </div>
+                            </div>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="0-10" class="size-checkbox accent-cyan-500 rounded" checked onchange="onCompanySizeCheckboxChange()" />
+                                <span>🔬 0 - 10 (Stealth / Boutique)</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="10-50" class="size-checkbox accent-cyan-500 rounded" checked onchange="onCompanySizeCheckboxChange()" />
+                                <span>🌱 10 - 50 (Seed / Early Stage)</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="50-100" class="size-checkbox accent-cyan-500 rounded" checked onchange="onCompanySizeCheckboxChange()" />
+                                <span>🌿 50 - 100 (Series A Startup)</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="100-500" class="size-checkbox accent-cyan-500 rounded" checked onchange="onCompanySizeCheckboxChange()" />
+                                <span>⚡ 100 - 500 (Series B Growth)</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="500-1000" class="size-checkbox accent-cyan-500 rounded" checked onchange="onCompanySizeCheckboxChange()" />
+                                <span>🚀 500 - 1,000 (Series C/D Scale)</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="1000-5000" class="size-checkbox accent-cyan-500 rounded" checked onchange="onCompanySizeCheckboxChange()" />
+                                <span>📈 1,000 - 5,000 (Scaleup / Unicorn)</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="5000+" class="size-checkbox accent-cyan-500 rounded" checked onchange="onCompanySizeCheckboxChange()" />
+                                <span>🏛️ 5,000+ (Enterprise / MNC)</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="50000+" class="size-checkbox accent-cyan-500 rounded" checked onchange="onCompanySizeCheckboxChange()" />
+                                <span>🌐 50,000+ (Global Megacorp)</span>
+                            </label>
+                        </div>
                     </div>
 
-                    <!-- Layoff & Financial Risk Filter -->
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                            <i class="fa-solid fa-shield-halved text-emerald-400 mr-1"></i>Stability:
-                        </span>
-                        <select id="riskSelect" onchange="loadAllData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-emerald-500">
-                            <option value="all">All Risk Levels</option>
-                            <option value="low_only">🛡️ Safe Only (Zero Layoffs / Low Risk)</option>
-                        </select>
+                    <!-- Culture Multi-Select Filter -->
+                    <div class="relative" id="cultureDropdownContainer">
+                        <button type="button" onclick="toggleCultureDropdown()" id="cultureDropdownBtn" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-500 flex items-center gap-2">
+                            <i class="fa-solid fa-heart-pulse text-amber-400"></i>
+                            <span id="cultureDropdownLabel" class="font-medium">Culture (Any)</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 ml-1"></i>
+                        </button>
+                        <div id="cultureDropdownMenu" class="hidden absolute left-0 mt-1 w-64 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 p-2.5 space-y-1.5 text-xs">
+                            <div class="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[11px] font-semibold text-slate-400">
+                                <span>SELECT CULTURE RATING</span>
+                                <div class="space-x-2">
+                                    <button type="button" onclick="selectAllCulture(true)" class="text-amber-400 hover:underline">All</button>
+                                    <span class="text-slate-600">|</span>
+                                    <button type="button" onclick="selectAllCulture(false)" class="text-slate-400 hover:underline">Clear</button>
+                                </div>
+                            </div>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="4.2" class="culture-checkbox accent-amber-500 rounded" checked onchange="onCultureCheckboxChange()" />
+                                <span>⭐ 4.2+ Exceptional WLB</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="4.0" class="culture-checkbox accent-amber-500 rounded" checked onchange="onCultureCheckboxChange()" />
+                                <span>⭐ 4.0+ High WLB & Glassdoor</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="3.8" class="culture-checkbox accent-amber-500 rounded" checked onchange="onCultureCheckboxChange()" />
+                                <span>⭐ 3.8+ Above Average</span>
+                            </label>
+                        </div>
                     </div>
 
-                    <!-- Application Status Filter -->
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                            <i class="fa-solid fa-clipboard-check text-cyan-400 mr-1"></i>Status:
-                        </span>
-                        <select id="statusSelect" onchange="syncStatusFilter(this.value)" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
-                            <option value="all">All Statuses</option>
-                            <option value="applied">✅ Applied Only (Submitted)</option>
-                            <option value="ready">📋 Ready for Review (Dry-Run)</option>
-                            <option value="review_required">🔍 Review Required</option>
-                            <option value="not_applied">⏳ Not Applied Yet</option>
-                            <option value="failed">⚠️ Failed / Requires Fix</option>
-                            <option value="discovered">🔍 Discovered Only</option>
-                        </select>
+                    <!-- Stability Multi-Select Filter -->
+                    <div class="relative" id="riskDropdownContainer">
+                        <button type="button" onclick="toggleRiskDropdown()" id="riskDropdownBtn" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500 flex items-center gap-2">
+                            <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+                            <span id="riskDropdownLabel" class="font-medium">Stability (All)</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 ml-1"></i>
+                        </button>
+                        <div id="riskDropdownMenu" class="hidden absolute left-0 mt-1 w-64 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 p-2.5 space-y-1.5 text-xs">
+                            <div class="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[11px] font-semibold text-slate-400">
+                                <span>STABILITY / RISK</span>
+                                <div class="space-x-2">
+                                    <button type="button" onclick="selectAllRisk(true)" class="text-emerald-400 hover:underline">All</button>
+                                    <span class="text-slate-600">|</span>
+                                    <button type="button" onclick="selectAllRisk(false)" class="text-slate-400 hover:underline">Clear</button>
+                                </div>
+                            </div>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="low_only" class="risk-checkbox accent-emerald-500 rounded" checked onchange="onRiskCheckboxChange()" />
+                                <span>🛡️ Safe Only (Zero Layoffs / Low Risk)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Application Status Multi-Select Filter -->
+                    <div class="relative" id="statusDropdownContainer">
+                        <button type="button" onclick="toggleStatusDropdown()" id="statusDropdownBtn" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 flex items-center gap-2">
+                            <i class="fa-solid fa-clipboard-check text-cyan-400"></i>
+                            <span id="statusDropdownLabel" class="font-medium">Status (All)</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 ml-1"></i>
+                        </button>
+                        <div id="statusDropdownMenu" class="hidden absolute left-0 mt-1 w-64 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 p-2.5 space-y-1.5 text-xs">
+                            <div class="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[11px] font-semibold text-slate-400">
+                                <span>SELECT STATUSES</span>
+                                <div class="space-x-2">
+                                    <button type="button" onclick="selectAllStatuses(true)" class="text-cyan-400 hover:underline">All</button>
+                                    <span class="text-slate-600">|</span>
+                                    <button type="button" onclick="selectAllStatuses(false)" class="text-slate-400 hover:underline">Clear</button>
+                                </div>
+                            </div>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="applied" class="status-checkbox accent-cyan-500 rounded" checked onchange="onStatusCheckboxChange()" />
+                                <span>✅ Applied Only (Submitted)</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="ready" class="status-checkbox accent-cyan-500 rounded" checked onchange="onStatusCheckboxChange()" />
+                                <span>📋 Ready for Review (Dry-Run)</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="review_required" class="status-checkbox accent-cyan-500 rounded" checked onchange="onStatusCheckboxChange()" />
+                                <span>🔍 Review Required</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="not_applied" class="status-checkbox accent-cyan-500 rounded" checked onchange="onStatusCheckboxChange()" />
+                                <span>⏳ Not Applied Yet</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="failed" class="status-checkbox accent-cyan-500 rounded" checked onchange="onStatusCheckboxChange()" />
+                                <span>⚠️ Failed / Requires Fix</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="discovered" class="status-checkbox accent-cyan-500 rounded" checked onchange="onStatusCheckboxChange()" />
+                                <span>🔍 Discovered Only</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="invalid" class="status-checkbox accent-rose-500 rounded" onchange="onStatusCheckboxChange()" />
+                                <span>🚫 Invalid / Closed / Expired</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -558,25 +972,59 @@ def dashboard_html():
                 </button>
             </div>
 
-            <!-- VIEW 1: Jobs Table -->
+            <!-- VIEW 1: Jobs Table & Company Tabs -->
             <div id="viewJobs" class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
                 <div class="p-4 border-b border-slate-800 flex flex-wrap justify-between items-center gap-3">
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 flex-wrap">
                         <h2 class="text-lg font-bold flex items-center gap-2">
                             <i class="fa-solid fa-briefcase text-blue-400"></i> Active Opportunities
                         </h2>
                         <span id="jobCountBadge" class="px-2.5 py-1 bg-slate-800 text-xs font-medium rounded-full text-slate-300">Loading...</span>
+                        <span id="companyCountBadge" class="px-2.5 py-1 bg-purple-950/80 border border-purple-800 text-purple-300 text-xs font-semibold rounded-full flex items-center gap-1.5"><i class="fa-solid fa-building text-[10px]"></i> <span id="companyCountText">0 Companies</span></span>
+
+                        <!-- View Mode Switcher: Group by Company vs Flat List -->
+                        <div class="inline-flex rounded-lg bg-slate-950 p-1 border border-slate-800 text-xs ml-2">
+                            <button onclick="setJobViewMode('company')" id="btnViewCompany" class="px-3 py-1.5 rounded-md font-semibold bg-purple-900/80 text-purple-200 border border-purple-700 shadow-sm flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-building text-purple-400"></i> Group by Company Tabs
+                            </button>
+                            <button onclick="setJobViewMode('flat')" id="btnViewFlat" class="px-3 py-1.5 rounded-md font-semibold text-slate-400 hover:text-white flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-list-ul text-slate-400"></i> Flat List
+                            </button>
+                        </div>
+
+                        <!-- Expand / Collapse All Company Tabs -->
+                        <div id="companyExpandControls" class="flex items-center gap-1.5 ml-2">
+                            <button onclick="toggleAllCompanyTabs(true)" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md text-xs font-medium border border-slate-700 transition flex items-center gap-1">
+                                <i class="fa-solid fa-folder-open text-amber-400"></i> Expand All Tabs
+                            </button>
+                            <button onclick="toggleAllCompanyTabs(false)" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md text-xs font-medium border border-slate-700 transition flex items-center gap-1">
+                                <i class="fa-solid fa-folder text-slate-400"></i> Collapse All
+                            </button>
+                        </div>
                     </div>
                     <div class="flex items-center gap-3">
                         <span id="selectedCountBadge" class="hidden text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700 font-semibold">
                             <span id="selectedCount" class="text-emerald-400 font-bold">0</span> selected
                         </span>
-                        <button onclick="triggerBulkApply(true)" id="bulkApplyBtn" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow transition">
-                            <i class="fa-solid fa-bolt"></i> Bulk Auto-Fill (Dry-Run Review)
+                        <button onclick="bulkMarkApplied()" id="bulkMarkAppliedBtn" class="hidden px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-600/80 rounded-lg text-xs font-bold flex items-center gap-2 shadow transition" title="Mark all selected jobs as Applied in database">
+                            <i class="fa-solid fa-circle-check text-emerald-400"></i> Mark Selected as Applied
+                        </button>
+                        <button onclick="bulkMarkInvalid()" id="bulkMarkInvalidBtn" class="hidden px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-rose-300 border border-rose-600/80 rounded-lg text-xs font-bold flex items-center gap-2 shadow transition" title="Mark all selected jobs as Invalid / Closed in database">
+                            <i class="fa-solid fa-ban text-rose-400"></i> Mark Selected as Invalid
+                        </button>
+                        <button onclick="triggerBulkApply(true)" id="bulkApplyBtn" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow transition" title="Opens a real Chrome window with a pre-filled tab for every selected role">
+                            <i class="fa-solid fa-bolt"></i> Bulk Auto-Fill (Open In Tabs)
                         </button>
                     </div>
                 </div>
-                <div class="overflow-x-auto">
+
+                <!-- Company Group Accordion / Tab Container -->
+                <div id="jobsCompanyGroupContainer" class="p-4 space-y-4">
+                    <div class="text-center py-8 text-slate-500">Loading company openings...</div>
+                </div>
+
+                <!-- Flat List Container (Hidden by default) -->
+                <div id="jobsFlatTableContainer" class="hidden overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-300">
                         <thead class="bg-slate-950 text-slate-400 uppercase text-xs border-b border-slate-800">
                             <tr>
@@ -824,13 +1272,18 @@ def dashboard_html():
                         customEndDate,
                         activeTab,
                         search: document.getElementById('jobSearchInput') ? document.getElementById('jobSearchInput').value : '',
-                        tier: document.getElementById('tierSelect') ? document.getElementById('tierSelect').value : 'all',
-                        compType: document.getElementById('companyTypeSelect') ? document.getElementById('companyTypeSelect').value : 'all',
-                        compSize: document.getElementById('companySizeSelect') ? document.getElementById('companySizeSelect').value : 'all',
-                        culture: document.getElementById('cultureSelect') ? document.getElementById('cultureSelect').value : 'all',
-                        risk: document.getElementById('riskSelect') ? document.getElementById('riskSelect').value : 'all',
-                        status: document.getElementById('statusSelect') ? document.getElementById('statusSelect').value : 'all',
-                        platforms: Array.from(document.querySelectorAll('.plat-checkbox')).map(cb => ({ value: cb.value, checked: cb.checked }))
+                        loc_search: document.getElementById('locationSearchInput') ? document.getElementById('locationSearchInput').value : '',
+                        exclude_locs: document.getElementById('excludeLocationsInput') ? document.getElementById('excludeLocationsInput').value : '',
+                        exclude_comps: document.getElementById('excludeCompaniesInput') ? document.getElementById('excludeCompaniesInput').value : '',
+                        elite: document.getElementById('eliteTechToggle') ? document.getElementById('eliteTechToggle').checked : false,
+                        platforms: Array.from(document.querySelectorAll('.plat-checkbox')).map(cb => ({ value: cb.value, checked: cb.checked })),
+                        tiers: Array.from(document.querySelectorAll('.tier-checkbox')).map(cb => ({ value: cb.value, checked: cb.checked })),
+                        locations: Array.from(document.querySelectorAll('.remote-checkbox')).map(cb => ({ value: cb.value, checked: cb.checked })),
+                        compTypes: Array.from(document.querySelectorAll('.type-checkbox')).map(cb => ({ value: cb.value, checked: cb.checked })),
+                        compSizes: Array.from(document.querySelectorAll('.size-checkbox')).map(cb => ({ value: cb.value, checked: cb.checked })),
+                        cultures: Array.from(document.querySelectorAll('.culture-checkbox')).map(cb => ({ value: cb.value, checked: cb.checked })),
+                        risks: Array.from(document.querySelectorAll('.risk-checkbox')).map(cb => ({ value: cb.value, checked: cb.checked })),
+                        statuses: Array.from(document.querySelectorAll('.status-checkbox')).map(cb => ({ value: cb.value, checked: cb.checked }))
                     };
                     localStorage.setItem('agy_job_filter_state', JSON.stringify(state));
                 } catch(e) {}
@@ -850,27 +1303,19 @@ def dashboard_html():
                     if (document.getElementById('jobSearchInput') && state.search !== undefined) {
                         document.getElementById('jobSearchInput').value = state.search;
                     }
-                    if (document.getElementById('tierSelect') && state.tier) {
-                        document.getElementById('tierSelect').value = state.tier;
+                    if (document.getElementById('locationSearchInput') && state.loc_search !== undefined) {
+                        document.getElementById('locationSearchInput').value = state.loc_search;
                     }
-                    if (document.getElementById('companyTypeSelect') && state.compType) {
-                        document.getElementById('companyTypeSelect').value = state.compType;
+                    if (document.getElementById('excludeLocationsInput') && state.exclude_locs !== undefined) {
+                        document.getElementById('excludeLocationsInput').value = state.exclude_locs;
                     }
-                    if (document.getElementById('companySizeSelect') && state.compSize) {
-                        document.getElementById('companySizeSelect').value = state.compSize;
+                    if (document.getElementById('excludeCompaniesInput') && state.exclude_comps !== undefined) {
+                        document.getElementById('excludeCompaniesInput').value = state.exclude_comps;
                     }
-                    if (document.getElementById('cultureSelect') && state.culture) {
-                        document.getElementById('cultureSelect').value = state.culture;
+                    if (document.getElementById('eliteTechToggle') && state.elite !== undefined) {
+                        document.getElementById('eliteTechToggle').checked = state.elite;
                     }
-                    if (document.getElementById('riskSelect') && state.risk) {
-                        document.getElementById('riskSelect').value = state.risk;
-                    }
-                    if (document.getElementById('statusSelect') && state.status) {
-                        document.getElementById('statusSelect').value = state.status;
-                        const radios = document.querySelectorAll("input[name='statusHeaderRadio']");
-                        radios.forEach(r => { r.checked = (r.value === state.status); });
-                        updateStatusHeaderUI();
-                    }
+
 
                     if (Array.isArray(state.platforms)) {
                         state.platforms.forEach(p => {
@@ -878,6 +1323,55 @@ def dashboard_html():
                             if (cb) cb.checked = p.checked;
                         });
                         onPlatformCheckboxChange();
+                    }
+                    if (Array.isArray(state.tiers)) {
+                        state.tiers.forEach(p => {
+                            const cb = document.querySelector(`.tier-checkbox[value='${p.value}']`);
+                            if (cb) cb.checked = p.checked;
+                        });
+                        onTierCheckboxChange();
+                    }
+                    if (Array.isArray(state.locations)) {
+                        state.locations.forEach(p => {
+                            const cb = document.querySelector(`.remote-checkbox[value='${p.value}']`);
+                            if (cb) cb.checked = p.checked;
+                        });
+                        onRemoteModeCheckboxChange();
+                    }
+                    if (Array.isArray(state.compTypes)) {
+                        state.compTypes.forEach(p => {
+                            const cb = document.querySelector(`.type-checkbox[value='${p.value}']`);
+                            if (cb) cb.checked = p.checked;
+                        });
+                        onCompanyTypeCheckboxChange();
+                    }
+                    if (Array.isArray(state.compSizes)) {
+                        state.compSizes.forEach(p => {
+                            const cb = document.querySelector(`.size-checkbox[value='${p.value}']`);
+                            if (cb) cb.checked = p.checked;
+                        });
+                        onCompanySizeCheckboxChange();
+                    }
+                    if (Array.isArray(state.cultures)) {
+                        state.cultures.forEach(p => {
+                            const cb = document.querySelector(`.culture-checkbox[value='${p.value}']`);
+                            if (cb) cb.checked = p.checked;
+                        });
+                        onCultureCheckboxChange();
+                    }
+                    if (Array.isArray(state.risks)) {
+                        state.risks.forEach(p => {
+                            const cb = document.querySelector(`.risk-checkbox[value='${p.value}']`);
+                            if (cb) cb.checked = p.checked;
+                        });
+                        onRiskCheckboxChange();
+                    }
+                    if (Array.isArray(state.statuses)) {
+                        state.statuses.forEach(p => {
+                            const cb = document.querySelector(`.status-checkbox[value='${p.value}']`);
+                            if (cb) cb.checked = p.checked;
+                        });
+                        onStatusCheckboxChange();
                     }
 
                     // Update UI time buttons
@@ -995,11 +1489,17 @@ def dashboard_html():
 
             function syncDDFilter(type, value) {
                 if (type === 'culture') {
-                    const cultEl = document.getElementById('cultureSelect');
-                    if (cultEl) cultEl.value = value;
+                    if (value === 'all') selectAllCulture(true);
+                    else {
+                        document.querySelectorAll('.culture-checkbox').forEach(cb => { cb.checked = (cb.value === value); });
+                        onCultureCheckboxChange();
+                    }
                 } else if (type === 'risk') {
-                    const riskEl = document.getElementById('riskSelect');
-                    if (riskEl) riskEl.value = value;
+                    if (value === 'all') selectAllRisk(true);
+                    else {
+                        document.querySelectorAll('.risk-checkbox').forEach(cb => { cb.checked = (cb.value === value); });
+                        onRiskCheckboxChange();
+                    }
                 }
                 updateDDHeaderUI();
                 saveFilterState();
@@ -1017,16 +1517,14 @@ def dashboard_html():
             }
 
             function updateDDHeaderUI() {
-                const cultVal = document.getElementById('cultureSelect') ? document.getElementById('cultureSelect').value : 'all';
-                const riskVal = document.getElementById('riskSelect') ? document.getElementById('riskSelect').value : 'all';
+                const cultVal = getSelectedCulture();
+                const riskVal = getSelectedRisk();
 
-                // Sync header selects to match toolbar selects
                 const cultH = document.getElementById('headerCultureSelect');
                 const riskH = document.getElementById('headerRiskSelect');
                 if (cultH && cultH.value !== cultVal) cultH.value = cultVal;
                 if (riskH && riskH.value !== riskVal) riskH.value = riskVal;
 
-                // Toggle active badge and highlight icon
                 const badge = document.getElementById('ddActiveFilterBadge');
                 const icon = document.getElementById('ddFilterIcon');
                 const btn = document.getElementById('ddFilterBtn');
@@ -1061,8 +1559,14 @@ def dashboard_html():
             }
 
             function syncStatusFilter(val) {
-                const sSelect = document.getElementById('statusSelect');
-                if (sSelect && sSelect.value !== val) sSelect.value = val;
+                if (val === 'all') {
+                    selectAllStatuses(true);
+                } else {
+                    document.querySelectorAll('.status-checkbox').forEach(cb => {
+                        cb.checked = (cb.value === val);
+                    });
+                    onStatusCheckboxChange();
+                }
 
                 const radios = document.querySelectorAll("input[name='statusHeaderRadio']");
                 radios.forEach(r => {
@@ -1076,7 +1580,6 @@ def dashboard_html():
 
             function quickFilterStatus(val) {
                 syncStatusFilter(val);
-                // Ensure on jobs tab
                 if (activeTab !== 'jobs') switchTab('jobs');
             }
 
@@ -1086,7 +1589,7 @@ def dashboard_html():
             }
 
             function updateStatusHeaderUI() {
-                const sVal = document.getElementById('statusSelect') ? document.getElementById('statusSelect').value : 'all';
+                const sVal = getSelectedStatuses();
                 const badge = document.getElementById('statusActiveFilterBadge');
                 const icon = document.getElementById('statusFilterIcon');
                 const btn = document.getElementById('statusFilterBtn');
@@ -1109,61 +1612,260 @@ def dashboard_html():
                 }
             }
 
-            function togglePlatformDropdown() {
-                const menu = document.getElementById('platformDropdownMenu');
-                if (menu) menu.classList.toggle('hidden');
-            }
+            function togglePlatformDropdown() { document.getElementById('platformDropdownMenu')?.classList.toggle('hidden'); }
+            function toggleTierDropdown() { document.getElementById('tierDropdownMenu')?.classList.toggle('hidden'); }
+            function toggleRemoteModeDropdown() { document.getElementById('remoteModeDropdownMenu')?.classList.toggle('hidden'); }
+            function toggleCompanyTypeDropdown() { document.getElementById('companyTypeDropdownMenu')?.classList.toggle('hidden'); }
+            function toggleCompanySizeDropdown() { document.getElementById('companySizeDropdownMenu')?.classList.toggle('hidden'); }
+            function toggleCultureDropdown() { document.getElementById('cultureDropdownMenu')?.classList.toggle('hidden'); }
+            function toggleRiskDropdown() { document.getElementById('riskDropdownMenu')?.classList.toggle('hidden'); }
+            function toggleStatusDropdown() { document.getElementById('statusDropdownMenu')?.classList.toggle('hidden'); }
+            function toggleEliteLinksDropdown() { document.getElementById('eliteLinksMenu')?.classList.toggle('hidden'); }
 
-            // Close platform menu, DD filter menu, and status filter menu when clicking outside
+            // Close all dropdowns when clicking outside
             document.addEventListener('click', (e) => {
-                const container = document.getElementById('platformDropdownContainer');
-                const menu = document.getElementById('platformDropdownMenu');
-                if (container && menu && !container.contains(e.target)) {
-                    menu.classList.add('hidden');
-                }
-
-                const ddTh = document.getElementById('ddHeaderTh');
-                const ddMenu = document.getElementById('ddFilterMenu');
-                if (ddTh && ddMenu && !ddTh.contains(e.target)) {
-                    ddMenu.classList.add('hidden');
-                }
-
-                const stTh = document.getElementById('statusHeaderTh');
-                const stMenu = document.getElementById('statusFilterMenu');
-                if (stTh && stMenu && !stTh.contains(e.target)) {
-                    stMenu.classList.add('hidden');
-                }
+                [
+                    ['eliteLinksDropdownContainer', 'eliteLinksMenu'],
+                    ['platformDropdownContainer', 'platformDropdownMenu'],
+                    ['tierDropdownContainer', 'tierDropdownMenu'],
+                    ['remoteModeDropdownContainer', 'remoteModeDropdownMenu'],
+                    ['companyTypeDropdownContainer', 'companyTypeDropdownMenu'],
+                    ['companySizeDropdownContainer', 'companySizeDropdownMenu'],
+                    ['cultureDropdownContainer', 'cultureDropdownMenu'],
+                    ['riskDropdownContainer', 'riskDropdownMenu'],
+                    ['statusDropdownContainer', 'statusDropdownMenu'],
+                    ['ddHeaderTh', 'ddFilterMenu'],
+                    ['statusHeaderTh', 'statusFilterMenu']
+                ].forEach(([containerId, menuId]) => {
+                    const container = document.getElementById(containerId);
+                    const menu = document.getElementById(menuId);
+                    if (container && menu && !container.contains(e.target)) {
+                        menu.classList.add('hidden');
+                    }
+                });
             });
 
-            function getSelectedPlatforms() {
-                const cbs = document.querySelectorAll('.plat-checkbox:checked');
-                const total = document.querySelectorAll('.plat-checkbox').length;
-                if (cbs.length === 0 || cbs.length === total) {
-                    return 'all';
-                }
-                return Array.from(cbs).map(cb => cb.value).join(',');
-            }
-
-            function selectAllPlatforms(selectAll) {
-                document.querySelectorAll('.plat-checkbox').forEach(cb => {
-                    cb.checked = selectAll;
-                });
-                onPlatformCheckboxChange();
-            }
-
-            function onPlatformCheckboxChange() {
+            // Label Updaters
+            function updatePlatformLabel() {
                 const cbs = document.querySelectorAll('.plat-checkbox:checked');
                 const total = document.querySelectorAll('.plat-checkbox').length;
                 const label = document.getElementById('platformDropdownLabel');
                 if (label) {
-                    if (cbs.length === total || cbs.length === 0) {
-                        label.innerText = 'Platforms (All)';
-                    } else if (cbs.length === 1) {
-                        label.innerText = `Platform (${cbs[0].value})`;
-                    } else {
-                        label.innerText = `Platforms (${cbs.length}/${total})`;
-                    }
+                    if (cbs.length === total || cbs.length === 0) label.innerText = 'Platforms (All)';
+                    else if (cbs.length === 1) label.innerText = `Platform (${cbs[0].value})`;
+                    else label.innerText = `Platforms (${cbs.length}/${total})`;
                 }
+            }
+            function updateTierLabel() {
+                const cbs = document.querySelectorAll('.tier-checkbox:checked');
+                const total = document.querySelectorAll('.tier-checkbox').length;
+                const label = document.getElementById('tierDropdownLabel');
+                if (label) {
+                    if (cbs.length === total || cbs.length === 0) label.innerText = 'Tier (All)';
+                    else if (cbs.length === 1) label.innerText = `Tier (${cbs[0].value})`;
+                    else label.innerText = `Tiers (${cbs.length}/${total})`;
+                }
+            }
+            function updateRemoteModeLabel() {
+                const cbs = document.querySelectorAll('.remote-checkbox:checked');
+                const total = document.querySelectorAll('.remote-checkbox').length;
+                const label = document.getElementById('remoteModeDropdownLabel');
+                if (label) {
+                    if (cbs.length === total || cbs.length === 0) label.innerText = 'Location (All)';
+                    else if (cbs.length === 1) {
+                        label.innerText = cbs[0].value === 'remote_only' ? 'Remote Only' : 'Onsite / Hybrid';
+                    } else label.innerText = `Location (${cbs.length}/${total})`;
+                }
+            }
+            function updateCompanyTypeLabel() {
+                const cbs = document.querySelectorAll('.type-checkbox:checked');
+                const total = document.querySelectorAll('.type-checkbox').length;
+                const label = document.getElementById('companyTypeDropdownLabel');
+                if (label) {
+                    if (cbs.length === total || cbs.length === 0) label.innerText = 'Type (All)';
+                    else if (cbs.length === 1) label.innerText = `Type (${cbs[0].value})`;
+                    else label.innerText = `Types (${cbs.length}/${total})`;
+                }
+            }
+            function updateCompanySizeLabel() {
+                const cbs = document.querySelectorAll('.size-checkbox:checked');
+                const total = document.querySelectorAll('.size-checkbox').length;
+                const label = document.getElementById('companySizeDropdownLabel');
+                if (label) {
+                    if (cbs.length === total || cbs.length === 0) label.innerText = 'Size (All)';
+                    else if (cbs.length === 1) label.innerText = `Size (${cbs[0].value})`;
+                    else label.innerText = `Sizes (${cbs.length}/${total})`;
+                }
+            }
+            function updateCultureLabel() {
+                const cbs = document.querySelectorAll('.culture-checkbox:checked');
+                const total = document.querySelectorAll('.culture-checkbox').length;
+                const label = document.getElementById('cultureDropdownLabel');
+                if (label) {
+                    if (cbs.length === total || cbs.length === 0) label.innerText = 'Culture (Any)';
+                    else if (cbs.length === 1) label.innerText = `Culture (${cbs[0].value}+)`;
+                    else label.innerText = `Culture (${cbs.length}/${total})`;
+                }
+            }
+            function updateRiskLabel() {
+                const cbs = document.querySelectorAll('.risk-checkbox:checked');
+                const label = document.getElementById('riskDropdownLabel');
+                if (label) {
+                    if (cbs.length === 1 && cbs[0].value === 'low_only') label.innerText = 'Stability (Safe Only)';
+                    else label.innerText = 'Stability (All)';
+                }
+            }
+            function updateStatusLabel() {
+                const cbs = document.querySelectorAll('.status-checkbox:checked');
+                const total = document.querySelectorAll('.status-checkbox').length;
+                const label = document.getElementById('statusDropdownLabel');
+                if (label) {
+                    if (cbs.length === total) label.innerText = 'Status (All)';
+                    else if (cbs.length === 0) label.innerText = 'Status (None)';
+                    else if (cbs.length === 1) label.innerText = `Status (${cbs[0].value})`;
+                    else label.innerText = `Statuses (${cbs.length}/${total})`;
+                }
+            }
+            function updateAllLabels() {
+                updatePlatformLabel();
+                updateTierLabel();
+                updateRemoteModeLabel();
+                updateCompanyTypeLabel();
+                updateCompanySizeLabel();
+                updateCultureLabel();
+                updateRiskLabel();
+                updateStatusLabel();
+            }
+
+            // Checkbox OnChange Handlers (User Action)
+            function getSelectedPlatforms() {
+                const cbs = document.querySelectorAll('.plat-checkbox:checked');
+                const total = document.querySelectorAll('.plat-checkbox').length;
+                if (cbs.length === 0 || cbs.length === total) return 'all';
+                return Array.from(cbs).map(cb => cb.value).join(',');
+            }
+            function selectAllPlatforms(selectAll) {
+                document.querySelectorAll('.plat-checkbox').forEach(cb => { cb.checked = selectAll; });
+                onPlatformCheckboxChange();
+            }
+            function onPlatformCheckboxChange() {
+                updatePlatformLabel();
+                saveFilterState();
+                loadAllData();
+            }
+
+            function getSelectedTiers() {
+                const cbs = document.querySelectorAll('.tier-checkbox:checked');
+                const total = document.querySelectorAll('.tier-checkbox').length;
+                if (cbs.length === 0 || cbs.length === total) return 'all';
+                return Array.from(cbs).map(cb => cb.value).join(',');
+            }
+            function selectAllTiers(selectAll) {
+                document.querySelectorAll('.tier-checkbox').forEach(cb => { cb.checked = selectAll; });
+                onTierCheckboxChange();
+            }
+            function onTierCheckboxChange() {
+                updateTierLabel();
+                saveFilterState();
+                loadAllData();
+            }
+
+            function getSelectedLocations() {
+                const cbs = document.querySelectorAll('.remote-checkbox:checked');
+                const total = document.querySelectorAll('.remote-checkbox').length;
+                if (cbs.length === 0 || cbs.length === total) return 'any';
+                const vals = Array.from(cbs).map(cb => cb.value);
+                if (vals.includes('remote_only') && !vals.includes('exclude_remote')) return 'remote_only';
+                if (vals.includes('exclude_remote') && !vals.includes('remote_only')) return 'exclude_remote';
+                return 'any';
+            }
+            function selectAllRemoteModes(selectAll) {
+                document.querySelectorAll('.remote-checkbox').forEach(cb => { cb.checked = selectAll; });
+                onRemoteModeCheckboxChange();
+            }
+            function onRemoteModeCheckboxChange() {
+                updateRemoteModeLabel();
+                saveFilterState();
+                loadAllData();
+            }
+
+            function getSelectedCompanyTypes() {
+                const cbs = document.querySelectorAll('.type-checkbox:checked');
+                const total = document.querySelectorAll('.type-checkbox').length;
+                if (cbs.length === 0 || cbs.length === total) return 'all';
+                return Array.from(cbs).map(cb => cb.value).join(',');
+            }
+            function selectAllCompanyTypes(selectAll) {
+                document.querySelectorAll('.type-checkbox').forEach(cb => { cb.checked = selectAll; });
+                onCompanyTypeCheckboxChange();
+            }
+            function onCompanyTypeCheckboxChange() {
+                updateCompanyTypeLabel();
+                saveFilterState();
+                loadAllData();
+            }
+
+            function getSelectedCompanySizes() {
+                const cbs = document.querySelectorAll('.size-checkbox:checked');
+                const total = document.querySelectorAll('.size-checkbox').length;
+                if (cbs.length === 0 || cbs.length === total) return 'all';
+                return Array.from(cbs).map(cb => cb.value).join(',');
+            }
+            function selectAllCompanySizes(selectAll) {
+                document.querySelectorAll('.size-checkbox').forEach(cb => { cb.checked = selectAll; });
+                onCompanySizeCheckboxChange();
+            }
+            function onCompanySizeCheckboxChange() {
+                updateCompanySizeLabel();
+                saveFilterState();
+                loadAllData();
+            }
+
+            function getSelectedCulture() {
+                const cbs = document.querySelectorAll('.culture-checkbox:checked');
+                const total = document.querySelectorAll('.culture-checkbox').length;
+                if (cbs.length === 0 || cbs.length === total) return 'all';
+                return Array.from(cbs).map(cb => cb.value).join(',');
+            }
+            function selectAllCulture(selectAll) {
+                document.querySelectorAll('.culture-checkbox').forEach(cb => { cb.checked = selectAll; });
+                onCultureCheckboxChange();
+            }
+            function onCultureCheckboxChange() {
+                updateCultureLabel();
+                saveFilterState();
+                loadAllData();
+            }
+
+            function getSelectedRisk() {
+                const cbs = document.querySelectorAll('.risk-checkbox:checked');
+                if (cbs.length === 1 && cbs[0].value === 'low_only') return 'low_only';
+                return 'all';
+            }
+            function selectAllRisk(selectAll) {
+                document.querySelectorAll('.risk-checkbox').forEach(cb => { cb.checked = selectAll; });
+                onRiskCheckboxChange();
+            }
+            function onRiskCheckboxChange() {
+                updateRiskLabel();
+                saveFilterState();
+                loadAllData();
+            }
+
+            function getSelectedStatuses() {
+                const cbs = document.querySelectorAll('.status-checkbox:checked');
+                const total = document.querySelectorAll('.status-checkbox').length;
+                if (cbs.length === 0) return 'none';
+                if (cbs.length === total) return 'all';
+                return Array.from(cbs).map(cb => cb.value).join(',');
+            }
+            function selectAllStatuses(selectAll) {
+                document.querySelectorAll('.status-checkbox').forEach(cb => { cb.checked = selectAll; });
+                onStatusCheckboxChange();
+            }
+            function onStatusCheckboxChange() {
+                updateStatusLabel();
+                updateStatusHeaderUI();
                 saveFilterState();
                 loadAllData();
             }
@@ -1171,23 +1873,22 @@ def dashboard_html():
             function resetFilters() {
                 const searchEl = document.getElementById('jobSearchInput');
                 if (searchEl) searchEl.value = '';
-                selectAllPlatforms(true);
-                const tierEl = document.getElementById('tierSelect');
-                if (tierEl) tierEl.value = 'all';
-                const remModeEl = document.getElementById('remoteModeSelect');
-                if (remModeEl) remModeEl.value = 'any';
-                const typeEl = document.getElementById('companyTypeSelect');
-                if (typeEl) typeEl.value = 'all';
-                const sizeEl = document.getElementById('companySizeSelect');
-                if (sizeEl) sizeEl.value = 'all';
-                const cultEl = document.getElementById('cultureSelect');
-                if (cultEl) cultEl.value = 'all';
-                const riskEl = document.getElementById('riskSelect');
-                if (riskEl) riskEl.value = 'all';
-                const statusEl = document.getElementById('statusSelect');
-                if (statusEl) statusEl.value = 'all';
-                const radios = document.querySelectorAll("input[name='statusHeaderRadio']");
-                radios.forEach(r => { r.checked = (r.value === 'all'); });
+                const locEl = document.getElementById('locationSearchInput');
+                if (locEl) locEl.value = '';
+                const locExEl = document.getElementById('excludeLocationsInput');
+                if (locExEl) locExEl.value = '';
+                const exEl = document.getElementById('excludeCompaniesInput');
+                if (exEl) exEl.value = '';
+                document.querySelectorAll('.plat-checkbox').forEach(cb => { cb.checked = true; });
+                document.querySelectorAll('.tier-checkbox').forEach(cb => { cb.checked = true; });
+                document.querySelectorAll('.remote-checkbox').forEach(cb => { cb.checked = true; });
+                document.querySelectorAll('.type-checkbox').forEach(cb => { cb.checked = true; });
+                document.querySelectorAll('.size-checkbox').forEach(cb => { cb.checked = true; });
+                document.querySelectorAll('.culture-checkbox').forEach(cb => { cb.checked = true; });
+                document.querySelectorAll('.risk-checkbox').forEach(cb => { cb.checked = true; });
+                document.querySelectorAll('.status-checkbox').forEach(cb => { cb.checked = true; });
+
+                updateAllLabels();
                 updateDDHeaderUI();
                 updateStatusHeaderUI();
                 try {
@@ -1198,14 +1899,19 @@ def dashboard_html():
 
             function getFilterParams() {
                 const platform = getSelectedPlatforms();
-                const tier = document.getElementById('tierSelect') ? document.getElementById('tierSelect').value : 'all';
-                const remoteMode = document.getElementById('remoteModeSelect') ? document.getElementById('remoteModeSelect').value : 'any';
-                const compType = document.getElementById('companyTypeSelect') ? document.getElementById('companyTypeSelect').value : 'all';
-                const compSize = document.getElementById('companySizeSelect') ? document.getElementById('companySizeSelect').value : 'all';
-                const culture = document.getElementById('cultureSelect') ? document.getElementById('cultureSelect').value : 'all';
-                const risk = document.getElementById('riskSelect') ? document.getElementById('riskSelect').value : 'all';
-                const status = document.getElementById('statusSelect') ? document.getElementById('statusSelect').value : 'all';
+                const tier = getSelectedTiers();
+                const remoteMode = getSelectedLocations();
+                const compType = getSelectedCompanyTypes();
+                const compSize = getSelectedCompanySizes();
+                const culture = getSelectedCulture();
+                const risk = getSelectedRisk();
+                const status = getSelectedStatuses();
                 const q = document.getElementById('jobSearchInput') ? document.getElementById('jobSearchInput').value.trim() : '';
+                const locFilter = document.getElementById('locationSearchInput') ? document.getElementById('locationSearchInput').value.trim() : '';
+                const excludeLocs = document.getElementById('excludeLocationsInput') ? document.getElementById('excludeLocationsInput').value.trim() : '';
+                const excludeComps = document.getElementById('excludeCompaniesInput') ? document.getElementById('excludeCompaniesInput').value.trim() : '';
+                const elite = document.getElementById('eliteTechToggle') ? document.getElementById('eliteTechToggle').checked : false;
+
 
                 let params = `platform=${encodeURIComponent(platform)}`;
                 if (currentHours >= 0) {
@@ -1225,6 +1931,10 @@ def dashboard_html():
                 if (risk && risk !== 'all') params += `&max_risk=${encodeURIComponent(risk)}`;
                 if (status && status !== 'all') params += `&status=${encodeURIComponent(status)}`;
                 if (q) params += `&q=${encodeURIComponent(q)}`;
+                if (locFilter) params += `&location_filter=${encodeURIComponent(locFilter)}`;
+                if (excludeLocs) params += `&exclude_locations=${encodeURIComponent(excludeLocs)}`;
+                if (excludeComps) params += `&exclude_companies=${encodeURIComponent(excludeComps)}`;
+                if (elite) params += `&elite=true`;
                 return params;
             }
 
@@ -1242,46 +1952,36 @@ def dashboard_html():
 
                 const selPlats = getSelectedPlatforms();
                 const platText = selPlats === 'all' ? 'All Platforms' : `Platforms: ${selPlats}`;
-                const tierSelect = document.getElementById('tierSelect');
-                const tierText = tierSelect && tierSelect.value !== 'all' ? ` • ${tierSelect.value}` : '';
+                const selTiers = getSelectedTiers();
+                const tierText = selTiers === 'all' ? '' : ` • Tier: ${selTiers}`;
                 
-                const remoteMode = document.getElementById('remoteModeSelect') ? document.getElementById('remoteModeSelect').value : 'any';
+                const remoteMode = getSelectedLocations();
                 let remText = '';
                 if (remoteMode === 'remote_only') remText = ' • Remote Only';
                 else if (remoteMode === 'exclude_remote') remText = ' • Onsite/Hybrid Only';
 
-                const compType = document.getElementById('companyTypeSelect') ? document.getElementById('companyTypeSelect').value : 'all';
-                let typeText = '';
-                if (compType !== 'all') {
-                    const sel = document.getElementById('companyTypeSelect');
-                    typeText = ` • ${sel.options[sel.selectedIndex].text}`;
-                }
+                const compType = getSelectedCompanyTypes();
+                let typeText = compType === 'all' ? '' : ` • Type: ${compType}`;
 
-                const compSize = document.getElementById('companySizeSelect') ? document.getElementById('companySizeSelect').value : 'all';
-                let sizeText = '';
-                if (compSize !== 'all') {
-                    const sel = document.getElementById('companySizeSelect');
-                    sizeText = ` • ${sel.options[sel.selectedIndex].text}`;
-                }
+                const compSize = getSelectedCompanySizes();
+                let sizeText = compSize === 'all' ? '' : ` • Size: ${compSize}`;
 
-                const culture = document.getElementById('cultureSelect') ? document.getElementById('cultureSelect').value : 'all';
-                let cultText = '';
-                if (culture !== 'all') cultText = ` • Culture ${culture}+`;
+                const culture = getSelectedCulture();
+                let cultText = culture === 'all' ? '' : ` • Culture: ${culture}+`;
 
-                const risk = document.getElementById('riskSelect') ? document.getElementById('riskSelect').value : 'all';
-                let riskText = '';
-                if (risk === 'low_only') riskText = ' • Low Risk';
+                const risk = getSelectedRisk();
+                let riskText = risk === 'low_only' ? ' • Low Risk' : '';
 
-                const status = document.getElementById('statusSelect') ? document.getElementById('statusSelect').value : 'all';
-                let statusText = '';
-                if (status === 'applied') statusText = ' • Applied Only';
-                else if (status === 'ready') statusText = ' • Ready (Dry-Run)';
-                else if (status === 'review_required') statusText = ' • Review Required';
-                else if (status === 'not_applied') statusText = ' • Unapplied Only';
-                else if (status === 'failed') statusText = ' • Failed Only';
-                else if (status === 'discovered') statusText = ' • Discovered Only';
+                const status = getSelectedStatuses();
+                let statusText = status === 'all' ? '' : ` • Status: ${status}`;
 
-                document.getElementById('statTimeLabel').innerText = `${timeText} • ${platText}${tierText}${statusText}${remText}${typeText}${sizeText}${cultText}${riskText}`;
+                const excludeLocs = document.getElementById('excludeLocationsInput') ? document.getElementById('excludeLocationsInput').value.trim() : '';
+                let exLocText = excludeLocs ? ` • Excluded Locs: ${excludeLocs}` : '';
+
+                const excludeComps = document.getElementById('excludeCompaniesInput') ? document.getElementById('excludeCompaniesInput').value.trim() : '';
+                let exText = excludeComps ? ` • Excluded: ${excludeComps}` : '';
+
+                document.getElementById('statTimeLabel').innerText = `${timeText} • ${platText}${tierText}${statusText}${remText}${typeText}${sizeText}${cultText}${riskText}${exLocText}${exText}`;
             }
 
             function setTimeFilter(hours) {
@@ -1412,103 +2112,579 @@ def dashboard_html():
                 return s || (isInstahyre ? 'Recently indexed' : 'Recently');
             }
 
+            let currentJobViewMode = 'company';
+
+            function setJobViewMode(mode) {
+                currentJobViewMode = mode;
+                const btnCompany = document.getElementById('btnViewCompany');
+                const btnFlat = document.getElementById('btnViewFlat');
+                const compControls = document.getElementById('companyExpandControls');
+                const containerCompany = document.getElementById('jobsCompanyGroupContainer');
+                const containerFlat = document.getElementById('jobsFlatTableContainer');
+
+                if (mode === 'company') {
+                    if (btnCompany) btnCompany.className = "px-3 py-1.5 rounded-md font-semibold bg-purple-900/80 text-purple-200 border border-purple-700 shadow-sm flex items-center gap-1.5 transition";
+                    if (btnFlat) btnFlat.className = "px-3 py-1.5 rounded-md font-semibold text-slate-400 hover:text-white flex items-center gap-1.5 transition";
+                    if (compControls) compControls.classList.remove('hidden');
+                    if (containerCompany) containerCompany.classList.remove('hidden');
+                    if (containerFlat) containerFlat.classList.add('hidden');
+                } else {
+                    if (btnFlat) btnFlat.className = "px-3 py-1.5 rounded-md font-semibold bg-emerald-900/80 text-emerald-200 border border-emerald-700 shadow-sm flex items-center gap-1.5 transition";
+                    if (btnCompany) btnCompany.className = "px-3 py-1.5 rounded-md font-semibold text-slate-400 hover:text-white flex items-center gap-1.5 transition";
+                    if (compControls) compControls.classList.add('hidden');
+                    if (containerCompany) containerCompany.classList.add('hidden');
+                    if (containerFlat) containerFlat.classList.remove('hidden');
+                }
+                loadJobs();
+            }
+
+            function toggleCompanyTab(slug) {
+                const body = document.getElementById(`compTabBody_${slug}`);
+                const icon = document.getElementById(`compTabIcon_${slug}`);
+                const lbl = document.getElementById(`compTabLbl_${slug}`);
+                if (!body) return;
+                if (body.classList.contains('hidden')) {
+                    body.classList.remove('hidden');
+                    if (icon) icon.className = "fa-solid fa-chevron-down text-purple-400";
+                    if (lbl) lbl.innerText = "Close Tab";
+                } else {
+                    body.classList.add('hidden');
+                    if (icon) icon.className = "fa-solid fa-chevron-right text-slate-400";
+                    if (lbl) lbl.innerText = "Open Tab";
+                }
+            }
+
+            function toggleAllCompanyTabs(expand) {
+                const bodies = document.querySelectorAll('.comp-tab-body');
+                bodies.forEach(b => {
+                    const slug = b.id.replace('compTabBody_', '');
+                    const icon = document.getElementById(`compTabIcon_${slug}`);
+                    const lbl = document.getElementById(`compTabLbl_${slug}`);
+                    if (expand) {
+                        b.classList.remove('hidden');
+                        if (icon) icon.className = "fa-solid fa-chevron-down text-purple-400";
+                        if (lbl) lbl.innerText = "Close Tab";
+                    } else {
+                        b.classList.add('hidden');
+                        if (icon) icon.className = "fa-solid fa-chevron-right text-slate-400";
+                        if (lbl) lbl.innerText = "Open Tab";
+                    }
+                });
+            }
+
+            async function markJobStatus(jobId, newStatus) {
+                try {
+                    const res = await fetch(`/api/job/${encodeURIComponent(jobId)}/status`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: newStatus })
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        loadAllData();
+                    } else {
+                        alert('Failed to update status: ' + JSON.stringify(data));
+                    }
+                } catch(err) {
+                    console.error('Error updating status:', err);
+                    alert('Error updating status: ' + err.message);
+                }
+            }
+
+            async function markJobApplied(jobId) {
+                await markJobStatus(jobId, 'APPLIED');
+            }
+
+            async function bulkMarkApplied() {
+                if (selectedJobIds.size === 0) {
+                    alert('Please select at least one job using checkboxes first.');
+                    return;
+                }
+                const ids = Array.from(selectedJobIds);
+                for (const id of ids) {
+                    await markJobStatus(id, 'APPLIED');
+                }
+                selectedJobIds.clear();
+                updateSelectedCountUI();
+                loadAllData();
+            }
+
+            function autoFillCompanyJobs(compName) {
+                const checkboxes = document.querySelectorAll(`.job-checkbox[data-company="${compName}"]`);
+                if (!checkboxes || checkboxes.length === 0) {
+                    alert(`No unapplied openings selected for ${compName}`);
+                    return;
+                }
+                const ids = [];
+                checkboxes.forEach(cb => {
+                    cb.checked = true;
+                    onJobCheckboxChange(cb);
+                    ids.push(cb.value);
+                });
+                triggerBulkApply(true);
+            }
+
+            function renderCompanyGroupView(jobs) {
+                const container = document.getElementById('jobsCompanyGroupContainer');
+                if (!container) return;
+                if (!jobs || jobs.length === 0) {
+                    container.innerHTML = '<div class="text-center py-8 text-slate-500">No company openings found matching your filters.</div>';
+                    return;
+                }
+
+                // Group jobs by company name
+                const groups = {};
+                jobs.forEach(j => {
+                    const comp = j.company_name || 'Other Company';
+                    if (!groups[comp]) groups[comp] = [];
+                    groups[comp].push(j);
+                });
+
+                // Sort companies by number of openings (descending)
+                const sortedComps = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
+
+                container.innerHTML = sortedComps.map((compName, idx) => {
+                    const compJobs = groups[compName];
+                    const slug = compName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                    const firstJob = compJobs[0];
+                    const encComp = encodeURIComponent(compName);
+                    const isFirstOpened = idx < 5; // Open top 5 companies by default
+
+                    const compStage = firstJob.stage_or_type ? `<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">${firstJob.stage_or_type}</span>` : '';
+                    const compSize = firstJob.headcount_range ? `<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-cyan-950/60 text-cyan-300 border border-cyan-800/60"><i class="fa-solid fa-users text-[9px] mr-1"></i>${firstJob.headcount_range}</span> <button onclick="editCompanySize('${encodeURIComponent(compName)}'); event.stopPropagation();" class="text-slate-500 hover:text-cyan-400 transition" title="Correct Company Size"><i class="fa-solid fa-pen text-[10px]"></i></button>` : `<button onclick="editCompanySize('${encodeURIComponent(compName)}'); event.stopPropagation();" class="text-slate-500 hover:text-cyan-400 transition text-[11px] font-semibold" title="Set Company Size"><i class="fa-solid fa-plus text-[10px]"></i> Size</button>`;
+
+                    const rowHtml = compJobs.map(j => {
+                        const encId = encodeURIComponent(j.job_id || '');
+                        const encTitle = encodeURIComponent(j.title || '');
+                        const encUrl = encodeURIComponent(j.apply_url || '');
+                        const encScreenshot = encodeURIComponent(j.screenshot_path || '');
+                        const displayTime = formatPostedTime(j.posted_at, j.discovered_at, j.ats_platform);
+                        const isVeryRecent = displayTime.includes('h ago') || displayTime.includes('m ago') || displayTime.toLowerCase().includes('today') || displayTime.toLowerCase().includes('just now');
+                        const isChecked = selectedJobIds.has(j.job_id) ? 'checked' : '';
+                        const hasReview = j.screenshot_path && j.screenshot_path.trim() !== '';
+
+                        return `
+                        <tr class="hover:bg-slate-800/40 transition">
+                            <td class="px-4 py-3 text-center">
+                                <input type="checkbox" value="${j.job_id}" data-company="${compName}" ${isChecked} onchange="onJobCheckboxChange(this)" class="job-checkbox rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-0 cursor-pointer" />
+                            </td>
+                            <td class="px-5 py-3">
+                                <div class="font-semibold text-white">${j.title || 'Untitled Role'}</div>
+                                <div class="text-xs text-slate-400 mt-0.5"><span class="capitalize text-slate-400 font-medium">${j.ats_platform}</span> Platform</div>
+                            </td>
+                            <td class="px-5 py-3">
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded-md ${
+                                    j.salary_tier === '70+LPA' ? 'bg-purple-950 text-purple-300 border border-purple-800' :
+                                    j.salary_tier === '60-70LPA' ? 'bg-indigo-950 text-indigo-300 border border-indigo-800' :
+                                    j.salary_tier === '50-60LPA' ? 'bg-blue-950 text-blue-300 border border-blue-800' :
+                                    j.salary_tier === '40-50LPA' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' :
+                                    j.salary_tier === '30-40LPA' ? 'bg-teal-950 text-teal-300 border border-teal-800' :
+                                    j.salary_tier === '20-30LPA' ? 'bg-amber-950 text-amber-300 border border-amber-800' :
+                                    'bg-slate-800 text-slate-300 border border-slate-700'
+                                }">${j.salary_tier}</span>
+                                <button onclick="editCompanySalary('${encodeURIComponent(compName)}'); event.stopPropagation();" class="ml-1 text-slate-600 hover:text-indigo-400 transition" title="Correct Company Salary">
+                                    <i class="fa-solid fa-pen text-[10px]"></i>
+                                </button>
+                                <div class="text-[11px] text-slate-400 mt-0.5">${j.estimated_ctc || ''}</div>
+                            </td>
+                            <td class="px-5 py-3 text-xs text-slate-400">
+                                <div><i class="fa-solid fa-location-dot mr-1"></i>${j.location || 'Multiple'}${j.location ? `<button onclick="quickExcludeLocation('${encodeURIComponent(j.location)}'); event.stopPropagation();" class="text-rose-400/80 hover:text-rose-300 transition text-[10px] ml-1.5" title="Exclude location ${j.location}"><i class="fa-solid fa-ban"></i></button>` : ''}</div>
+                                <div class="mt-0.5 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-clock text-[10px] ${isVeryRecent ? 'text-emerald-400' : 'text-slate-500'}"></i>
+                                    <span class="${isVeryRecent ? 'text-emerald-400 font-semibold text-[11px]' : 'text-slate-400 text-xs'}">${displayTime}</span>
+                                </div>
+                                ${j.is_remote ? '<span class="text-emerald-400 text-[10px] font-bold uppercase mt-0.5 block">Remote</span>' : ''}
+                            </td>
+                            <td class="px-5 py-3">
+                                <span class="px-2.5 py-0.5 text-xs rounded-full font-semibold inline-flex items-center gap-1 ${
+                                    j.status === 'APPLIED' ? 'bg-emerald-950 text-emerald-300 border border-emerald-600' :
+                                    j.status === 'INVALID' ? 'bg-rose-950 text-rose-300 border border-rose-600' :
+                                    j.status.includes('REVIEW_REQUIRED') ? 'bg-purple-950 text-purple-300 border border-purple-600' :
+                                    j.status.includes('DRY_RUN') ? 'bg-amber-950 text-amber-300 border border-amber-600' :
+                                    j.status.includes('FAILED') ? 'bg-rose-950 text-rose-300 border border-rose-600' :
+                                    'bg-slate-800 text-slate-400 border border-slate-700'
+                                }">
+                                    ${j.status === 'APPLIED' ? '<i class="fa-solid fa-circle-check text-emerald-400"></i> Applied' :
+                                      j.status === 'INVALID' ? '<i class="fa-solid fa-ban text-rose-400"></i> Invalid' :
+                                      j.status.includes('DRY_RUN') ? '<i class="fa-solid fa-clipboard-check text-amber-400"></i> Ready' :
+                                      j.status.includes('FAILED') ? '<i class="fa-solid fa-triangle-exclamation text-rose-400"></i> Failed' :
+                                      '<i class="fa-regular fa-clock text-slate-500"></i> Not Applied'}
+                                </span>
+                                ${j.status === 'APPLIED' && j.applied_at ? `<div class="text-[10px] text-slate-400 mt-1" title="Date Applied"><i class="fa-solid fa-calendar-check mr-1 text-emerald-500/70"></i>${new Date(j.applied_at + 'Z').toLocaleString()}</div>` : ''}
+                            </td>
+                            <td class="px-5 py-3 text-right space-x-1.5 whitespace-nowrap">
+                                ${j.status === 'INVALID' ? `
+                                <button onclick="markJobStatus('${encId}', 'DISCOVERED')" class="px-2.5 py-1 bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-700/80 rounded text-xs font-semibold shadow transition inline-flex items-center gap-1" title="Marked as Invalid. Click to restore to Discovered.">
+                                    <i class="fa-solid fa-rotate-left text-rose-400"></i> Restore
+                                </button>` : `
+                                ${j.status === 'APPLIED' ? `
+                                <button onclick="markJobStatus('${encId}', 'DISCOVERED')" class="px-2.5 py-1 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/80 rounded text-xs font-semibold shadow transition inline-flex items-center gap-1" title="Marked as Applied. Click to revert status.">
+                                    <i class="fa-solid fa-circle-check text-emerald-400"></i> Applied ✓
+                                </button>` : `
+                                <button onclick="markJobApplied('${encId}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 border border-slate-700 rounded text-xs font-semibold shadow transition inline-flex items-center gap-1" title="Manually mark this job as APPLIED in your database">
+                                    <i class="fa-solid fa-check text-emerald-400"></i> Applied
+                                </button>`}
+                                <button onclick="markJobStatus('${encId}', 'INVALID')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-rose-400 hover:text-rose-300 border border-slate-700 rounded text-xs font-semibold shadow transition inline-flex items-center gap-1" title="Mark this job opening as invalid, expired, or closed">
+                                    <i class="fa-solid fa-ban text-rose-400"></i> Invalid
+                                </button>`}
+                                <button data-jobid="${encId}" class="btn-apply px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-bold shadow transition inline-flex items-center gap-1 border border-emerald-500/80">
+                                    <i class="fa-solid fa-wand-magic-sparkles text-yellow-300 text-[10px]"></i> Auto-Fill
+                                </button>
+                                ${hasReview ? `
+                                <button data-jobid="${encId}" data-company="${encComp}" data-title="${encTitle}" data-url="${encUrl}" data-screenshot="${encScreenshot}" class="btn-review px-2 py-1 bg-purple-950 hover:bg-purple-900 text-purple-300 border border-purple-700/80 rounded text-xs font-semibold shadow transition inline-flex items-center gap-1">
+                                    <i class="fa-solid fa-eye text-purple-400"></i> Proof
+                                </button>` : ''}
+                                <a href="${j.apply_url}" target="_blank" rel="noopener noreferrer" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-medium transition inline-flex items-center gap-1">
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Link
+                                </a>
+                            </td>
+                        </tr>
+                        `;
+                    }).join('');
+
+                    return `
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden shadow-md">
+                        <!-- Company Header Tab Bar -->
+                        <div class="p-4 bg-slate-950/80 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:bg-slate-950 transition" onclick="toggleCompanyTab('${slug}')">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-purple-950/70 border border-purple-800/80 flex items-center justify-center text-purple-300 font-bold text-sm">
+                                    <i class="fa-solid fa-building"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <h3 class="text-base font-bold text-white">${compName}</h3>
+                                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-950 text-purple-300 border border-purple-800">
+                                            ${compJobs.length} ${compJobs.length === 1 ? 'Opening' : 'Openings'}
+                                        </span>
+                                        ${firstJob.total_company_applied > 0 ? `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800" title="Total applications submitted to this company across database"><i class="fa-solid fa-building-circle-check mr-1"></i>${firstJob.total_company_applied} Applied at Company</span>` : ''}
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-2 mt-1">
+                                        <span class="text-xs text-yellow-400 font-semibold cursor-pointer" onclick="editCompanyRating('${encodeURIComponent(compName)}', ${firstJob.glassdoor_rating || 0}); event.stopPropagation();" title="Edit Rating"><i class="fa-solid fa-star text-[10px]"></i> ${firstJob.glassdoor_rating || 4.2} <i class="fa-solid fa-pen text-[9px] text-slate-500 ml-0.5 hover:text-yellow-300"></i></span>
+                                        <span class="text-xs text-slate-600">|</span>
+                                        <span class="text-xs ${firstJob.risk_level === 'HIGH' ? 'text-red-400 font-bold' : firstJob.risk_level === 'MODERATE' ? 'text-amber-400' : 'text-emerald-400'} font-semibold">
+                                            <i class="fa-solid fa-shield-halved"></i> ${firstJob.risk_level || 'LOW'} RISK
+                                        </span>
+                                        ${compStage}
+                                        ${compSize}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3" onclick="event.stopPropagation()">
+                                <button onclick="quickExcludeCompany('${encodeURIComponent(compName)}'); event.stopPropagation();" class="px-2.5 py-1.5 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 rounded-lg text-xs font-semibold border border-rose-800/60 shadow transition flex items-center gap-1.5" title="Exclude ${compName} from listings">
+                                    <i class="fa-solid fa-ban text-rose-400"></i> Exclude
+                                </button>
+                                <button onclick="editCompanySalary('${encodeURIComponent(compName)}'); event.stopPropagation();" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 shadow transition flex items-center gap-1.5" title="Correct the maximum LPA salary for this company">
+                                    <i class="fa-solid fa-pen-to-square text-indigo-400"></i> Edit Salary
+                                </button>
+                                <button onclick="autoFillCompanyJobs('${compName}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow transition flex items-center gap-1.5 border border-emerald-500/80">
+                                    <i class="fa-solid fa-bolt text-yellow-300"></i> Auto-Fill All (${compJobs.length})
+                                </button>
+                                <button onclick="toggleCompanyTab('${slug}')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold border border-slate-700 transition flex items-center gap-1.5">
+                                    <i id="compTabIcon_${slug}" class="${isFirstOpened ? 'fa-solid fa-chevron-down text-purple-400' : 'fa-solid fa-chevron-right text-slate-400'}"></i>
+                                    <span id="compTabLbl_${slug}">${isFirstOpened ? 'Close Tab' : 'Open Tab'}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Company Tab Content Body -->
+                        <div id="compTabBody_${slug}" class="comp-tab-body overflow-x-auto ${isFirstOpened ? '' : 'hidden'}">
+                            <table class="w-full text-left text-sm text-slate-300">
+                                <thead class="bg-slate-950/50 text-slate-400 uppercase text-[11px] border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2 w-8 text-center">Sel</th>
+                                        <th class="px-5 py-2">Role Title & Platform</th>
+                                        <th class="px-5 py-2">Salary Tier</th>
+                                        <th class="px-5 py-2">Location & Posted</th>
+                                        <th class="px-5 py-2">Status</th>
+                                        <th class="px-5 py-2 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/60">
+                                    ${rowHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            }
+
+            async function editCompanySize(companyName) {
+                companyName = decodeURIComponent(companyName);
+                const input = prompt(`Enter the min and max headcount for ${companyName} separated by a dash (e.g. 500-1000 or 5000+):`);
+                if (!input) return;
+                
+                let min_val = 0, max_val = 0;
+                if (input.includes('+')) {
+                    min_val = parseInt(input.replace('+', '').trim());
+                    max_val = min_val * 10;
+                } else if (input.includes('-')) {
+                    const parts = input.split('-');
+                    min_val = parseInt(parts[0].trim());
+                    max_val = parseInt(parts[1].trim());
+                } else {
+                    alert("Please format as MIN-MAX or MIN+");
+                    return;
+                }
+
+                if (isNaN(min_val) || isNaN(max_val)) {
+                    alert("Invalid numbers parsed.");
+                    return;
+                }
+                
+                try {
+                    const res = await fetch('/api/company/size', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ company_name: companyName, min_size: min_val, max_size: max_val })
+                    });
+                    
+                    if (res.ok) {
+                        loadJobs();
+                    } else {
+                        alert("Failed to update size.");
+                    }
+                } catch(e) {
+                    alert("Error updating size: " + e);
+                }
+            }
+
+            function quickExcludeCompany(compName) {
+                if (!compName) return;
+                try {
+                    compName = decodeURIComponent(compName).trim();
+                } catch(e) {}
+                if (!compName) return;
+                const input = document.getElementById('excludeCompaniesInput');
+                if (!input) return;
+                const current = input.value.split(',').map(s => s.trim()).filter(Boolean);
+                if (!current.some(c => c.toLowerCase() === compName.toLowerCase())) {
+                    current.push(compName);
+                    input.value = current.join(', ');
+                    saveFilterState();
+                    debounceFilter();
+                }
+            }
+
+            function quickExcludeLocation(locStr) {
+                if (!locStr) return;
+                try { locStr = decodeURIComponent(locStr).trim(); } catch(e) {}
+                if (!locStr) return;
+                
+                let target = locStr;
+                if (target.includes(',')) {
+                    target = target.split(',')[0].trim();
+                }
+                target = target.replace(/^(hybrid\s*-\s*|remote\s*-\s*|onsite\s*-\s*)/i, '').trim();
+                if (!target) target = locStr.trim();
+                
+                const input = document.getElementById('excludeLocationsInput');
+                if (!input) return;
+                const current = input.value.split(',').map(s => s.trim()).filter(Boolean);
+                if (!current.some(c => c.toLowerCase() === target.toLowerCase())) {
+                    current.push(target);
+                    input.value = current.join(', ');
+                    saveFilterState();
+                    debounceFilter();
+                }
+            }
+
+            async function editCompanySalary(companyName) {
+                companyName = decodeURIComponent(companyName);
+                const currentVal = prompt(`Enter the true maximum LPA for ${companyName} (e.g. 55.5):`);
+                if (!currentVal) return;
+                
+                const num = parseFloat(currentVal);
+                if (isNaN(num)) {
+                    alert("Please enter a valid number.");
+                    return;
+                }
+                
+                try {
+                    const res = await fetch('/api/company/salary', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ company_name: companyName, max_lpa: num })
+                    });
+                    
+                    if (res.ok) {
+                        const data = await res.json();
+                        // Refresh all views to show new tier and salary
+                        loadAllData();
+                    } else {
+                        alert("Failed to update salary.");
+                    }
+                } catch(e) {
+                    alert("Error updating salary: " + e);
+                }
+            }
+
+            async function editCompanyRating(companyName, currentRating) {
+                companyName = decodeURIComponent(companyName);
+                const input = prompt(`Enter the new Glassdoor rating for ${companyName} (e.g. 4.5):`, currentRating || '');
+                if (!input) return;
+                
+                const num = parseFloat(input);
+                if (isNaN(num) || num < 0 || num > 5) {
+                    alert("Please enter a valid rating between 0 and 5.");
+                    return;
+                }
+                
+                try {
+                    const res = await fetch('/api/company/rating', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ company_name: companyName, glassdoor_rating: num })
+                    });
+                    
+                    if (res.ok) {
+                        loadJobs();
+                    } else {
+                        alert("Failed to update rating.");
+                    }
+                } catch(e) {
+                    alert("Error updating rating: " + e);
+                }
+            }
+
             async function loadJobs() {
                 try {
                     const params = getFilterParams();
                     const res = await fetch(`/api/jobs?${params}`);
                     const data = await res.json();
                     if (document.getElementById('jobCountBadge')) document.getElementById('jobCountBadge').innerText = `${data.total} Jobs`;
-                    const tbody = document.getElementById('jobsTableBody');
-                    if (!tbody) return;
-                    if (data.jobs.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-slate-500">No jobs found matching your filters. Try adjusting your search term, tier, or expanding the time window.</td></tr>';
-                        return;
+                    
+                    const distinctCompanies = new Set((data.jobs || []).map(j => (j.company_name || '').trim().toLowerCase()).filter(Boolean));
+                    const companyCountEl = document.getElementById('companyCountText');
+                    if (companyCountEl) {
+                        companyCountEl.innerText = `${distinctCompanies.size} ${distinctCompanies.size === 1 ? 'Company' : 'Companies'}`;
                     }
 
-                tbody.innerHTML = data.jobs.map(j => {
-                    const encComp = encodeURIComponent(j.company_name || '');
-                    const encId = encodeURIComponent(j.job_id || '');
-                    const encTitle = encodeURIComponent(j.title || '');
-                    const encUrl = encodeURIComponent(j.apply_url || '');
-                    const encScreenshot = encodeURIComponent(j.screenshot_path || '');
-                    const displayTime = formatPostedTime(j.posted_at, j.discovered_at, j.ats_platform);
-                    const isVeryRecent = displayTime.includes('h ago') || displayTime.includes('m ago') || displayTime.toLowerCase().includes('today') || displayTime.toLowerCase().includes('just now');
-                    const compStage = j.stage_or_type ? `<span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">${j.stage_or_type}</span>` : '';
-                    const compSize = j.headcount_range ? `<span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-cyan-950/60 text-cyan-300 border border-cyan-800/60 ml-1"><i class="fa-solid fa-users text-[9px] mr-1"></i>${j.headcount_range}</span>` : '';
-                    const isChecked = selectedJobIds.has(j.job_id) ? 'checked' : '';
-                    const hasReview = j.screenshot_path && j.screenshot_path.trim() !== '';
+                    if (currentJobViewMode === 'company') {
+                        renderCompanyGroupView(data.jobs);
+                    } else {
+                        const tbody = document.getElementById('jobsTableBody');
+                        if (!tbody) return;
+                        if (data.jobs.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-slate-500">No jobs found matching your filters. Try adjusting your search term, tier, or expanding the time window.</td></tr>';
+                            return;
+                        }
 
-                    return `
-                    <tr class="hover:bg-slate-800/40 transition">
-                        <td class="px-4 py-4 text-center">
-                            <input type="checkbox" value="${j.job_id}" ${isChecked} onchange="onJobCheckboxChange(this)" class="job-checkbox rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-0 cursor-pointer" />
-                        </td>
-                        <td class="px-5 py-4">
-                            <div class="font-semibold text-white">${j.title || 'Untitled Role'}</div>
-                            <div class="text-xs text-slate-400 mt-0.5 font-medium">${j.company_name} • <span class="capitalize text-slate-500">${j.ats_platform}</span></div>
-                            <div class="flex flex-wrap items-center gap-1 mt-0.5">${compStage}${compSize}</div>
-                        </td>
-                        <td class="px-5 py-4">
-                            <span class="px-2.5 py-1 text-xs font-semibold rounded-md ${
-                                j.salary_tier === '70+LPA' ? 'bg-purple-950 text-purple-300 border border-purple-800' :
-                                j.salary_tier === '60-70LPA' ? 'bg-indigo-950 text-indigo-300 border border-indigo-800' :
-                                j.salary_tier === '50-60LPA' ? 'bg-blue-950 text-blue-300 border border-blue-800' :
-                                'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                            }">${j.salary_tier}</span>
-                            <div class="text-[11px] text-slate-400 mt-1">${j.estimated_ctc || ''}</div>
-                        </td>
-                        <td class="px-5 py-4">
-                            <div class="flex items-center gap-2">
-                                <span class="text-yellow-400 font-semibold"><i class="fa-solid fa-star text-xs"></i> ${j.glassdoor_rating || 4.2}</span>
-                                <span class="text-xs text-slate-500">|</span>
-                                <span class="text-xs ${j.risk_level === 'HIGH' ? 'text-red-400 font-bold' : j.risk_level === 'MODERATE' ? 'text-amber-400' : 'text-emerald-400'}">
-                                    <i class="fa-solid fa-shield-halved"></i> ${j.risk_level || 'LOW'} RISK
-                                </span>
-                            </div>
-                            <button data-company="${encComp}" class="btn-dd text-xs text-blue-400 hover:underline mt-1 block">
-                                View Dossier & Layoffs &rarr;
-                            </button>
-                        </td>
-                        <td class="px-5 py-4 text-xs text-slate-400">
-                            <div><i class="fa-solid fa-location-dot mr-1"></i>${j.location || 'Multiple'}</div>
-                            <div class="mt-1 flex items-center gap-1.5">
-                                <i class="fa-solid fa-clock text-[11px] ${isVeryRecent ? 'text-emerald-400' : 'text-slate-500'}"></i>
-                                <span class="${isVeryRecent ? 'text-emerald-400 font-semibold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/60 text-[11px]' : 'text-slate-400 text-xs'}">${displayTime}</span>
-                            </div>
-                            ${j.is_remote ? '<span class="text-emerald-400 text-[10px] font-bold uppercase mt-1 inline-block">Remote Eligible</span>' : ''}
-                        </td>
-                        <td class="px-5 py-4">
-                            <span class="px-2.5 py-1 text-xs rounded-full font-semibold inline-flex items-center gap-1.5 ${
-                                j.status === 'APPLIED' ? 'bg-emerald-950 text-emerald-300 border border-emerald-600 shadow-sm' :
-                                j.status.includes('REVIEW_REQUIRED') ? 'bg-purple-950 text-purple-300 border border-purple-600' :
-                                j.status.includes('DRY_RUN') ? 'bg-amber-950 text-amber-300 border border-amber-600' :
-                                j.status.includes('FAILED') ? 'bg-rose-950 text-rose-300 border border-rose-600' :
-                                j.status === 'APPLYING' ? 'bg-blue-900/60 text-blue-300 border border-blue-600 animate-pulse' :
-                                'bg-slate-800 text-slate-400 border border-slate-700'
-                            }">
-                                ${j.status === 'APPLIED' ? '<i class="fa-solid fa-circle-check text-emerald-400 text-[11px]"></i> Applied' :
-                                  j.status.includes('REVIEW_REQUIRED') ? '<i class="fa-solid fa-file-signature text-purple-400 text-[11px]"></i> Review Required' :
-                                  j.status.includes('DRY_RUN') ? '<i class="fa-solid fa-clipboard-check text-amber-400 text-[11px]"></i> Ready (Dry-Run)' :
-                                  j.status.includes('FAILED') ? '<i class="fa-solid fa-circle-exclamation text-rose-400 text-[11px]"></i> Failed' :
-                                  j.status === 'APPLYING' ? '<i class="fa-solid fa-spinner fa-spin text-blue-400 text-[11px]"></i> Applying...' :
-                                  '<i class="fa-regular fa-clock text-slate-500 text-[10px]"></i> Not Applied'}
-                            </span>
-                        </td>
-                        <td class="px-5 py-4 text-right space-x-1.5 whitespace-nowrap">
-                            ${hasReview ? `
-                            <button data-jobid="${encId}" data-company="${encComp}" data-title="${encTitle}" data-url="${encUrl}" data-screenshot="${encScreenshot}" class="btn-review px-2.5 py-1.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/80 rounded-md text-xs font-semibold shadow transition inline-flex items-center gap-1.5">
-                                <i class="fa-solid fa-eye text-emerald-400"></i> Review Application
-                            </button>` : ''}
-                            <a href="${j.apply_url}" target="_blank" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md text-xs font-semibold transition inline-flex items-center gap-1">
-                                <i class="fa-solid fa-arrow-up-right-from-square"></i> Job Link
-                            </a>
-                            <button data-jobid="${encId}" class="btn-apply px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-semibold shadow transition inline-flex items-center gap-1">
-                                <i class="fa-solid fa-robot"></i> Auto-Fill
-                            </button>
-                        </td>
-                    </tr>
-                    `;
-                }).join('');
+                        tbody.innerHTML = data.jobs.map(j => {
+                            const encComp = encodeURIComponent(j.company_name || '');
+                            const encId = encodeURIComponent(j.job_id || '');
+                            const encTitle = encodeURIComponent(j.title || '');
+                            const encUrl = encodeURIComponent(j.apply_url || '');
+                            const encScreenshot = encodeURIComponent(j.screenshot_path || '');
+                            const displayTime = formatPostedTime(j.posted_at, j.discovered_at, j.ats_platform);
+                            const isVeryRecent = displayTime.includes('h ago') || displayTime.includes('m ago') || displayTime.toLowerCase().includes('today') || displayTime.toLowerCase().includes('just now');
+                            const compStage = j.stage_or_type ? `<span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">${j.stage_or_type}</span>` : '';
+                            const compSize = j.headcount_range ? `<span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-cyan-950/60 text-cyan-300 border border-cyan-800/60 ml-1"><i class="fa-solid fa-users text-[9px] mr-1"></i>${j.headcount_range}</span> <button onclick="editCompanySize('${encComp}'); event.stopPropagation();" class="text-slate-500 hover:text-cyan-400 transition ml-1" title="Correct Company Size"><i class="fa-solid fa-pen text-[10px]"></i></button>` : `<button onclick="editCompanySize('${encComp}'); event.stopPropagation();" class="text-slate-500 hover:text-cyan-400 transition text-[10px] font-semibold ml-1 inline-block mt-1" title="Set Company Size"><i class="fa-solid fa-plus text-[9px]"></i> Size</button>`;
+                            const isChecked = selectedJobIds.has(j.job_id) ? 'checked' : '';
+                            const hasReview = j.screenshot_path && j.screenshot_path.trim() !== '';
+
+                            return `
+                            <tr class="hover:bg-slate-800/40 transition">
+                                <td class="px-4 py-4 text-center">
+                                    <input type="checkbox" value="${j.job_id}" data-company="${j.company_name}" ${isChecked} onchange="onJobCheckboxChange(this)" class="job-checkbox rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-0 cursor-pointer" />
+                                </td>
+                                <td class="px-5 py-4">
+                                    <div class="font-semibold text-white">${j.title || 'Untitled Role'}</div>
+                                    <div class="text-xs text-slate-400 mt-0.5 font-medium flex items-center gap-1.5 flex-wrap">
+                                        <span>${j.company_name}</span>
+                                        <button onclick="quickExcludeCompany('${encComp}'); event.stopPropagation();" class="text-rose-400/80 hover:text-rose-300 transition text-[10px]" title="Exclude ${j.company_name}">
+                                            <i class="fa-solid fa-ban"></i>
+                                        </button>
+                                        ${j.total_company_applied > 0 ? `<span class="text-emerald-400/90 font-medium px-1.5 py-0.5 rounded bg-emerald-950/40 text-[10px] border border-emerald-800/40" title="${j.total_company_applied} other applications submitted to ${j.company_name}"><i class="fa-solid fa-building-circle-check text-[9px] mr-1"></i>${j.total_company_applied} applied at co.</span>` : ''} 
+                                        <span class="text-slate-600">•</span> <span class="capitalize text-slate-500">${j.ats_platform}</span>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-1 mt-0.5">${compStage}${compSize}</div>
+                                </td>
+                                <td class="px-5 py-4">
+                                    <span class="px-2.5 py-1 text-xs font-semibold rounded-md ${
+                                        j.salary_tier === '70+LPA' ? 'bg-purple-950 text-purple-300 border border-purple-800' :
+                                        j.salary_tier === '60-70LPA' ? 'bg-indigo-950 text-indigo-300 border border-indigo-800' :
+                                        j.salary_tier === '50-60LPA' ? 'bg-blue-950 text-blue-300 border border-blue-800' :
+                                        j.salary_tier === '40-50LPA' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' :
+                                        j.salary_tier === '30-40LPA' ? 'bg-teal-950 text-teal-300 border border-teal-800' :
+                                        j.salary_tier === '20-30LPA' ? 'bg-amber-950 text-amber-300 border border-amber-800' :
+                                        'bg-slate-800 text-slate-300 border border-slate-700'
+                                    }">${j.salary_tier}</span>
+                                    <button onclick="editCompanySalary('${encComp}'); event.stopPropagation();" class="ml-1 text-slate-600 hover:text-indigo-400 transition" title="Correct Company Salary">
+                                        <i class="fa-solid fa-pen text-[10px]"></i>
+                                    </button>
+                                    <div class="text-[11px] text-slate-400 mt-1">${j.estimated_ctc || ''}</div>
+                                </td>
+                                <td class="px-5 py-4">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-yellow-400 font-semibold cursor-pointer" onclick="editCompanyRating('${encComp}', ${j.glassdoor_rating || 0}); event.stopPropagation();" title="Edit Rating"><i class="fa-solid fa-star text-xs"></i> ${j.glassdoor_rating || 4.2} <i class="fa-solid fa-pen text-[10px] text-slate-500 ml-0.5 hover:text-yellow-300"></i></span>
+                                        <span class="text-xs text-slate-500">|</span>
+                                        <span class="text-xs ${j.risk_level === 'HIGH' ? 'text-red-400 font-bold' : j.risk_level === 'MODERATE' ? 'text-amber-400' : 'text-emerald-400'}">
+                                            <i class="fa-solid fa-shield-halved"></i> ${j.risk_level || 'LOW'} RISK
+                                        </span>
+                                    </div>
+                                    <button data-company="${encComp}" class="btn-dd text-xs text-blue-400 hover:underline mt-1 block">
+                                        View Dossier & Layoffs &rarr;
+                                    </button>
+                                </td>
+                                <td class="px-5 py-4 text-xs text-slate-400">
+                                    <div><i class="fa-solid fa-location-dot mr-1"></i>${j.location || 'Multiple'}${j.location ? `<button onclick="quickExcludeLocation('${encodeURIComponent(j.location)}'); event.stopPropagation();" class="text-rose-400/80 hover:text-rose-300 transition text-[10px] ml-1.5" title="Exclude location ${j.location}"><i class="fa-solid fa-ban"></i></button>` : ''}</div>
+                                    <div class="mt-1 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-clock text-[11px] ${isVeryRecent ? 'text-emerald-400' : 'text-slate-500'}"></i>
+                                        <span class="${isVeryRecent ? 'text-emerald-400 font-semibold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/60 text-[11px]' : 'text-slate-400 text-xs'}">${displayTime}</span>
+                                    </div>
+                                    ${j.is_remote ? '<span class="text-emerald-400 text-[10px] font-bold uppercase mt-1 inline-block">Remote Eligible</span>' : ''}
+                                </td>
+                                <td class="px-5 py-4">
+                                    <span class="px-2.5 py-1 text-xs rounded-full font-semibold inline-flex items-center gap-1.5 ${
+                                        j.status === 'APPLIED' ? 'bg-emerald-950 text-emerald-300 border border-emerald-600 shadow-sm' :
+                                        j.status === 'INVALID' ? 'bg-rose-950 text-rose-300 border border-rose-600 shadow-sm' :
+                                        j.status.includes('REVIEW_REQUIRED') ? 'bg-purple-950 text-purple-300 border border-purple-600' :
+                                        j.status.includes('DRY_RUN') ? 'bg-amber-950 text-amber-300 border border-amber-600' :
+                                        j.status.includes('FAILED') ? 'bg-rose-950 text-rose-300 border border-rose-600' :
+                                        j.status === 'APPLYING' ? 'bg-blue-900/60 text-blue-300 border border-blue-600 animate-pulse' :
+                                        'bg-slate-800 text-slate-400 border border-slate-700'
+                                    }">
+                                        ${j.status === 'APPLIED' ? '<i class="fa-solid fa-circle-check text-emerald-400 text-[11px]"></i> Applied' :
+                                          j.status === 'INVALID' ? '<i class="fa-solid fa-ban text-rose-400 text-[11px]"></i> Invalid / Expired' :
+                                          j.status.includes('REVIEW_REQUIRED') ? '<i class="fa-solid fa-file-signature text-purple-400 text-[11px]"></i> Review Required' :
+                                          j.status.includes('DRY_RUN') ? '<i class="fa-solid fa-clipboard-check text-amber-400 text-[11px]"></i> Ready (Dry-Run)' :
+                                          j.status.includes('FAILED') ? '<i class="fa-solid fa-circle-exclamation text-rose-400 text-[11px]"></i> Failed' :
+                                          j.status === 'APPLYING' ? '<i class="fa-solid fa-spinner fa-spin text-blue-400 text-[11px]"></i> Applying...' :
+                                          '<i class="fa-regular fa-clock text-slate-500 text-[10px]"></i> Not Applied'}
+                                    </span>
+                                    ${j.status === 'APPLIED' && j.applied_at ? `<div class="text-[10px] text-slate-400 mt-1" title="Date Applied"><i class="fa-solid fa-calendar-check mr-1 text-emerald-500/70"></i>${new Date(j.applied_at + 'Z').toLocaleString()}</div>` : ''}
+                                </td>
+                                <td class="px-5 py-4 text-right space-x-1.5 whitespace-nowrap">
+                                    ${j.status === 'INVALID' ? `
+                                    <button onclick="markJobStatus('${encId}', 'DISCOVERED')" class="px-3 py-1.5 bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-700/80 rounded-md text-xs font-semibold shadow transition inline-flex items-center gap-1.5" title="Marked as Invalid. Click to restore to Discovered.">
+                                        <i class="fa-solid fa-rotate-left text-rose-400"></i> Restore
+                                    </button>` : `
+                                    ${j.status === 'APPLIED' ? `
+                                    <button onclick="markJobStatus('${encId}', 'DISCOVERED')" class="px-3 py-1.5 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/80 rounded-md text-xs font-semibold shadow transition inline-flex items-center gap-1.5" title="Marked as Applied. Click to revert status.">
+                                        <i class="fa-solid fa-circle-check text-emerald-400"></i> Applied ✓
+                                    </button>` : `
+                                    <button onclick="markJobApplied('${encId}')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 border border-slate-700 rounded-md text-xs font-semibold shadow transition inline-flex items-center gap-1.5" title="Manually mark this job as APPLIED in your database">
+                                        <i class="fa-solid fa-check text-emerald-400"></i> Mark Applied
+                                    </button>`}
+                                    <button onclick="markJobStatus('${encId}', 'INVALID')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-rose-400 hover:text-rose-300 border border-slate-700 rounded-md text-xs font-semibold shadow transition inline-flex items-center gap-1.5" title="Mark this job opening as invalid, expired, or closed">
+                                        <i class="fa-solid fa-ban text-rose-400"></i> Invalid
+                                    </button>`}
+                                    <button data-jobid="${encId}" class="btn-apply px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-bold shadow-md transition inline-flex items-center gap-1.5 border border-emerald-500/80" title="Opens browser on screen, auto-fills all fields and answers, and keeps the page open for you to edit & submit">
+                                        <i class="fa-solid fa-wand-magic-sparkles text-yellow-300 text-[11px]"></i> Auto-Fill (Keep Open)
+                                    </button>
+                                    ${hasReview ? `
+                                    <button data-jobid="${encId}" data-company="${encComp}" data-title="${encTitle}" data-url="${encUrl}" data-screenshot="${encScreenshot}" class="btn-review px-2.5 py-1.5 bg-purple-950 hover:bg-purple-900 text-purple-300 border border-purple-700/80 rounded-md text-xs font-semibold shadow transition inline-flex items-center gap-1.5">
+                                        <i class="fa-solid fa-eye text-purple-400"></i> Review Proof
+                                    </button>` : ''}
+                                    <a href="${j.apply_url}" target="_blank" rel="noopener noreferrer" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md text-xs font-medium transition inline-flex items-center gap-1" title="Open blank original link">
+                                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Link
+                                    </a>
+                                </td>
+                            </tr>
+                            `;
+                        }).join('');
+                    }
                 } catch(err) {
                     console.error("Error in loadJobs:", err);
                     const tbody = document.getElementById('jobsTableBody');
@@ -1532,6 +2708,14 @@ def dashboard_html():
                     btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Scan Now';
                     loadAllData();
                 }, 4000);
+            }
+
+            async function forceEliteScan() {
+                alert("Launching headless browser to scroll FAANG career sites. This takes 20-30 seconds...");
+                await fetch('/api/scan-elite', { method: 'POST' });
+                setTimeout(() => {
+                    loadAllData();
+                }, 30000);
             }
 
             async function triggerAudit() {
@@ -1577,10 +2761,77 @@ def dashboard_html():
             function updateSelectedCountUI() {
                 const badge = document.getElementById('selectedCountBadge');
                 const countSpan = document.getElementById('selectedCount');
+                const markAppliedBtn = document.getElementById('bulkMarkAppliedBtn');
+                const markInvalidBtn = document.getElementById('bulkMarkInvalidBtn');
                 if (badge && countSpan) {
                     countSpan.innerText = selectedJobIds.size;
-                    if (selectedJobIds.size > 0) badge.classList.remove('hidden');
-                    else badge.classList.add('hidden');
+                    if (selectedJobIds.size > 0) {
+                        badge.classList.remove('hidden');
+                        if (markAppliedBtn) markAppliedBtn.classList.remove('hidden');
+                        if (markInvalidBtn) markInvalidBtn.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                        if (markAppliedBtn) markAppliedBtn.classList.add('hidden');
+                        if (markInvalidBtn) markInvalidBtn.classList.add('hidden');
+                    }
+                }
+            }
+
+            async function markJobStatus(jobId, newStatus) {
+                try {
+                    const res = await fetch(`/api/job/${encodeURIComponent(jobId)}/status`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: newStatus })
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        loadAllData();
+                    }
+                } catch(err) {
+                    console.error("Error updating job status:", err);
+                }
+            }
+
+            async function markJobApplied(jobId) {
+                await markJobStatus(jobId, 'APPLIED');
+            }
+
+            async function bulkMarkApplied() {
+                const ids = Array.from(selectedJobIds);
+                if (ids.length === 0) return;
+                if (!confirm(`Mark ${ids.length} selected job(s) as APPLIED in database?`)) return;
+                try {
+                    const res = await fetch('/api/bulk-status', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ job_ids: ids, status: 'APPLIED' })
+                    });
+                    const data = await res.json();
+                    selectedJobIds.clear();
+                    updateSelectedCountUI();
+                    loadAllData();
+                } catch(e) {
+                    console.error("Error bulk marking applied:", e);
+                }
+            }
+
+            async function bulkMarkInvalid() {
+                const ids = Array.from(selectedJobIds);
+                if (ids.length === 0) return;
+                if (!confirm(`Mark ${ids.length} selected job opening(s) as INVALID / Closed?`)) return;
+                try {
+                    const res = await fetch('/api/bulk-status', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ job_ids: ids, status: 'INVALID' })
+                    });
+                    const data = await res.json();
+                    selectedJobIds.clear();
+                    updateSelectedCountUI();
+                    loadAllData();
+                } catch(e) {
+                    console.error("Error bulk marking invalid:", e);
                 }
             }
 
@@ -1590,24 +2841,24 @@ def dashboard_html():
                     alert("Please select at least one job using the checkboxes to bulk auto-fill.");
                     return;
                 }
-                const confirmMsg = `Launch stealth auto-filler for ${ids.length} selected applications in Safe Review Mode (dry-run)?\n\n• The browser will auto-fill every form & attach your resume.\n• It will NOT submit the applications.\n• Verification screenshots and portal review links will be provided for your review.`;
+                const confirmMsg = `✨ Launch Headed Browser for ${ids.length} selected applications?\n\n• A single Chrome window will open on your Mac desktop.\n• It will create a separate tab for each job and auto-fill your resume and answers.\n• All tabs remain open for you to edit and click Submit!`;
                 if (!confirm(confirmMsg)) return;
 
                 const btn = document.getElementById('bulkApplyBtn');
-                btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Auto-Filling (${ids.length})...`;
+                btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Opening Tabs (${ids.length})...`;
                 try {
                     const res = await fetch('/api/bulk-apply', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ job_ids: ids, dry_run: dryRun })
+                        body: JSON.stringify({ job_ids: ids, dry_run: dryRun, headed: true, keep_open: true })
                     });
                     const d = await res.json();
-                    alert("⚡ " + d.status + "!\n\nThe stealth browser is now filling forms in the background. Completed jobs will show a green 'Review Application' button.");
+                    alert("🚀 " + d.status + "\n\nWatch your desktop: a Chrome window is opening now with all selected application forms ready for review!");
                     setTimeout(loadAllData, 3000);
                 } catch(e) {
                     alert("Error initiating bulk application: " + e.message);
                 } finally {
-                    btn.innerHTML = `<i class="fa-solid fa-bolt"></i> Bulk Auto-Fill (Dry-Run Review)`;
+                    btn.innerHTML = `<i class="fa-solid fa-bolt"></i> Bulk Auto-Fill (Open In Tabs)`;
                 }
             }
 
@@ -1667,9 +2918,9 @@ def dashboard_html():
             }
 
             async function triggerApply(jobId) {
-                if (!confirm("Launch stealth browser to auto-fill this application? (Safe Dry-Run mode with screenshot verification & portal review link)")) return;
-                await fetch(`/api/apply/${jobId}?dry_run=true`, { method: 'POST' });
-                alert("Stealth Applier launched! Watch browser window or refresh table to review.");
+                if (!confirm("✨ Launch interactive auto-fill?\n\nA browser window will pop up on your screen, pre-fill all fields, attach your resume, and stay open so you can edit and submit directly.")) return;
+                await fetch(`/api/apply/${jobId}?dry_run=true&headed=true&keep_open=true`, { method: 'POST' });
+                alert("🚀 Headed Browser launched!\n\nThe browser window is opening on your desktop and auto-filling your application now. You can edit any field directly and submit when ready.");
                 setTimeout(loadAllData, 4000);
             }
 
@@ -1917,44 +3168,7 @@ def dashboard_html():
                 // 1. Restore any saved filter settings from localStorage, or load defaults
                 restoreFilterState();
                 loadAllData();
-
-                // 2. Automatically trigger live background discovery and failed company resync on page load
-                triggerBackgroundAutoSync();
-
-                // 3. Smooth auto-update loop with live countdown every 15s
-                let countdownSeconds = 15;
-                setInterval(() => {
-                    countdownSeconds -= 1;
-                    const cdSpan = document.getElementById('autoRefreshCountdown');
-                    if (cdSpan) cdSpan.innerText = countdownSeconds;
-
-                    if (countdownSeconds <= 0) {
-                        countdownSeconds = 15;
-                        loadAllData();
-                    }
-                }, 1000);
             });
-
-            async function triggerBackgroundAutoSync() {
-                const syncBadge = document.getElementById('liveSyncStatus');
-                if (syncBadge) syncBadge.classList.remove('hidden');
-
-                try {
-                    // Trigger retry of any failed endpoints automatically
-                    fetch('/api/failures/retry', { method: 'POST' }).catch(() => {});
-                    
-                    // Trigger live unified multi-platform crawl in background
-                    fetch('/api/scan?hours=24', { method: 'POST' }).catch(() => {});
-                } catch(e) {
-                    console.error("Auto-sync trigger error:", e);
-                }
-
-                // Poll to update UI with newly discovered roles
-                setTimeout(() => {
-                    loadAllData();
-                    if (syncBadge) syncBadge.classList.add('hidden');
-                }, 8000);
-            }
         </script>
     </body>
     </html>

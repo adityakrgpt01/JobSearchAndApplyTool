@@ -14,8 +14,8 @@ import re
 import aiohttp
 import asyncio
 from datetime import datetime, timezone
-from typing import List, Dict, Any
-from database import save_job, log_failure, mark_failure_resolved
+from typing import List, Dict, Any, Optional
+from database import save_job, log_failure, mark_failure_resolved, get_crawler_cursor, set_crawler_cursor, get_crawler_iteration
 from smart_due_diligence import perform_smart_due_diligence
 from salary_classifier import classify_salary
 
@@ -30,26 +30,81 @@ from experience_filter import is_qualified_seniority_and_exp
 
 BACKEND_KEYWORDS = [
     "backend", "back end", "back-end", "distributed", "sde 2", "sde-2",
-    "sde ii", "software engineer ii", "senior software engineer", "software development engineer ii"
+    "sde ii", "software engineer ii", "senior software engineer", "software development engineer ii",
+    "software engineer", "sr software engineer", "software development engineer", "software dev engineer",
+    "system software engineer", "systems software engineer", "system software developer",
+    "java developer", "java engineer", "java software engineer", "java backend",
+    "platform engineer", "systems engineer", "mts", "computer scientist", "cloud engineer"
 ]
+
+DISALLOWED_WORKDAY_KEYWORDS = [
+    "frontend", "front-end", "intern", "internship", "qa", "sdet", "warehouse", "sales", "account manager",
+    "android", "androis", "ios", "mobile", "flutter", "swift", "react native", "react-native",
+    "servicenow", "service now", "service-now",
+    "mobile app", "mobile developer", "mobile application", "mobile engineer"
+]
+
+INDIAN_CITIES = [
+    "bengaluru", "bangalore", "hyderabad", "pune", "mumbai",
+    "gurgaon", "gurugram", "delhi", "ncr", "noida", "chennai", "kolkata",
+    "ahmedabad", "chandigarh", "coimbatore", "kochi", "cochin", "indore",
+    "jaipur", "trivandrum", "thiruvananthapuram", "mysore", "mysuru"
+]
+
+def resolve_workday_location(locations_text: str, external_path: str) -> Optional[str]:
+    loc_raw = (locations_text or "").strip()
+    path_raw = (external_path or "").strip()
+    combined = f"{loc_raw} {path_raw}".lower()
+
+    if "india" not in combined:
+        from experience_filter import FOREIGN_COUNTRIES
+        if any(re.search(r'\b' + re.escape(fc) + r'\b', combined) for fc in FOREIGN_COUNTRIES):
+            return None
+
+    matched_city = None
+    for city in INDIAN_CITIES:
+        if city in combined:
+            matched_city = city.capitalize()
+            if matched_city == "Bangalore":
+                matched_city = "Bengaluru"
+            elif matched_city == "Gurgaon":
+                matched_city = "Gurugram"
+            break
+
+    is_remote = "remote" in combined or "wfh" in combined
+
+    if matched_city:
+        suffix = " (Remote)" if is_remote else ""
+        if "location" in loc_raw.lower():
+            return f"{matched_city}, India{suffix} ({loc_raw})"
+        return f"{matched_city}, India{suffix}"
+
+    if "india" in combined:
+        suffix = " (Remote)" if is_remote else ""
+        if "location" in loc_raw.lower():
+            return f"India{suffix} ({loc_raw})"
+        return f"India{suffix}"
+
+    if "location" in loc_raw.lower():
+        from experience_filter import FOREIGN_COUNTRIES
+        if not any(re.search(r'\b' + re.escape(fc) + r'\b', combined) for fc in FOREIGN_COUNTRIES):
+            return f"India ({loc_raw})"
+
+    return None
 
 def is_backend_role(title: str, jd_text: str = "") -> bool:
     if not is_qualified_seniority_and_exp(title, jd_text):
         return False
     t = title.lower()
-    if any(neg in t for neg in ["frontend", "front-end", "intern", "qa", "sdet", "warehouse", "sales", "account manager"]):
+    if any(neg in t for neg in DISALLOWED_WORKDAY_KEYWORDS):
+        return False
+    if re.search(r'\b(ios)\b', t):
         return False
     return any(k in t for k in BACKEND_KEYWORDS)
 
-def is_recent(posted_on: str, max_age_hours: int = 24) -> bool:
-    p = posted_on.lower()
-    if "today" in p or "hour" in p or "minute" in p or "just now" in p:
-        return True
-    if "yesterday" in p or "1 day ago" in p:
-        return max_age_hours >= 24
-    if "2 days ago" in p:
-        return max_age_hours >= 48
-    return False
+def is_recent(posted_on: str, max_age_hours: int = 720) -> bool:
+    # On Workday CXS, any active job returned by the company portal is open for applications.
+    return True
 
 def load_verified_workday_endpoints() -> List[Dict[str, Any]]:
     """Extracts cleanly structured Workday CXS endpoints from dataset URLs."""
@@ -137,7 +192,7 @@ async def scan_single_workday(session: aiohttp.ClientSession, comp: Dict[str, An
         "appliedFacets": {},
         "limit": 20,
         "offset": 0,
-        "searchText": ""
+        "searchText": "Software India"
     }
 
     async with sem:
@@ -148,7 +203,24 @@ async def scan_single_workday(session: aiohttp.ClientSession, comp: Dict[str, An
                     return []
                 data = await resp.json()
                 mark_failure_resolved(api_url)
-                postings = data.get("jobPostings", [])
+                postings = list(data.get("jobPostings", []))
+
+                # Fetch second page if more Software India listings exist
+                total_count = data.get("total", 0)
+                if total_count > 20:
+                    try:
+                        p2 = {
+                            "appliedFacets": {},
+                            "limit": 20,
+                            "offset": 20,
+                            "searchText": "Software India"
+                        }
+                        async with session.post(api_url, json=p2, timeout=aiohttp.ClientTimeout(total=5)) as resp2:
+                            if resp2.status == 200:
+                                d2 = await resp2.json()
+                                postings.extend(d2.get("jobPostings", []))
+                    except Exception:
+                        pass
 
                 for j in postings:
                     title = j.get("title", "")
@@ -159,18 +231,28 @@ async def scan_single_workday(session: aiohttp.ClientSession, comp: Dict[str, An
                     if not is_recent(posted_on):
                         continue
 
-                    locations = j.get("locationsText", "")
-                    loc_low = locations.lower()
-                    # Filter for India locations
-                    if not ("india" in loc_low or "bengaluru" in loc_low or "bangalore" in loc_low or "hyderabad" in loc_low or "pune" in loc_low or "remote" in loc_low):
+                    raw_loc = j.get("locationsText", "")
+                    external_path = j.get("externalPath", "")
+                    if not external_path:
                         continue
 
-                    external_path = j.get("externalPath", "")
-                    if comp.get('tenant') == 'en-US':
-                        apply_url = f"https://{comp['host']}/en-US/{comp.get('board', 'job')}{external_path}" if external_path else f"https://{comp['host']}"
+                    resolved_loc = resolve_workday_location(raw_loc, external_path)
+                    if not resolved_loc:
+                        continue
+
+                    tenant = comp.get("tenant", "")
+                    board = comp.get("board", "job")
+                    host = comp.get("host", "")
+                    if tenant == "en-US":
+                        apply_url = f"https://{host}/en-US/{board}{external_path}"
+                    elif tenant:
+                        apply_url = f"https://{host}/{tenant}/{board}{external_path}"
                     else:
-                        apply_url = f"https://{comp['host']}/{comp['tenant']}{external_path}" if external_path else f"https://{comp['host']}"
-                    job_id = f"wd_{comp['tenant']}_{abs(hash(external_path or title))}"
+                        apply_url = f"https://{host}{external_path}"
+
+                    import hashlib
+                    path_hash = hashlib.md5((external_path or title).encode()).hexdigest()[:12]
+                    job_id = f"wd_{tenant or 'wday'}_{path_hash}"
 
                     tier, est_ctc = classify_salary(name, title)
                     await perform_smart_due_diligence(name)
@@ -179,11 +261,11 @@ async def scan_single_workday(session: aiohttp.ClientSession, comp: Dict[str, An
                         "job_id": job_id,
                         "company_name": name,
                         "title": title,
-                        "location": locations,
-                        "is_remote": "remote" in loc_low,
+                        "location": resolved_loc,
+                        "is_remote": "remote" in resolved_loc.lower(),
                         "ats_platform": "workday",
                         "apply_url": apply_url,
-                        "jd_content": f"{title} at {name}. Location: {locations}. Posted: {posted_on}.",
+                        "jd_content": f"{title} at {name}. Location: {resolved_loc}. Posted: {posted_on}.",
                         "posted_at": posted_on,
                         "experience_required": "4-6 Years (SDE-2 / Senior)",
                         "salary_tier": tier,
@@ -199,9 +281,30 @@ async def scan_single_workday(session: aiohttp.ClientSession, comp: Dict[str, An
 
     return discovered
 
-async def run_workday_cxs_pipeline(concurrency: int = 50) -> List[Dict[str, Any]]:
+async def run_workday_cxs_pipeline(concurrency: int = 40, batch_size: int = 400) -> List[Dict[str, Any]]:
     endpoints = load_verified_workday_endpoints()
-    print(f"🚀 Firing high-precision Workday CXS scan across {len(endpoints)} verified endpoints (Concurrency: {concurrency})...")
+    total = len(endpoints)
+    if not total:
+        return []
+
+    cursor = get_crawler_cursor("workday_cxs", 0)
+    iteration = get_crawler_iteration("workday_cxs", 1)
+
+    # Slice next rotating batch
+    wd_batch = endpoints[cursor : cursor + batch_size]
+    wrapped = False
+    if len(wd_batch) < batch_size and total > batch_size:
+        wd_batch += endpoints[: batch_size - len(wd_batch)]
+        wrapped = True
+
+    next_cursor = (cursor + batch_size) % total
+    if next_cursor < cursor or wrapped:
+        iteration += 1
+
+    set_crawler_cursor("workday_cxs", next_cursor, iteration)
+    progress_pct = round((cursor / total) * 100, 1)
+
+    print(f"🚀 Scanning Workday CXS Batch: [{cursor} - {min(cursor + batch_size, total)} of {total}] ({progress_pct}% of Iteration {iteration}, Concurrency: {concurrency})...")
 
     sem = asyncio.Semaphore(concurrency)
     conn = aiohttp.TCPConnector(limit=concurrency + 10, ttl_dns_cache=300)
@@ -213,12 +316,13 @@ async def run_workday_cxs_pipeline(concurrency: int = 50) -> List[Dict[str, Any]
 
     all_jobs = []
     async with aiohttp.ClientSession(connector=conn, headers=headers) as session:
-        tasks = [scan_single_workday(session, comp, sem) for comp in endpoints]
-        results = await asyncio.gather(*tasks)
+        tasks = [scan_single_workday(session, comp, sem) for comp in wd_batch]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
         for r in results:
-            all_jobs.extend(r)
+            if isinstance(r, list):
+                all_jobs.extend(r)
 
-    print(f"✅ Workday scan finished! Discovered {len(all_jobs)} eligible Senior Backend / SDE-2 opportunities.")
+    print(f"✅ Workday batch finished! Discovered {len(all_jobs)} eligible Senior Backend / SDE-2 opportunities.")
     return all_jobs
 
 if __name__ == "__main__":

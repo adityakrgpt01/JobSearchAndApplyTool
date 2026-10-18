@@ -17,91 +17,96 @@ import re
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Tuple
 
-from database import save_job
+from database import save_job, get_crawler_cursor, set_crawler_cursor, get_crawler_iteration
 from smart_due_diligence import perform_smart_due_diligence
 from salary_classifier import classify_salary
 from ats_scanner import load_all_target_companies, scan_greenhouse_job, scan_lever_job, scan_ashby_job
 from workday_scanner import run_workday_cxs_pipeline
 from instahyre_deep_scanner import scan_instahyre_page
-from linkedin_crawler import run_partitioned_linkedin_crawler, scan_amazon_jobs
+from linkedin_crawler import run_partitioned_linkedin_crawler, scan_amazon_jobs, resolve_linkedin_apply_destination
 
-from experience_filter import is_qualified_seniority_and_exp
-
-DISALLOWED_KEYWORDS = [
-    "frontend", "front-end", "front end", "android", "ios", "react", "angular",
-    "qa engineer", "qa tester", "sdet", "intern", "internship", "graduate",
-    "director", "vp", "vice president", "engineering manager", "devops",
-    "marketing", "sales", "support", "recruiter", "talent"
-]
-
-ALLOWED_KEYWORDS = [
-    "backend", "back end", "back-end", "distributed", "sde 2", "sde-2", "sde ii",
-    "software engineer ii", "senior software engineer", "software development engineer ii",
-    "software engineer 2", "senior backend engineer", "senior software developer",
-    "platform engineer", "systems engineer", "java developer", "golang"
-]
-
-INDIA_REGIONS = [
-    "india", "bengaluru", "bangalore", "hyderabad", "pune", "mumbai",
-    "gurgaon", "gurugram", "delhi", "noida", "chennai", "remote", "anywhere", "work from home"
-]
-
-def is_qualified_job(title: str, location: str, jd_text: str = "") -> bool:
-    t = (title or "").lower()
-    loc = (location or "").lower()
-
-    # 1. Seniority & max experience check (excludes lead, staff, principal, architect, and >6 YoE)
-    if not is_qualified_seniority_and_exp(title, jd_text):
-        return False
-
-    # 2. Negative title filter
-    if any(d in t for d in DISALLOWED_KEYWORDS):
-        return False
-
-    # 3. Positive backend / SDE-2 title filter
-    if not any(a in t for a in ALLOWED_KEYWORDS):
-        return False
-
-    # 4. Location filter (India or Remote)
-    if not any(r in loc for r in INDIA_REGIONS):
-        return False
-
-    return True
+from experience_filter import is_qualified_seniority_and_exp, is_qualified_job
 
 async def heal_job_url(session: aiohttp.ClientSession, job: Dict[str, Any]) -> Tuple[bool, str, str]:
     """
-    Attempts to verify and heal a job's apply_url using canonical ATS fallbacks.
+    Strictly verifies and heals a job's apply_url to guarantee direct job-specific application links.
     Returns: (is_valid, final_url, status_note)
     """
     url = job.get("apply_url", "").strip()
     platform = job.get("ats_platform", "")
     comp = job.get("company_name", "")
+    job_id = job.get("job_id", "")
 
     headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
 
-    # 1. Structural check for protected platforms
-    if platform in ["linkedin", "instahyre"]:
+    # 1. Structural check for protected / direct platforms
+    if platform == "linkedin":
+        resolved_job = await resolve_linkedin_apply_destination(session, dict(job))
+        if resolved_job.get("apply_url") != url:
+            save_job(resolved_job)
+            return True, resolved_job["apply_url"], "HEALED_CANONICAL"
         if len(url) > 25 and ("jobs/view/" in url or "job-" in url):
             return True, url, "DIRECT_VALID"
         return False, url, "INVALID_SYNTAX"
 
-    # 2. Probe primary URL
-    try:
-        async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=5), allow_redirects=True) as resp:
-            if resp.status in [200, 202, 301, 302] and "error=true" not in str(resp.url):
-                return True, url, "DIRECT_VALID"
-    except Exception:
-        pass
+    if platform == "instahyre":
+        if len(url) > 25 and ("jobs/view/" in url or "job-" in url):
+            return True, url, "DIRECT_VALID"
+        return False, url, "INVALID_SYNTAX"
 
-    # 3. Level 1: Canonical ATS Auto-Healing
+    # Strict check: Does URL contain a direct job identifier path?
+    has_specific_job_id = False
+    if platform == "greenhouse":
+        has_specific_job_id = bool(re.search(r'(?:jobs/|gh_jid=)\d+', url))
+    elif platform == "workday":
+        has_specific_job_id = "/job/" in url.lower()
+    elif platform == "ashby":
+        has_specific_job_id = "/application" in url.lower() or bool(re.search(r'ashbyhq\.com/[^/]+/[a-f0-9\-]+', url.lower()))
+    elif platform == "lever":
+        has_specific_job_id = bool(re.search(r'lever\.co/[^/]+/[a-f0-9\-]+', url.lower()))
+    else:
+        has_specific_job_id = len(url) > 20
+
+    # 2. Probe primary URL if it has a specific job ID
+    if has_specific_job_id:
+        try:
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=5), allow_redirects=True) as resp:
+                if resp.status in [200, 202, 301, 302] and "error=true" not in str(resp.url):
+                    return True, url, "DIRECT_VALID"
+        except Exception:
+            pass
+
+    # 3. Canonical ATS Reconstruction & Auto-Healing
     fallbacks = []
     if platform == "greenhouse":
-        m_id = re.search(r'(?:jobs/|gh_jid=)(\d+)', url)
-        if m_id:
-            jid = m_id.group(1)
-            norm = comp.lower().replace(" ", "").replace("-", "")
-            fallbacks.append(f"https://job-boards.greenhouse.io/{norm}/jobs/{jid}")
-            fallbacks.append(f"https://boards.greenhouse.io/{norm}/jobs/{jid}")
+        m_job_id = re.match(r'^gh_([^_]+)_(\d+)$', job_id)
+        if m_job_id:
+            token, jid = m_job_id.group(1), m_job_id.group(2)
+            try:
+                api_url = f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs/{jid}"
+                async with session.get(api_url, timeout=aiohttp.ClientTimeout(total=4)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        abs_url = data.get("absolute_url")
+                        if abs_url:
+                            return True, abs_url, "HEALED_CANONICAL"
+            except Exception:
+                pass
+
+            fallbacks.append(f"https://job-boards.greenhouse.io/{token}/jobs/{jid}")
+            fallbacks.append(f"https://boards.greenhouse.io/{token}/jobs/{jid}")
+
+    elif platform == "ashby":
+        m_ashby = re.match(r'^ashby_([^_]+)_([a-f0-9\-]+)$', job_id)
+        if m_ashby:
+            comp_slug, real_jid = m_ashby.group(1), m_ashby.group(2)
+            fallbacks.append(f"https://jobs.ashbyhq.com/{comp_slug}/{real_jid}")
+
+    elif platform == "lever":
+        m_lever = re.match(r'^lever_([^_]+)_([a-f0-9\-]+)$', job_id)
+        if m_lever:
+            comp_slug, real_jid = m_lever.group(1), m_lever.group(2)
+            fallbacks.append(f"https://jobs.lever.co/{comp_slug}/{real_jid}")
 
     elif platform == "workday":
         m_wd = re.match(r'https://([^/]+)(?:/[^/]+)?(/job/.+)', url)
@@ -110,13 +115,8 @@ async def heal_job_url(session: aiohttp.ClientSession, job: Dict[str, Any]) -> T
             norm = comp.lower().replace(" ", "")
             fallbacks.append(f"https://{host}/{norm}{path}")
             fallbacks.append(f"https://{host}/en-US/{norm}{path}")
-            fallbacks.append(f"https://{host}/en-US/Careers{path}")
 
-    elif platform == "lever":
-        m_lev = re.search(r'lever\.co/([^/]+)/([a-f0-9\-]+)', url)
-        if m_lev:
-            fallbacks.append(f"https://jobs.lever.co/{m_lev.group(1)}/{m_lev.group(2)}")
-
+    # Test reconstructed fallbacks
     for fb in fallbacks:
         try:
             async with session.get(fb, headers=headers, timeout=aiohttp.ClientTimeout(total=4), allow_redirects=True) as resp:
@@ -125,28 +125,16 @@ async def heal_job_url(session: aiohttp.ClientSession, job: Dict[str, Any]) -> T
         except Exception:
             continue
 
-    # 4. Level 2: Company Career Portal Fallback (Never Miss Strategy)
-    portal_fallback = None
-    if platform == "greenhouse":
-        portal_fallback = f"https://job-boards.greenhouse.io/{comp.lower().replace(' ', '')}"
-    elif platform == "workday":
-        m = re.match(r'https://([^/]+)', url)
-        if m:
-            portal_fallback = f"https://{m.group(1)}"
-    elif platform == "ashby":
-        portal_fallback = f"https://jobs.ashbyhq.com/{comp.lower().replace(' ', '')}"
-
-    if portal_fallback:
-        return True, portal_fallback, "PORTAL_FALLBACK"
-
-    return False, url, "DEAD_UNRESOLVABLE"
+    # Strict Policy: Generic landing portal URLs without direct job paths are rejected
+    return False, url, "GENERIC_PORTAL_INVALID"
 
 async def audit_and_clean_database_links(max_concurrent: int = 30) -> Dict[str, int]:
     """Audits existing job postings, auto-heals broken links, and falls back to career portals so no company is missed."""
-    conn = sqlite3.connect("jobs.db")
+    conn = sqlite3.connect("jobs.db", timeout=30.0)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT job_id, company_name, ats_platform, apply_url FROM job_postings")
+    # Never audit or delete jobs that have already been APPLIED
+    c.execute("SELECT * FROM job_postings WHERE status != 'APPLIED'")
     jobs = [dict(r) for r in c.fetchall()]
     conn.close()
 
@@ -173,7 +161,7 @@ async def audit_and_clean_database_links(max_concurrent: int = 30) -> Dict[str, 
 
         await asyncio.gather(*[check(j) for j in jobs])
 
-    conn = sqlite3.connect("jobs.db")
+    conn = sqlite3.connect("jobs.db", timeout=30.0)
     c = conn.cursor()
     if healed_updates:
         c.executemany("UPDATE job_postings SET apply_url = ? WHERE job_id = ?", healed_updates)
@@ -189,9 +177,9 @@ async def audit_and_clean_database_links(max_concurrent: int = 30) -> Dict[str, 
         "dead_removed": len(dead_job_ids)
     }
 
-async def run_unified_discovery(hours: int = 24) -> Dict[str, Any]:
+async def run_unified_discovery(hours: int = 168) -> Dict[str, Any]:
     """Runs a complete autonomous scan across all platforms with qualification and link verification."""
-    print(f"🚀 Starting Unified Discovery Pipeline (Window: {hours}h)...")
+    print(f"🚀 Starting Unified Discovery Pipeline (Window: {hours}h / 7 days)...")
     
     # 1. Multi-ATS (Greenhouse, Lever, Ashby)
     grouped = load_all_target_companies()
@@ -201,40 +189,62 @@ async def run_unified_discovery(hours: int = 24) -> Dict[str, Any]:
     
     discovered_jobs = []
 
-    # Continuous Rotating Cursors across all 6,000+ registered companies
-    # Greenhouse: 2,780, Ashby: 669, Lever: 345, Workday: 2,275
-    global _CURSOR_GH, _CURSOR_ASHBY, _CURSOR_LEVER, _CURSOR_WD
-    if "_CURSOR_GH" not in globals():
-        _CURSOR_GH = 0
-        _CURSOR_ASHBY = 0
-        _CURSOR_LEVER = 0
-        _CURSOR_WD = 0
-
+    # Persistent Rotating Cursors across all registered companies in jobs.db
+    # Greenhouse: ~2,780, Ashby: ~669, Lever: ~345, Workday: ~2,275
     BATCH_GH = 350
-    BATCH_ASHBY = 150
-    BATCH_LEVER = 120
+    BATCH_ASHBY = 140
+    BATCH_LEVER = 115
 
     gh_all = grouped.get("greenhouse", [])
     ashby_all = grouped.get("ashby", [])
     lever_all = grouped.get("lever", [])
 
-    # Slice next rotating window
-    gh_batch = gh_all[_CURSOR_GH:_CURSOR_GH + BATCH_GH]
-    if len(gh_batch) < BATCH_GH:
-        gh_batch += gh_all[:BATCH_GH - len(gh_batch)]
-    _CURSOR_GH = (_CURSOR_GH + BATCH_GH) % max(1, len(gh_all))
+    # 1. Greenhouse Persistent Batch
+    gh_cursor = get_crawler_cursor("cursor_greenhouse", 0)
+    gh_iter = get_crawler_iteration("cursor_greenhouse", 1)
+    gh_total = max(1, len(gh_all))
+    gh_batch = gh_all[gh_cursor : gh_cursor + BATCH_GH]
+    gh_wrapped = False
+    if len(gh_batch) < BATCH_GH and gh_total > BATCH_GH:
+        gh_batch += gh_all[: BATCH_GH - len(gh_batch)]
+        gh_wrapped = True
+    next_gh_cursor = (gh_cursor + BATCH_GH) % gh_total
+    if next_gh_cursor < gh_cursor or gh_wrapped:
+        gh_iter += 1
+    set_crawler_cursor("cursor_greenhouse", next_gh_cursor, gh_iter)
 
-    ashby_batch = ashby_all[_CURSOR_ASHBY:_CURSOR_ASHBY + BATCH_ASHBY]
-    if len(ashby_batch) < BATCH_ASHBY:
-        ashby_batch += ashby_all[:BATCH_ASHBY - len(ashby_batch)]
-    _CURSOR_ASHBY = (_CURSOR_ASHBY + BATCH_ASHBY) % max(1, len(ashby_all))
+    # 2. Ashby Persistent Batch
+    ashby_cursor = get_crawler_cursor("cursor_ashby", 0)
+    ashby_iter = get_crawler_iteration("cursor_ashby", 1)
+    ashby_total = max(1, len(ashby_all))
+    ashby_batch = ashby_all[ashby_cursor : ashby_cursor + BATCH_ASHBY]
+    ashby_wrapped = False
+    if len(ashby_batch) < BATCH_ASHBY and ashby_total > BATCH_ASHBY:
+        ashby_batch += ashby_all[: BATCH_ASHBY - len(ashby_batch)]
+        ashby_wrapped = True
+    next_ashby_cursor = (ashby_cursor + BATCH_ASHBY) % ashby_total
+    if next_ashby_cursor < ashby_cursor or ashby_wrapped:
+        ashby_iter += 1
+    set_crawler_cursor("cursor_ashby", next_ashby_cursor, ashby_iter)
 
-    lever_batch = lever_all[_CURSOR_LEVER:_CURSOR_LEVER + BATCH_LEVER]
-    if len(lever_batch) < BATCH_LEVER:
-        lever_batch += lever_all[:BATCH_LEVER - len(lever_batch)]
-    _CURSOR_LEVER = (_CURSOR_LEVER + BATCH_LEVER) % max(1, len(lever_all))
+    # 3. Lever Persistent Batch
+    lever_cursor = get_crawler_cursor("cursor_lever", 0)
+    lever_iter = get_crawler_iteration("cursor_lever", 1)
+    lever_total = max(1, len(lever_all))
+    lever_batch = lever_all[lever_cursor : lever_cursor + BATCH_LEVER]
+    lever_wrapped = False
+    if len(lever_batch) < BATCH_LEVER and lever_total > BATCH_LEVER:
+        lever_batch += lever_all[: BATCH_LEVER - len(lever_batch)]
+        lever_wrapped = True
+    next_lever_cursor = (lever_cursor + BATCH_LEVER) % lever_total
+    if next_lever_cursor < lever_cursor or lever_wrapped:
+        lever_iter += 1
+    set_crawler_cursor("cursor_lever", next_lever_cursor, lever_iter)
 
-    print(f"🔄 Scanning rotating batch: Greenhouse ({len(gh_batch)} of {len(gh_all)}), Ashby ({len(ashby_batch)} of {len(ashby_all)}), Lever ({len(lever_batch)} of {len(lever_all)})")
+    print(f"🔄 Scanning Rotating Batch across 6,000+ companies:")
+    print(f"   ├─ Greenhouse: [{gh_cursor} - {min(gh_cursor + BATCH_GH, gh_total)} of {gh_total}] ({round((gh_cursor/gh_total)*100, 1)}% of Iteration {gh_iter})")
+    print(f"   ├─ Ashby:      [{ashby_cursor} - {min(ashby_cursor + BATCH_ASHBY, ashby_total)} of {ashby_total}] ({round((ashby_cursor/ashby_total)*100, 1)}% of Iteration {ashby_iter})")
+    print(f"   └─ Lever:      [{lever_cursor} - {min(lever_cursor + BATCH_LEVER, lever_total)} of {lever_total}] ({round((lever_cursor/lever_total)*100, 1)}% of Iteration {lever_iter})")
 
     async with aiohttp.ClientSession(connector=conn_obj, headers=headers) as session:
         # Run Multi-ATS
@@ -261,9 +271,9 @@ async def run_unified_discovery(hours: int = 24) -> Dict[str, Any]:
     except Exception as e:
         print(f"Instahyre scan note: {e}")
 
-    # 3. Workday CXS Resilient (rotating batch across 2,275 verified Workday endpoints)
+    # 3. Workday CXS Resilient (rotating batch across verified Workday endpoints)
     try:
-        wd_jobs = await run_workday_cxs_pipeline(concurrency=35)
+        wd_jobs = await run_workday_cxs_pipeline(concurrency=35, batch_size=380)
         discovered_jobs.extend(wd_jobs)
     except Exception as e:
         print(f"Workday scan note: {e}")
