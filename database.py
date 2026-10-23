@@ -2,14 +2,20 @@ import sqlite3
 import json
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from experience_filter import is_qualified_seniority_and_exp, is_qualified_job
 
 DB_PATH = "jobs.db"
 
+def get_db_connection(db_path: str = DB_PATH, timeout: float = 10.0) -> sqlite3.Connection:
+    """Returns a SQLite connection with Unicode-aware LOWER registered."""
+    conn = sqlite3.connect(db_path, timeout=timeout)
+    conn.create_function("lower", 1, lambda s: s.lower() if s is not None else None)
+    return conn
+
 def init_db(db_path: str = DB_PATH):
     """Initializes the SQLite database with decoupled tables."""
-    conn = sqlite3.connect(db_path)
+    conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
     # 1. Company Due Diligence & Intelligence Table
@@ -165,22 +171,57 @@ def get_crawler_iteration(key: str, default: int = 1, db_path: str = DB_PATH) ->
     except Exception:
         return default
 
+def parse_headcount_bounds(hr: str) -> Tuple[int, int]:
+    """Parses text headcount ranges (e.g. '1,000 - 5,000', '50,000+', '100 - 2,000') into integer bounds (min, max)."""
+    if not hr:
+        return 0, 0
+    s = str(hr).replace(',', '').strip()
+    m = re.search(r'(\d+)\s*(?:-|to)\s*(\d+)', s)
+    if m:
+        v1, v2 = int(m.group(1)), int(m.group(2))
+        if 1900 <= v1 <= 2030 and v2 < 1900:
+            # Founding year prefix (e.g. '2019 - 87' -> 87 employees)
+            return v2, v2
+        elif v1 > v2:
+            return v2, v1
+        return v1, v2
+    m = re.search(r'(\d+)\+', s)
+    if m:
+        val = int(m.group(1))
+        if val == 0:
+            return 0, 10
+        return val, val if val >= 50000 else val * 2
+    m = re.search(r'^(\d+)$', s)
+    if m:
+        val = int(m.group(1))
+        return val, val
+    return 0, 0
+
 def save_company_intelligence(data: Dict[str, Any], db_path: str = DB_PATH):
-    conn = sqlite3.connect(db_path)
+    conn = get_db_connection(db_path)
     cursor = conn.cursor()
     norm = data["company_name"].strip().lower()
+    h_range = data.get("headcount_range", "")
+    h_min, h_max = parse_headcount_bounds(h_range)
+    if data.get("headcount_min") and int(data["headcount_min"]) > 0:
+        h_min = int(data["headcount_min"])
+    if data.get("headcount_max") and int(data["headcount_max"]) > 0:
+        h_max = int(data["headcount_max"])
+
     cursor.execute("""
     INSERT INTO companies_intelligence (
         company_name, normalized_name, domain, glassdoor_rating, ambitionbox_rating,
-        engineering_wlb_score, culture_summary, headcount_range, stage_or_type,
+        engineering_wlb_score, culture_summary, headcount_range, headcount_min, headcount_max, stage_or_type,
         has_recent_layoffs, layoffs_details, risk_level, salary_benchmark_tier, raw_metadata, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(normalized_name) DO UPDATE SET
         glassdoor_rating=excluded.glassdoor_rating,
         ambitionbox_rating=excluded.ambitionbox_rating,
         engineering_wlb_score=excluded.engineering_wlb_score,
         culture_summary=excluded.culture_summary,
         headcount_range=excluded.headcount_range,
+        headcount_min=excluded.headcount_min,
+        headcount_max=excluded.headcount_max,
         stage_or_type=excluded.stage_or_type,
         has_recent_layoffs=excluded.has_recent_layoffs,
         layoffs_details=excluded.layoffs_details,
@@ -196,7 +237,9 @@ def save_company_intelligence(data: Dict[str, Any], db_path: str = DB_PATH):
         data.get("ambitionbox_rating"),
         data.get("engineering_wlb_score"),
         data.get("culture_summary", ""),
-        data.get("headcount_range", ""),
+        h_range,
+        h_min,
+        h_max,
         data.get("stage_or_type", ""),
         1 if data.get("has_recent_layoffs") else 0,
         data.get("layoffs_details", ""),
@@ -208,7 +251,7 @@ def save_company_intelligence(data: Dict[str, Any], db_path: str = DB_PATH):
     conn.close()
 
 def get_company_intelligence(company_name: str, db_path: str = DB_PATH) -> Optional[Dict[str, Any]]:
-    conn = sqlite3.connect(db_path)
+    conn = get_db_connection(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     norm = company_name.strip().lower()
@@ -388,7 +431,7 @@ def list_jobs(
     exclude_locations: Optional[str] = None,
     db_path: str = DB_PATH
 ) -> List[Dict[str, Any]]:
-    conn = sqlite3.connect(db_path)
+    conn = get_db_connection(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -491,19 +534,19 @@ def list_jobs(
             if cs in ("0-10", "seed-nano"):
                 csize_conds.append("((c.headcount_max > 0 AND c.headcount_max <= 10) OR (c.headcount_max = 0 AND c.headcount_range = '0 - 10'))")
             elif cs in ("10-50", "stealth-seed"):
-                csize_conds.append("((c.headcount_max > 0 AND c.headcount_max > 10 AND c.headcount_max <= 50) OR (c.headcount_max = 0 AND c.headcount_range = '10 - 50'))")
+                csize_conds.append("((c.headcount_max > 10 AND c.headcount_min < 50) OR (c.headcount_min >= 10 AND c.headcount_min < 50))")
             elif cs in ("50-100", "series-a"):
-                csize_conds.append("((c.headcount_max > 0 AND c.headcount_max > 50 AND c.headcount_max <= 100) OR (c.headcount_max = 0 AND c.headcount_range = '50 - 100'))")
+                csize_conds.append("((c.headcount_max > 50 AND c.headcount_min < 100) OR (c.headcount_min >= 50 AND c.headcount_min < 100))")
             elif cs in ("100-500", "series-b"):
-                csize_conds.append("((c.headcount_max > 0 AND c.headcount_max > 100 AND c.headcount_max <= 500) OR (c.headcount_max = 0 AND c.headcount_range = '100 - 500'))")
+                csize_conds.append("((c.headcount_max > 100 AND c.headcount_min < 500) OR (c.headcount_min >= 100 AND c.headcount_min < 500))")
             elif cs in ("500-1000", "series-c-d", "startup-small", "startupsmall"):
-                csize_conds.append("((c.headcount_max > 0 AND c.headcount_max > 500 AND c.headcount_max <= 1000) OR (c.headcount_max = 0 AND (c.headcount_range = '500 - 1,000' OR c.headcount_range LIKE '100%' OR c.headcount_range LIKE '500%' OR j.ats_platform = 'ashby')))")
+                csize_conds.append("((c.headcount_max > 500 AND c.headcount_min < 1000) OR (c.headcount_min >= 500 AND c.headcount_min < 1000))")
             elif cs in ("1000-5000", "mid-scaleup", "midscaleup"):
-                csize_conds.append("((c.headcount_max > 0 AND c.headcount_max > 1000 AND c.headcount_max <= 5000) OR (c.headcount_max = 0 AND (c.headcount_range = '1,000 - 5,000' OR c.headcount_range LIKE '2,%' OR c.headcount_range LIKE '3,%' OR c.headcount_range LIKE '4,%')))")
+                csize_conds.append("((c.headcount_max > 1000 AND c.headcount_min < 5000) OR (c.headcount_min >= 1000 AND c.headcount_min < 5000))")
             elif cs in ("5000+", "large-enterprise", "largeenterprise"):
-                csize_conds.append("((c.headcount_max > 0 AND c.headcount_max > 5000) OR (c.headcount_max = 0 AND (c.headcount_range = '50,000+' OR c.headcount_range = '5,000 - 50,000' OR c.headcount_range LIKE '5,%' OR c.headcount_range LIKE '6,%' OR c.headcount_range LIKE '7,%' OR c.headcount_range LIKE '8,%' OR c.headcount_range LIKE '10,%' OR c.headcount_range LIKE '30,%' OR c.headcount_range LIKE '200,%' OR c.headcount_range LIKE '1,000,000%' OR j.ats_platform = 'workday')))")
+                csize_conds.append("(c.headcount_max >= 5000 OR c.headcount_min >= 5000 OR (c.headcount_max = 0 AND j.ats_platform IN ('workday', 'amazon', 'apple')))")
             elif cs in ("50000+", "mega-enterprise"):
-                csize_conds.append("((c.headcount_max > 0 AND c.headcount_max >= 50000) OR (c.headcount_max = 0 AND (c.headcount_range = '50,000+' OR c.headcount_range LIKE '200,%' OR c.headcount_range LIKE '1,000,000%')))")
+                csize_conds.append("(c.headcount_max >= 50000 OR c.headcount_min >= 50000)")
         if csize_conds:
             query += f" AND ({' OR '.join(csize_conds)})"
 
@@ -716,6 +759,37 @@ def get_portal_account(domain: str, db_path: str = DB_PATH) -> Optional[Dict[str
     if row:
         return dict(row)
     return None
+
+def purge_bogus_failures(db_path: str = DB_PATH) -> Dict[str, int]:
+    """Purges malformed failure logs and resets Workday, Eightfold, and Phenom for resilient fallback probing."""
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    # 1. Purge malformed Greenhouse entries with spaces or workday_ prefixes
+    c.execute("""
+    DELETE FROM scraper_failures 
+    WHERE source = 'greenhouse' 
+      AND (target_url LIKE '%boards/workday_%' OR target_url LIKE '% %' OR target_url LIKE '%.%')
+    """)
+    gh_purged = c.rowcount
+
+    # 2. Reset Workday endpoints so the multi-slug prober and Playwright spider can evaluate all endpoints
+    c.execute("""
+    UPDATE scraper_failures 
+    SET resolved = 0, retry_count = 0
+    WHERE source = 'workday' AND (http_status = 422 OR http_status = 503 OR failure_reason LIKE '%maintenance-page%')
+    """)
+    wd_reset = c.rowcount
+
+    # 3. Clean up obsolete Eightfold and Phenom failures so reconfigured adapters can run
+    c.execute("""
+    DELETE FROM scraper_failures 
+    WHERE source IN ('eightfold', 'phenom')
+    """)
+    ef_ph_cleared = c.rowcount
+
+    conn.commit()
+    conn.close()
+    return {"gh_purged": gh_purged, "wd_reset": wd_reset, "ef_ph_cleared": ef_ph_cleared}
 
 if __name__ == "__main__":
     init_db()

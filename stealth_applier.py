@@ -258,6 +258,7 @@ class StealthApplier:
 
             try:
                 success, status, final_msg = await self.fill_page(page, job, dry_run=self.dry_run)
+                update_job_status(job_id, status, final_msg, screenshot_path)
                 
                 if self.keep_open and not headless_mode:
                     print(f"[{job_id}] Headed browser mode active: Leaving form open on screen for user review and direct submission.")

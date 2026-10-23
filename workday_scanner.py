@@ -181,19 +181,7 @@ def load_verified_workday_endpoints() -> List[Dict[str, Any]]:
     except Exception:
         pass
 
-    # Filter out permanently retired endpoints (e.g. 404s or persistent 422s) from jobs.db scraper_failures
-    try:
-        import sqlite3
-        conn = sqlite3.connect("jobs.db")
-        c = conn.cursor()
-        c.execute("SELECT target_url FROM scraper_failures WHERE source = 'workday' AND resolved = 1")
-        retired_urls = set(r[0] for r in c.fetchall())
-        conn.close()
-        active_endpoints = [e for e in endpoints.values() if e["api_url"] not in retired_urls]
-        return active_endpoints
-    except Exception:
-        pass
-
+    # Return all unique verified endpoints across 2,200+ enterprise companies and top 550 MNCs
     return list(endpoints.values())
 
 async def scan_single_workday(session: aiohttp.ClientSession, comp: Dict[str, Any], sem: asyncio.Semaphore) -> List[Dict[str, Any]]:
@@ -218,13 +206,23 @@ async def scan_single_workday(session: aiohttp.ClientSession, comp: Dict[str, An
             # 1. Primary endpoint attempt
             async with session.post(api_url, json=payload, timeout=aiohttp.ClientTimeout(total=7)) as resp:
                 if resp.status == 200:
-                    resp_data = await resp.json()
-                    mark_failure_resolved(api_url)
-                elif resp.status == 404:
-                    # 2. Board Fallback Probing: Try standard Workday board aliases
+                    headers = getattr(resp, "headers", {})
+                    ct = headers.get("Content-Type", "").lower() if hasattr(headers, "get") else ""
+                    if "html" in ct:
+                        log_failure("workday", name, api_url, "Workday Maintenance / WAF HTML redirect", 503)
+                        return []
+                    try:
+                        resp_data = await resp.json()
+                        mark_failure_resolved(api_url)
+                    except Exception as e:
+                        log_failure("workday", name, api_url, f"Malformed JSON: {e}", 502)
+                        return []
+                elif resp.status in (404, 422):
+                    # 2. Board Fallback Probing: Try standard Workday board aliases for 404 and 422 slug mismatches
                     fallback_boards = [
                         "External", "Careers", "jobs", "External_Career_Site",
-                        f"{tenant}_Careers", f"{name.replace(' ', '_')}_Careers", "External_Careers"
+                        "Global_Careers", "global_careers", "experienced", "Experienced",
+                        f"{tenant}_Careers", f"{tenant}Careers", f"{name.replace(' ', '_')}_Careers", "External_Careers"
                     ]
                     fallback_boards = [b for b in fallback_boards if b.lower() != board.lower()]
                     
@@ -233,11 +231,28 @@ async def scan_single_workday(session: aiohttp.ClientSession, comp: Dict[str, An
                         try:
                             async with session.post(fb_url, json=payload, timeout=aiohttp.ClientTimeout(total=5)) as fb_resp:
                                 if fb_resp.status == 200:
-                                    resp_data = await fb_resp.json()
+                                    fb_headers = getattr(fb_resp, "headers", {})
+                                    fb_ct = fb_headers.get("Content-Type", "").lower() if hasattr(fb_headers, "get") else ""
+                                    if "html" in fb_ct:
+                                        continue
+                                    try:
+                                        resp_data = await fb_resp.json()
+                                    except Exception:
+                                        continue
                                     api_url = fb_url
                                     comp["board"] = fb_board
                                     comp["api_url"] = fb_url
                                     mark_failure_resolved(api_url)
+                                    try:
+                                        import sqlite3
+                                        conn_u = sqlite3.connect("jobs.db")
+                                        cu = conn_u.cursor()
+                                        cu.execute("UPDATE mnc_directory SET direct_career_url = ? WHERE LOWER(company_name) = LOWER(?)", 
+                                                   (f"https://{host}/en-US/{fb_board}", name))
+                                        conn_u.commit()
+                                        conn_u.close()
+                                    except Exception:
+                                        pass
                                     break
                         except Exception:
                             continue

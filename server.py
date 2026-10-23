@@ -267,7 +267,7 @@ async def run_bulk_applications(job_ids: List[str], dry_run: bool = True, headed
                 print(f"[Bulk Autofill Error] {jid}: {e}")
             await asyncio.sleep(2.0)
 
-@app.post("/api/apply/{job_id}")
+@app.post("/api/apply/{job_id:path}")
 async def apply_single_job(job_id: str, background_tasks: BackgroundTasks, dry_run: bool = True, headed: bool = True, keep_open: bool = True):
     jobs = list_jobs()
     target_job = next((j for j in jobs if j["job_id"] == job_id), None)
@@ -287,6 +287,7 @@ async def bulk_apply_jobs(req: BulkApplyRequest, background_tasks: BackgroundTas
     background_tasks.add_task(run_bulk_applications, req.job_ids, req.dry_run, req.headed, req.keep_open)
 class UpdateStatusRequest(BaseModel):
     status: str = "APPLIED"
+    job_id: Optional[str] = None
 
 class BulkStatusRequest(BaseModel):
     job_ids: List[str]
@@ -308,11 +309,15 @@ class CompanyRatingRequest(BaseModel):
     wlb_score: Optional[float] = None
 
 
-@app.post("/api/job/{job_id}/status")
-def update_status_endpoint(job_id: str, req: UpdateStatusRequest):
+@app.post("/api/job/status")
+@app.post("/api/job/{job_id:path}/status")
+def update_status_endpoint(req: UpdateStatusRequest, job_id: Optional[str] = None):
+    target_id = req.job_id or job_id
+    if not target_id:
+        raise HTTPException(status_code=400, detail="Missing job_id")
     new_status = req.status.upper().strip()
-    update_job_status(job_id, new_status, f"Status updated to {new_status} manually by user in dashboard UI")
-    return {"status": "success", "job_id": job_id, "new_status": new_status}
+    update_job_status(target_id, new_status, f"Status updated to {new_status} manually by user in dashboard UI")
+    return {"status": "success", "job_id": target_id, "new_status": new_status}
 
 @app.post("/api/bulk-status")
 def bulk_status_endpoint(req: BulkStatusRequest):
@@ -649,6 +654,14 @@ def dashboard_html():
                             <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
                                 <input type="checkbox" value="amazon" class="plat-checkbox accent-purple-500 rounded" checked onchange="onPlatformCheckboxChange()" />
                                 <span><i class="fa-brands fa-amazon text-amber-500 w-4"></i> Amazon Direct API</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="eightfold" class="plat-checkbox accent-purple-500 rounded" checked onchange="onPlatformCheckboxChange()" />
+                                <span><i class="fa-solid fa-infinity text-pink-400 w-4"></i> Eightfold.ai Enterprise</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-200 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                                <input type="checkbox" value="phenom" class="plat-checkbox accent-purple-500 rounded" checked onchange="onPlatformCheckboxChange()" />
+                                <span><i class="fa-solid fa-globe text-cyan-400 w-4"></i> Phenom People Enterprise</span>
                             </label>
                         </div>
                     </div>
@@ -1322,56 +1335,57 @@ def dashboard_html():
                             const cb = document.querySelector(`.plat-checkbox[value='${p.value}']`);
                             if (cb) cb.checked = p.checked;
                         });
-                        onPlatformCheckboxChange();
+                        updatePlatformLabel();
                     }
                     if (Array.isArray(state.tiers)) {
                         state.tiers.forEach(p => {
                             const cb = document.querySelector(`.tier-checkbox[value='${p.value}']`);
                             if (cb) cb.checked = p.checked;
                         });
-                        onTierCheckboxChange();
+                        updateTierLabel();
                     }
                     if (Array.isArray(state.locations)) {
                         state.locations.forEach(p => {
                             const cb = document.querySelector(`.remote-checkbox[value='${p.value}']`);
                             if (cb) cb.checked = p.checked;
                         });
-                        onRemoteModeCheckboxChange();
+                        updateRemoteModeLabel();
                     }
                     if (Array.isArray(state.compTypes)) {
                         state.compTypes.forEach(p => {
                             const cb = document.querySelector(`.type-checkbox[value='${p.value}']`);
                             if (cb) cb.checked = p.checked;
                         });
-                        onCompanyTypeCheckboxChange();
+                        updateCompanyTypeLabel();
                     }
                     if (Array.isArray(state.compSizes)) {
                         state.compSizes.forEach(p => {
                             const cb = document.querySelector(`.size-checkbox[value='${p.value}']`);
                             if (cb) cb.checked = p.checked;
                         });
-                        onCompanySizeCheckboxChange();
+                        updateCompanySizeLabel();
                     }
                     if (Array.isArray(state.cultures)) {
                         state.cultures.forEach(p => {
                             const cb = document.querySelector(`.culture-checkbox[value='${p.value}']`);
                             if (cb) cb.checked = p.checked;
                         });
-                        onCultureCheckboxChange();
+                        updateCultureLabel();
                     }
                     if (Array.isArray(state.risks)) {
                         state.risks.forEach(p => {
                             const cb = document.querySelector(`.risk-checkbox[value='${p.value}']`);
                             if (cb) cb.checked = p.checked;
                         });
-                        onRiskCheckboxChange();
+                        updateRiskLabel();
                     }
                     if (Array.isArray(state.statuses)) {
                         state.statuses.forEach(p => {
                             const cb = document.querySelector(`.status-checkbox[value='${p.value}']`);
                             if (cb) cb.checked = p.checked;
                         });
-                        onStatusCheckboxChange();
+                        updateStatusLabel();
+                        updateStatusHeaderUI();
                     }
 
                     // Update UI time buttons
@@ -2174,10 +2188,11 @@ def dashboard_html():
 
             async function markJobStatus(jobId, newStatus) {
                 try {
-                    const res = await fetch(`/api/job/${encodeURIComponent(jobId)}/status`, {
+                    const cleanId = decodeURIComponent(jobId);
+                    const res = await fetch('/api/job/status', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ status: newStatus })
+                        body: JSON.stringify({ job_id: cleanId, status: newStatus })
                     });
                     const data = await res.json();
                     if (data.status === 'success') {
@@ -2302,12 +2317,14 @@ def dashboard_html():
                                     j.status.includes('REVIEW_REQUIRED') ? 'bg-purple-950 text-purple-300 border border-purple-600' :
                                     j.status.includes('DRY_RUN') ? 'bg-amber-950 text-amber-300 border border-amber-600' :
                                     j.status.includes('FAILED') ? 'bg-rose-950 text-rose-300 border border-rose-600' :
+                                    j.status === 'APPLYING' ? 'bg-blue-950 text-blue-300 border border-blue-600' :
                                     'bg-slate-800 text-slate-400 border border-slate-700'
                                 }">
                                     ${j.status === 'APPLIED' ? '<i class="fa-solid fa-circle-check text-emerald-400"></i> Applied' :
                                       j.status === 'INVALID' ? '<i class="fa-solid fa-ban text-rose-400"></i> Invalid' :
                                       j.status.includes('DRY_RUN') ? '<i class="fa-solid fa-clipboard-check text-amber-400"></i> Ready' :
                                       j.status.includes('FAILED') ? '<i class="fa-solid fa-triangle-exclamation text-rose-400"></i> Failed' :
+                                      j.status === 'APPLYING' ? '<i class="fa-solid fa-spinner fa-spin text-blue-400"></i> Applying...' :
                                       '<i class="fa-regular fa-clock text-slate-500"></i> Not Applied'}
                                 </span>
                                 ${j.status === 'APPLIED' && j.applied_at ? `<div class="text-[10px] text-slate-400 mt-1" title="Date Applied"><i class="fa-solid fa-calendar-check mr-1 text-emerald-500/70"></i>${new Date(j.applied_at + 'Z').toLocaleString()}</div>` : ''}
@@ -2322,7 +2339,7 @@ def dashboard_html():
                                     <i class="fa-solid fa-circle-check text-emerald-400"></i> Applied ✓
                                 </button>` : `
                                 <button onclick="markJobApplied('${encId}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 border border-slate-700 rounded text-xs font-semibold shadow transition inline-flex items-center gap-1" title="Manually mark this job as APPLIED in your database">
-                                    <i class="fa-solid fa-check text-emerald-400"></i> Applied
+                                    <i class="fa-solid fa-check text-emerald-400"></i> Mark Applied
                                 </button>`}
                                 <button onclick="markJobStatus('${encId}', 'INVALID')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-rose-400 hover:text-rose-300 border border-slate-700 rounded text-xs font-semibold shadow transition inline-flex items-center gap-1" title="Mark this job opening as invalid, expired, or closed">
                                     <i class="fa-solid fa-ban text-rose-400"></i> Invalid
@@ -2689,6 +2706,9 @@ def dashboard_html():
                     console.error("Error in loadJobs:", err);
                     const tbody = document.getElementById('jobsTableBody');
                     if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-red-400">Failed to render jobs: ${err.message}</td></tr>`;
+                    const container = document.getElementById('jobsCompanyGroupContainer');
+                    if (container) container.innerHTML = `<div class="text-center py-8 text-red-400">Failed to render company openings: ${err.message}</div>`;
+                    if (document.getElementById('jobCountBadge')) document.getElementById('jobCountBadge').innerText = '0 Jobs';
                 }
             }
 
@@ -2779,10 +2799,11 @@ def dashboard_html():
 
             async function markJobStatus(jobId, newStatus) {
                 try {
-                    const res = await fetch(`/api/job/${encodeURIComponent(jobId)}/status`, {
+                    const cleanId = decodeURIComponent(jobId);
+                    const res = await fetch('/api/job/status', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ status: newStatus })
+                        body: JSON.stringify({ job_id: cleanId, status: newStatus })
                     });
                     const data = await res.json();
                     if (data.status === 'success') {
@@ -3136,34 +3157,31 @@ def dashboard_html():
                 }
             }
 
-            // Delegated click handling for jobs table to completely avoid inline quote escaping
+            // Delegated click handling for jobs table and company group view
             document.addEventListener('DOMContentLoaded', () => {
-                const tbody = document.getElementById('jobsTableBody');
-                if (tbody) {
-                    tbody.addEventListener('click', (e) => {
-                        const ddBtn = e.target.closest('.btn-dd');
-                        if (ddBtn && ddBtn.dataset.company) {
-                            openDueDiligence(decodeURIComponent(ddBtn.dataset.company));
-                            return;
-                        }
-                        const reviewBtn = e.target.closest('.btn-review');
-                        if (reviewBtn && reviewBtn.dataset.jobid) {
-                            openReviewModal(
-                                decodeURIComponent(reviewBtn.dataset.jobid),
-                                decodeURIComponent(reviewBtn.dataset.company),
-                                decodeURIComponent(reviewBtn.dataset.title),
-                                decodeURIComponent(reviewBtn.dataset.url),
-                                decodeURIComponent(reviewBtn.dataset.screenshot)
-                            );
-                            return;
-                        }
-                        const applyBtn = e.target.closest('.btn-apply');
-                        if (applyBtn && applyBtn.dataset.jobid) {
-                            triggerApply(decodeURIComponent(applyBtn.dataset.jobid));
-                            return;
-                        }
-                    });
-                }
+                document.addEventListener('click', (e) => {
+                    const ddBtn = e.target.closest('.btn-dd');
+                    if (ddBtn && ddBtn.dataset.company) {
+                        openDueDiligence(decodeURIComponent(ddBtn.dataset.company));
+                        return;
+                    }
+                    const reviewBtn = e.target.closest('.btn-review');
+                    if (reviewBtn && reviewBtn.dataset.jobid) {
+                        openReviewModal(
+                            decodeURIComponent(reviewBtn.dataset.jobid),
+                            decodeURIComponent(reviewBtn.dataset.company),
+                            decodeURIComponent(reviewBtn.dataset.title),
+                            decodeURIComponent(reviewBtn.dataset.url),
+                            decodeURIComponent(reviewBtn.dataset.screenshot)
+                        );
+                        return;
+                    }
+                    const applyBtn = e.target.closest('.btn-apply');
+                    if (applyBtn && applyBtn.dataset.jobid) {
+                        triggerApply(decodeURIComponent(applyBtn.dataset.jobid));
+                        return;
+                    }
+                });
 
                 // 1. Restore any saved filter settings from localStorage, or load defaults
                 restoreFilterState();

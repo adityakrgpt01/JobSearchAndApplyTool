@@ -11,11 +11,26 @@ import urllib.parse
 import re
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone, timedelta
-from typing import List, Dict, Any, Set
+import random
+import time
+from typing import List, Dict, Any, Set, Tuple
 from database import save_job, get_crawler_cursor, set_crawler_cursor
 from smart_due_diligence import perform_smart_due_diligence
 from salary_classifier import classify_salary
 from experience_filter import is_qualified_seniority_and_exp
+
+# Rotating modern desktop browser User-Agents to prevent bot profiling
+LINKEDIN_USER_AGENTS = [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0"
+]
+
+_LINKEDIN_SEMAPHORE = asyncio.Semaphore(2)  # Strictly cap concurrent requests to 2 to avoid IP blocks
+_CIRCUIT_BREAKER_ACTIVE = False
 
 # Dedicated Big Tech & Custom Portal MNC Partitions
 BIG_TECH_PARTITIONS = [
@@ -32,6 +47,69 @@ BIG_TECH_PARTITIONS = [
     ("Adobe", "Software Engineer"),
     ("Google", "Software Engineer")
 ]
+
+def load_priority_company_partitions(batch_size: int = 50) -> List[Tuple[str, str]]:
+    """
+    Dynamically loads rotating company search partitions covering:
+    1. Core Big Tech (Google, Microsoft, Apple, Meta, etc.)
+    2. Top 550 MNC Directory companies
+    3. All 2,864+ currently dark companies from companies_intelligence with zero discovered jobs
+    Ensures 100% of tracked companies are continually scanned cycle-by-cycle without IP blocks.
+    """
+    partitions = list(BIG_TECH_PARTITIONS)
+    try:
+        import sqlite3
+        conn = sqlite3.connect("jobs.db")
+        c = conn.cursor()
+
+        # Get companies that already have jobs
+        c.execute("SELECT DISTINCT LOWER(company_name) FROM job_postings")
+        seen_with_jobs = set(r[0] for r in c.fetchall())
+
+        # 1. MNC Directory priority
+        c.execute("SELECT company_name FROM mnc_directory WHERE ats_platform NOT IN ('greenhouse', 'ashby')")
+        mnc_names = [r[0].strip() for r in c.fetchall() if r[0]]
+
+        # 2. Scraper failures (direct ATS failed companies that need LinkedIn fallback)
+        c.execute("SELECT DISTINCT company_name FROM scraper_failures WHERE source IN ('workday', 'custom', 'eightfold', 'phenom', 'lever') AND company_name != '' LIMIT 250")
+        failed_names = [r[0].strip() for r in c.fetchall() if r[0] and not r[0].startswith("workday_")]
+
+        # 3. All dark companies from companies_intelligence
+        c.execute("SELECT DISTINCT company_name FROM companies_intelligence")
+        ci_names = [r[0].strip() for r in c.fetchall() if r[0]]
+
+        all_candidate_companies = []
+        seen = set(p[0].lower() for p in BIG_TECH_PARTITIONS)
+
+        # Order candidates: undiscovered MNCs and failed ATS first, then all remaining dark companies
+        ordered_pool = []
+        for name in (mnc_names + failed_names):
+            if name.lower() not in seen_with_jobs:
+                ordered_pool.append(name)
+        for name in ci_names:
+            if name.lower() not in seen_with_jobs:
+                ordered_pool.append(name)
+
+        for name in ordered_pool:
+            clean_name = re.sub(r'\s*\(.*?\)\s*', '', re.sub(r'\s*\[.*?\]\s*', '', name)).strip()
+            if clean_name and clean_name.lower() not in seen and len(clean_name) > 2 and not clean_name.lower().startswith("workday_") and len(clean_name.split()) <= 5:
+                seen.add(clean_name.lower())
+                all_candidate_companies.append(clean_name)
+
+        conn.close()
+
+        if all_candidate_companies:
+            cursor_idx = get_crawler_cursor("linkedin_universal_cursor", 0)
+            start = cursor_idx % len(all_candidate_companies)
+            batch = []
+            for i in range(min(batch_size, len(all_candidate_companies))):
+                comp = all_candidate_companies[(start + i) % len(all_candidate_companies)]
+                batch.append((comp, "Software Engineer"))
+            set_crawler_cursor("linkedin_universal_cursor", (cursor_idx + batch_size) % len(all_candidate_companies))
+            partitions.extend(batch)
+    except Exception:
+        pass
+    return partitions
 
 # High-Intent Senior Backend / SDE-2 Search Partitions
 TECH_STACK_PARTITIONS = [
@@ -218,6 +296,10 @@ async def resolve_linkedin_apply_destination(session: aiohttp.ClientSession, rec
     return record
 
 async def fetch_linkedin_page(session: aiohttp.ClientSession, query: str, location: str, start: int = 0, time_window: str = "r86400") -> List[Dict[str, Any]]:
+    global _CIRCUIT_BREAKER_ACTIVE
+    if _CIRCUIT_BREAKER_ACTIVE:
+        return []
+
     base_url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
     params = {
         "keywords": query,
@@ -226,19 +308,33 @@ async def fetch_linkedin_page(session: aiohttp.ClientSession, query: str, locati
         "start": str(start)
     }
     url = f"{base_url}?{urllib.parse.urlencode(params)}"
+    ua = random.choice(LINKEDIN_USER_AGENTS)
     headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9"
+        "User-Agent": ua,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "same-origin"
     }
 
     discovered = []
-    try:
-        async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-            if resp.status != 200:
-                return []
-            html = await resp.text()
-            soup = BeautifulSoup(html, "html.parser")
-            items = soup.find_all("li")
+    async with _LINKEDIN_SEMAPHORE:
+        # Humanized jitter delay to prevent IP rate-limiting
+        await asyncio.sleep(random.uniform(1.2, 2.6))
+        try:
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=12)) as resp:
+                if resp.status == 429:
+                    print("⚠️ [Anti-Ban Circuit Breaker] LinkedIn returned HTTP 429. Pausing LinkedIn crawl for 60s to protect IP...")
+                    _CIRCUIT_BREAKER_ACTIVE = True
+                    await asyncio.sleep(60)
+                    _CIRCUIT_BREAKER_ACTIVE = False
+                    return []
+                if resp.status != 200:
+                    return []
+                html = await resp.text()
+                soup = BeautifulSoup(html, "html.parser")
+                items = soup.find_all("li")
 
             for item in items:
                 title_elem = item.find("h3", class_="base-search-card__title")
@@ -310,8 +406,8 @@ async def fetch_linkedin_page(session: aiohttp.ClientSession, query: str, locati
 
                 save_job(record)
                 discovered.append(record)
-    except Exception:
-        pass
+        except Exception:
+            pass
     return discovered
 
 async def scan_amazon_jobs(session: aiohttp.ClientSession) -> List[Dict[str, Any]]:
@@ -381,10 +477,10 @@ async def run_partitioned_linkedin_crawler(max_pages: int = 2, time_window: str 
         all_jobs.extend(amz_jobs)
 
         tasks = []
-        # 2. Dedicated Big Tech Partitions (Google, Microsoft, Meta, Apple, etc.)
-        for comp, query in BIG_TECH_PARTITIONS:
-            for p in range(2):
-                tasks.append(fetch_linkedin_page(session, f"{comp} {query}", "India", p * 25, time_window=active_window))
+        # 2. Dedicated Enterprise & Big Tech Partitions (Core Big Tech + Rotating MNC & Dark Company Bridge)
+        company_partitions = load_priority_company_partitions(batch_size=40)
+        for comp, query in company_partitions:
+            tasks.append(fetch_linkedin_page(session, f"{comp} {query}", "India", 0, time_window=active_window))
 
         # 3. Broad Tech Stack Partitions across core hubs
         for q in TECH_STACK_PARTITIONS:

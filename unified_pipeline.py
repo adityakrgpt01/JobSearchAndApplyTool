@@ -22,6 +22,9 @@ from smart_due_diligence import perform_smart_due_diligence
 from salary_classifier import classify_salary
 from ats_scanner import load_all_target_companies, scan_greenhouse_job, scan_lever_job, scan_ashby_job
 from workday_scanner import run_workday_cxs_pipeline
+from eightfold_scanner import scan_eightfold_pipeline
+from phenom_scanner import scan_phenom_pipeline
+from playwright_workday_spider import run_playwright_workday_batch
 from instahyre_deep_scanner import scan_instahyre_page
 from linkedin_crawler import run_partitioned_linkedin_crawler, scan_amazon_jobs, resolve_linkedin_apply_destination
 
@@ -283,14 +286,35 @@ async def run_unified_discovery(hours: int = 168) -> Dict[str, Any]:
     except Exception as e:
         print(f"Workday scan note: {e}")
 
-    # 4. Amazon Official Jobs & Big Tech / MNC Direct Partitions
+    # 4. Eightfold.ai Enterprise Pipeline (Netflix, Micron, PayPal, etc.)
+    try:
+        ef_jobs = await scan_eightfold_pipeline()
+        discovered_jobs.extend(ef_jobs)
+    except Exception as e:
+        print(f"Eightfold scan note: {e}")
+
+    # 5. Phenom People Enterprise Pipeline (Walmart, Thermo Fisher, Honeywell, etc.)
+    try:
+        ph_jobs = await scan_phenom_pipeline()
+        discovered_jobs.extend(ph_jobs)
+    except Exception as e:
+        print(f"Phenom scan note: {e}")
+
+    # 6. Stealth Headless Playwright Workday Spider (WAF / Session-locked Tier-1 portals)
+    try:
+        stealth_jobs = await run_playwright_workday_batch(batch_size=8)
+        discovered_jobs.extend(stealth_jobs)
+    except Exception as e:
+        print(f"Playwright Workday Spider note: {e}")
+
+    # 7. Amazon Official Jobs & Universal Dark Company Partitions (with Anti-Ban Throttling)
     try:
         ln_jobs = await run_partitioned_linkedin_crawler(max_pages=2)
         discovered_jobs.extend(ln_jobs)
     except Exception as e:
-        print(f"Big Tech / MNC Direct crawler note: {e}")
+        print(f"Universal LinkedIn crawler note: {e}")
 
-    # 5. Audit all links in database
+    # 8. Audit all links in database
     audit_res = await audit_and_clean_database_links()
 
     print(f"✅ Unified Discovery & Audit Complete! Newly Discovered: {len(discovered_jobs)}, Active Verified in DB: {audit_res['active_verified']}")

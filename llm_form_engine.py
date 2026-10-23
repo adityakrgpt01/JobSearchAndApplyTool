@@ -258,11 +258,13 @@ class FormLLMEngine:
 
         # Gender / Equal Opportunity
         if "gender" in q and not "transgender" in q:
+            if options and any("transgender" in o.lower() or "sex assigned at birth" in o.lower() for o in options):
+                return self._pick_option(["not transgender", "same as sex assigned at birth", "cisgender", "\\bno\\b", "prefer not", "decline"], options, "Not transgender (gender identity same as sex assigned at birth)")
             g_ans = custom.get("gender", "Male")
             return self._pick_option(["\\bmale\\b", "\\bman\\b", "decline", "prefer not"], options, g_ans)
 
         if "transgender" in q:
-            return self._pick_option(["\\bno\\b", "decline", "prefer not"], options, "No")
+            return self._pick_option(["not transgender", "same as sex assigned at birth", "cisgender", "\\bno\\b", "prefer not", "decline"], options, "Not transgender (gender identity same as sex assigned at birth)")
 
         if "sexual orientation" in q:
             return self._pick_option(["heterosexual", "straight", "decline", "prefer not"], options, "Heterosexual / Straight")

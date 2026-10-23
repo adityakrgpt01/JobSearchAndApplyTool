@@ -51,6 +51,7 @@ def is_senior_backend_or_sde2(title: str, jd_text: str = "") -> bool:
 
 def load_all_target_companies() -> Dict[str, List[Dict[str, str]]]:
     """Loads all companies grouped by ATS: greenhouse, lever, ashby, including top 550 MNCs."""
+    import re
     conn = sqlite3.connect("jobs.db")
     c = conn.cursor()
     c.execute("SELECT company_name, normalized_name, raw_metadata FROM companies_intelligence")
@@ -61,40 +62,65 @@ def load_all_target_companies() -> Dict[str, List[Dict[str, str]]]:
 
     for name, norm, meta in rows:
         if norm.startswith("lever_"):
-            tok = norm.replace("lever_", "")
-            grouped["lever"].append({"name": name.replace(" (Lever)", ""), "token": tok})
-            seen["lever"].add(tok)
+            tok = norm.replace("lever_", "").strip().lower()
+            if tok and tok not in seen["lever"]:
+                grouped["lever"].append({"name": name.replace(" (Lever)", ""), "token": tok})
+                seen["lever"].add(tok)
         elif norm.startswith("ashby_"):
-            tok = norm.replace("ashby_", "")
-            grouped["ashby"].append({"name": name.replace(" (Ashby)", ""), "token": tok})
-            seen["ashby"].add(tok)
+            tok = norm.replace("ashby_", "").strip().lower()
+            if tok and tok not in seen["ashby"]:
+                grouped["ashby"].append({"name": name.replace(" (Ashby)", ""), "token": tok})
+                seen["ashby"].add(tok)
+        elif norm.startswith("workday_"):
+            # Workday enterprises belong strictly to workday_scanner
+            continue
         else:
-            grouped["greenhouse"].append({"name": name, "token": norm})
-            seen["greenhouse"].add(norm)
+            meta_dict = {}
+            if meta:
+                try:
+                    meta_dict = json.loads(meta)
+                except Exception:
+                    pass
+
+            # Exclude Workday or general dynamic LinkedIn discoveries without verified Greenhouse token
+            if meta_dict.get("ats") == "workday":
+                continue
+            if meta_dict.get("verified_via") == "smart_on_demand_dynamic" and "greenhouse_token" not in meta_dict:
+                continue
+
+            tok = (meta_dict.get("greenhouse_token") or norm).strip().lower()
+            # Enforce valid token syntax (no spaces, dots, or invalid characters)
+            if not re.match(r'^[a-z0-9_\-]+$', tok) or len(tok) < 2 or len(tok) > 50:
+                continue
+
+            if tok not in seen["greenhouse"]:
+                grouped["greenhouse"].append({"name": name, "token": tok})
+                seen["greenhouse"].add(tok)
 
     # Seamlessly inject all 550 MNC directory companies with ATS endpoints
     c.execute("SELECT company_name, direct_career_url, ats_platform FROM mnc_directory")
-    import re
     for cname, url, plat in c.fetchall():
+        if not url:
+            continue
         if plat == "greenhouse":
             m = re.search(r'greenhouse\.io/([^/]+)', url)
             if m:
-                tok = m.group(1).strip()
-                if tok not in seen["greenhouse"]:
+                tok = m.group(1).strip().lower()
+                if re.match(r'^[a-z0-9_\-]+$', tok) and tok not in seen["greenhouse"]:
                     grouped["greenhouse"].insert(0, {"name": cname, "token": tok})
                     seen["greenhouse"].add(tok)
         elif plat == "lever":
             m = re.search(r'lever\.co/([^/]+)', url)
             if m:
-                tok = m.group(1).strip()
-                if tok not in seen["lever"]:
+                tok = m.group(1).strip().lower()
+                if re.match(r'^[a-z0-9_\-]+$', tok) and tok not in seen["lever"]:
                     grouped["lever"].insert(0, {"name": cname, "token": tok})
                     seen["lever"].add(tok)
         elif plat == "ashby":
             m = re.search(r'ashbyhq\.com/([^/]+)', url)
             if m:
-                tok = m.group(1).strip()
-                if tok not in seen["ashby"]:
+                tok = m.group(1).strip().lower()
+                if re.match(r'^[a-z0-9_\-]+$', tok) and tok not in seen["ashby"]:
                     grouped["ashby"].insert(0, {"name": cname, "token": tok})
                     seen["ashby"].add(tok)
 
