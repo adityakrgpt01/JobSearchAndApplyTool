@@ -285,6 +285,49 @@ async def bulk_apply_jobs(req: BulkApplyRequest, background_tasks: BackgroundTas
     if not req.job_ids:
         raise HTTPException(status_code=400, detail="No job IDs specified")
     background_tasks.add_task(run_bulk_applications, req.job_ids, req.dry_run, req.headed, req.keep_open)
+    return {"status": "Bulk applications initiated in background"}
+
+@app.get("/api/mastercard/jobs")
+def api_get_mastercard_jobs(status: Optional[str] = None, limit: Optional[int] = 50):
+    from mastercard_applier import get_mastercard_jobs
+    jobs = get_mastercard_jobs(status=status, limit=limit)
+    return {"jobs": jobs, "total": len(jobs)}
+
+class MastercardApplyRequest(BaseModel):
+    job_id: Optional[str] = None
+    dry_run: bool = True
+    headed: bool = True
+    limit: int = 1
+    batch_tabs: bool = False
+
+@app.post("/api/mastercard/apply")
+async def api_apply_mastercard(req: MastercardApplyRequest, background_tasks: BackgroundTasks):
+    from mastercard_applier import MastercardApplier, get_mastercard_jobs
+    if req.job_id:
+        all_j = get_mastercard_jobs()
+        targets = [j for j in all_j if j["job_id"] == req.job_id]
+        if not targets:
+            raise HTTPException(status_code=404, detail=f"Mastercard job {req.job_id} not found")
+    else:
+        targets = get_mastercard_jobs(limit=req.limit)
+        if not targets:
+            return {"status": "No pending Mastercard jobs to apply", "processed": 0}
+
+    applier = MastercardApplier(dry_run=req.dry_run, headless=not req.headed, keep_open=req.headed)
+    if len(targets) > 1 and req.batch_tabs:
+        background_tasks.add_task(applier.apply_batch, targets, batch_tabs=True)
+    elif len(targets) > 1:
+        background_tasks.add_task(applier.apply_batch, targets, batch_tabs=False)
+    else:
+        background_tasks.add_task(applier.apply_to_job, targets[0])
+
+    return {
+        "status": f"Mastercard application initiated for {len(targets)} job(s)",
+        "targets": [{"job_id": t["job_id"], "title": t["title"]} for t in targets],
+        "dry_run": req.dry_run,
+        "headed": req.headed
+    }
+
 class UpdateStatusRequest(BaseModel):
     status: str = "APPLIED"
     job_id: Optional[str] = None
