@@ -480,6 +480,12 @@ def update_company_rating_endpoint(req: CompanyRatingRequest):
     return {"status": "success", "company_name": req.company_name}
 
 
+@app.get("/mastercard", response_class=HTMLResponse)
+def mastercard_dashboard_page():
+    from mastercard_ui import get_mastercard_dashboard_html
+    return get_mastercard_dashboard_html()
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard_html():
     return r"""
@@ -516,6 +522,9 @@ def dashboard_html():
                     <button onclick="triggerScan()" id="scanBtn" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-semibold rounded-lg shadow flex items-center gap-2 transition text-xs">
                         <i class="fa-solid fa-radar"></i> Scan Now
                     </button>
+                    <a href="/mastercard" class="px-3.5 py-2 bg-gradient-to-r from-red-600 via-orange-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold rounded-lg shadow-lg flex items-center gap-2 transition text-xs border border-amber-500/30">
+                        <i class="fa-solid fa-credit-card"></i> Mastercard Hub
+                    </a>
                     <a href="/docs" target="_blank" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition">
                         API Docs
                     </a>

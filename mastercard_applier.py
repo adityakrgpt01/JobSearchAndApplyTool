@@ -56,6 +56,7 @@ def load_user_profile(path: str = "user_profile.json") -> Dict[str, Any]:
 def get_mastercard_jobs(
     status: Optional[str] = None,
     limit: Optional[int] = None,
+    include_applied: bool = True,
     db_path: str = DB_PATH
 ) -> List[Dict[str, Any]]:
     """Fetches and filters all eligible Mastercard jobs from SQLite."""
@@ -64,7 +65,8 @@ def get_mastercard_jobs(
     cursor = conn.cursor()
 
     query = """
-        SELECT id, job_id, company_name, title, location, ats_platform, apply_url, status, salary_tier
+        SELECT id, job_id, company_name, title, location, ats_platform, apply_url, status, salary_tier,
+               screenshot_path, apply_log, applied_at, apply_attempts
         FROM job_postings
         WHERE LOWER(company_name) LIKE '%mastercard%'
           AND apply_url IS NOT NULL
@@ -72,11 +74,10 @@ def get_mastercard_jobs(
     """
     params = []
 
-    if status:
+    if status and status.lower() != "all":
         query += " AND status = ?"
         params.append(status)
-    else:
-        # Default: exclude already applied or invalid jobs
+    elif not include_applied:
         query += " AND status NOT IN ('APPLIED', 'INVALID')"
 
     # Prioritize official Workday direct links over 3rd-party aggregators
