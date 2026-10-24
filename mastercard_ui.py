@@ -489,6 +489,10 @@ def get_mastercard_dashboard_html() -> str:
                         showToast(`🚀 Live submission launched for ${jobId}!`, "success");
                         showBanner(`Live Auto-Applier active for <b>${jobId}</b>. Submitting directly...`, "success");
                     }
+                    setTimeout(loadMastercardJobs, 5000);
+                    setTimeout(loadMastercardJobs, 12000);
+                    setTimeout(loadMastercardJobs, 25000);
+                    setTimeout(loadMastercardJobs, 45000);
                 } else {
                     showToast(data.detail || "Failed to start apply", "error");
                 }
@@ -612,6 +616,8 @@ def get_mastercard_dashboard_html() -> str:
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
             loadMastercardJobs();
+            // Automatically poll every 15s to capture live status changes and proof screenshots
+            setInterval(loadMastercardJobs, 15000);
         });
     </script>
 </body>
