@@ -353,8 +353,24 @@ class MastercardApplier:
                 or "review" in current_step_text.lower()
                 or "step 6" in current_step_text.lower()
             ):
-                print("🏁 Reached final Review step! All form steps complete.")
-                return True, "Mastercard Workday: Successfully filled profile, uploaded resume, and answered questionnaires."
+                if self.dry_run:
+                    print("🏁 Reached final Review step! [Review First Mode active: Stopping before submit].")
+                    try:
+                        await page.evaluate('''() => {
+                            if (!document.getElementById('dry_run_review_banner')) {
+                                const banner = document.createElement('div');
+                                banner.id = 'dry_run_review_banner';
+                                banner.style = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:linear-gradient(90deg, #d97706, #dc2626);color:white;padding:14px 20px;font-family:sans-serif;font-size:14px;font-weight:bold;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 14px rgba(0,0,0,0.4);border-bottom:3px solid #f59e0b;';
+                                banner.innerHTML = '<span>👁️ <b>Review First Mode:</b> All sections and answers are auto-filled! Please inspect the application below. When ready, click <b>Submit</b> at the bottom.</span><button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,0.25);border:none;color:white;padding:4px 10px;border-radius:4px;cursor:pointer;font-weight:bold;">Dismiss</button>';
+                                document.body.prepend(banner);
+                            }
+                        }''')
+                    except Exception:
+                        pass
+                    return True, "Mastercard Workday: Successfully filled profile, uploaded resume, and parked on Review step for candidate inspection."
+                else:
+                    print("🏁 Reached final Review step! Ready for live submission.")
+                    return True, "Mastercard Workday: Successfully filled profile, uploaded resume, and answered questionnaires."
 
             # ── A. Step 1: My Information (executed whenever Step 1 fields are present or on step 1)
             is_step1 = (
@@ -567,6 +583,30 @@ class MastercardApplier:
                 "button[data-automation-id='bottom-navigation-next-button']"
             )
             if next_btn and await next_btn.is_visible() and await next_btn.is_enabled():
+                btn_text = (await next_btn.inner_text()).strip().lower()
+                is_submit_btn = "submit" in btn_text
+
+                # In Dry-Run / Review First mode: Stop before clicking submit!
+                if is_submit_btn and self.dry_run:
+                    print(f"\n{'='*70}")
+                    print(f"🛑 [REVIEW FIRST MODE] Reached final Review step with '{btn_text}' button.")
+                    print("👀 All questionnaires, profile data, and resume are pre-filled!")
+                    print("🛑 Application is NOT submitted automatically. Review in your open browser window.")
+                    print(f"{'='*70}\n")
+                    try:
+                        await page.evaluate('''() => {
+                            if (!document.getElementById('dry_run_review_banner')) {
+                                const banner = document.createElement('div');
+                                banner.id = 'dry_run_review_banner';
+                                banner.style = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:linear-gradient(90deg, #d97706, #dc2626);color:white;padding:14px 20px;font-family:sans-serif;font-size:14px;font-weight:bold;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 14px rgba(0,0,0,0.4);border-bottom:3px solid #f59e0b;';
+                                banner.innerHTML = '<span>👁️ <b>Review First Mode:</b> All sections and answers are auto-filled! Please inspect the application below. When ready, click <b>Submit</b> at the bottom.</span><button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,0.25);border:none;color:white;padding:4px 10px;border-radius:4px;cursor:pointer;font-weight:bold;">Dismiss</button>';
+                                document.body.prepend(banner);
+                            }
+                        }''')
+                    except Exception:
+                        pass
+                    return True, "Mastercard Workday: Successfully filled profile, uploaded resume, and parked on Review step for candidate inspection."
+
                 print(f"➡️ Advancing from step {step}...")
                 await next_btn.click(force=True)
                 await asyncio.sleep(4.0)

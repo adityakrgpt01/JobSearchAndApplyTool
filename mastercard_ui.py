@@ -160,8 +160,8 @@ def get_mastercard_dashboard_html() -> str:
                     <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-xs">
                         <span class="text-slate-400 font-medium">Mode:</span>
                         <select id="applyMode" class="bg-transparent text-amber-400 font-bold outline-none cursor-pointer">
-                            <option value="dry_run" class="bg-slate-900 text-amber-400" selected>Dry Run (Fill & Review)</option>
-                            <option value="live" class="bg-slate-900 text-emerald-400">Live Submit (Click Final Submit)</option>
+                            <option value="dry_run" class="bg-slate-900 text-amber-400" selected>👁️ Review First (Park on Review Screen)</option>
+                            <option value="live" class="bg-slate-900 text-emerald-400">🚀 Live Submit (Auto-Submit Directly)</option>
                         </select>
                     </div>
 
@@ -447,9 +447,12 @@ def get_mastercard_dashboard_html() -> str:
                         <td class="py-3 px-4">${platformBadge}</td>
                         <td class="py-3 px-4">${statusBadge}</td>
                         <td class="py-3 px-4 text-center">${proofBtn}</td>
-                        <td class="py-3 px-4 text-right space-x-1.5">
-                            <button onclick="triggerSingleApply('${j.job_id}', false)" title="Auto-fill form in visible Chrome browser" class="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-bold transition inline-flex items-center gap-1 shadow-sm">
-                                <i class="fa-solid fa-robot"></i> Autofill
+                        <td class="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+                            <button onclick="triggerSingleApply('${j.job_id}', false)" title="Auto-fill all steps and park on Review screen for candidate inspection" class="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-bold transition inline-flex items-center gap-1 shadow-sm">
+                                <i class="fa-solid fa-eye"></i> Review First
+                            </button>
+                            <button onclick="triggerSingleApply('${j.job_id}', true)" title="Auto-fill and submit application live" class="px-2.5 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-lg text-xs font-bold transition inline-flex items-center gap-1 shadow-sm">
+                                <i class="fa-solid fa-paper-plane"></i> Auto-Submit
                             </button>
                             <button onclick="toggleAppliedStatus('${j.job_id}', '${st}')" title="Toggle Applied" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs transition inline-flex items-center">
                                 <i class="fa-solid ${st.includes('APPLIED') ? 'fa-arrow-rotate-left text-amber-400' : 'fa-check text-emerald-400'}"></i>
@@ -464,7 +467,8 @@ def get_mastercard_dashboard_html() -> str:
         }
 
         async function triggerSingleApply(jobId, isLive) {
-            showToast(`Launching Mastercard applier for ${jobId}...`, "info");
+            const modeText = isLive ? "Auto-Submit" : "Review First";
+            showToast(`Launching ${modeText} for ${jobId}...`, "info");
             try {
                 const res = await fetch('/api/mastercard/apply', {
                     method: 'POST',
@@ -478,8 +482,13 @@ def get_mastercard_dashboard_html() -> str:
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    showToast(`🚀 Headed browser launched for ${jobId}! Watch your screen.`, "success");
-                    showBanner(`Auto-applier active for <b>${jobId}</b> in headed browser. Form will be prefilled with resume & answers.`, "info");
+                    if (!isLive) {
+                        showToast(`👁️ Headed Chrome launched in Review First mode! Form will park on Review step for you.`, "success");
+                        showBanner(`Review First active for <b>${jobId}</b>: Browser is filling all steps and will park on the Review screen with your answers ready for inspection.`, "info");
+                    } else {
+                        showToast(`🚀 Live submission launched for ${jobId}!`, "success");
+                        showBanner(`Live Auto-Applier active for <b>${jobId}</b>. Submitting directly...`, "success");
+                    }
                 } else {
                     showToast(data.detail || "Failed to start apply", "error");
                 }
