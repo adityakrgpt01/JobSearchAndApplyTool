@@ -638,28 +638,37 @@ def list_jobs(
     return rows
 
 def update_job_status(job_id: str, status: str, apply_log: str = "", screenshot_path: str = "", db_path: str = DB_PATH):
-    conn = sqlite3.connect(db_path, timeout=10.0)
-    cursor = conn.cursor()
-    
-    if status == 'APPLIED':
-        cursor.execute("""
-        UPDATE job_postings 
-        SET status = ?, apply_log = ?, screenshot_path = ?, apply_attempts = apply_attempts + 1, applied_at = CURRENT_TIMESTAMP
-        WHERE job_id = ?;
-        """, (status, apply_log, screenshot_path, job_id))
-    else:
-        cursor.execute("""
-        UPDATE job_postings 
-        SET status = ?, apply_log = ?, screenshot_path = ?, apply_attempts = apply_attempts + 1
-        WHERE job_id = ?;
-        """, (status, apply_log, screenshot_path, job_id))
-        
-    cursor.execute("""
-    INSERT INTO application_logs (job_id, action, status, message)
-    VALUES (?, 'UPDATE_STATUS', ?, ?)
-    """, (job_id, status, apply_log))
-    conn.commit()
-    conn.close()
+    import time
+    for attempt in range(5):
+        try:
+            conn = sqlite3.connect(db_path, timeout=30.0)
+            cursor = conn.cursor()
+            
+            if status == 'APPLIED':
+                cursor.execute("""
+                UPDATE job_postings 
+                SET status = ?, apply_log = ?, screenshot_path = ?, apply_attempts = apply_attempts + 1, applied_at = CURRENT_TIMESTAMP
+                WHERE job_id = ?;
+                """, (status, apply_log, screenshot_path, job_id))
+            else:
+                cursor.execute("""
+                UPDATE job_postings 
+                SET status = ?, apply_log = ?, screenshot_path = ?, apply_attempts = apply_attempts + 1
+                WHERE job_id = ?;
+                """, (status, apply_log, screenshot_path, job_id))
+                
+            cursor.execute("""
+            INSERT INTO application_logs (job_id, action, status, message)
+            VALUES (?, 'UPDATE_STATUS', ?, ?)
+            """, (job_id, status, apply_log))
+            conn.commit()
+            conn.close()
+            return
+        except sqlite3.OperationalError as e:
+            if "locked" in str(e).lower() and attempt < 4:
+                time.sleep(1.0)
+                continue
+            raise
 
 def log_failure(source: str, company_name: str, target_url: str, failure_reason: str, http_status: int = 0, db_path: str = DB_PATH):
     """Logs an endpoint or URL error into the scraper_failures dead-letter queue with deduplication and auto-retirement of 404s."""
@@ -734,31 +743,48 @@ def get_failures_summary(db_path: str = DB_PATH) -> Dict[str, Any]:
     return {"unresolved_count": unresolved, "resolved_count": resolved, "by_source": by_source}
 
 def save_portal_account(domain: str, company: str, email: str, password: str, status: str = "ACTIVE", db_path: str = DB_PATH):
-    """Saves or updates portal credentials for a domain."""
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("""
-    INSERT INTO portal_accounts (portal_domain, company_name, email, password, status, last_used)
-    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    ON CONFLICT(portal_domain) DO UPDATE SET
-        password = excluded.password,
-        status = excluded.status,
-        last_used = CURRENT_TIMESTAMP;
-    """, (domain, company, email, password, status))
-    conn.commit()
-    conn.close()
+    """Saves or updates portal credentials for a domain with retry."""
+    import time
+    for attempt in range(5):
+        try:
+            conn = sqlite3.connect(db_path, timeout=30.0)
+            c = conn.cursor()
+            c.execute("""
+            INSERT INTO portal_accounts (portal_domain, company_name, email, password, status, last_used)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(portal_domain) DO UPDATE SET
+                password = excluded.password,
+                status = excluded.status,
+                last_used = CURRENT_TIMESTAMP;
+            """, (domain, company, email, password, status))
+            conn.commit()
+            conn.close()
+            return
+        except sqlite3.OperationalError as e:
+            if "locked" in str(e).lower() and attempt < 4:
+                time.sleep(1.0)
+                continue
+            raise
 
 def get_portal_account(domain: str, db_path: str = DB_PATH) -> Optional[Dict[str, Any]]:
-    """Retrieves credentials for a given portal domain."""
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT * FROM portal_accounts WHERE portal_domain = ?", (domain,))
-    row = c.fetchone()
-    conn.close()
-    if row:
-        return dict(row)
-    return None
+    """Retrieves credentials for a given portal domain with retry."""
+    import time
+    for attempt in range(5):
+        try:
+            conn = sqlite3.connect(db_path, timeout=30.0)
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute("SELECT * FROM portal_accounts WHERE portal_domain = ?", (domain,))
+            row = c.fetchone()
+            conn.close()
+            if row:
+                return dict(row)
+            return None
+        except sqlite3.OperationalError as e:
+            if "locked" in str(e).lower() and attempt < 4:
+                time.sleep(1.0)
+                continue
+            raise
 
 def purge_bogus_failures(db_path: str = DB_PATH) -> Dict[str, int]:
     """Purges malformed failure logs and resets Workday, Eightfold, and Phenom for resilient fallback probing."""

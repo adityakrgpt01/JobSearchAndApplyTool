@@ -328,6 +328,70 @@ async def api_apply_mastercard(req: MastercardApplyRequest, background_tasks: Ba
         "headed": req.headed
     }
 
+class PhenomApplyRequest(BaseModel):
+    url: Optional[str] = None
+    job_id: Optional[str] = None
+    dry_run: bool = True
+    headed: bool = True
+    limit: int = 1
+    batch_tabs: bool = False
+
+@app.get("/api/phenom/jobs")
+def api_get_phenom_jobs(status: Optional[str] = None, limit: Optional[int] = 50):
+    from phenom_applier import get_phenom_jobs
+    jobs = get_phenom_jobs(status=status, limit=limit)
+    return {"jobs": jobs, "total": len(jobs)}
+
+@app.post("/api/phenom/apply")
+async def api_apply_phenom(req: PhenomApplyRequest, background_tasks: BackgroundTasks):
+    from phenom_applier import PhenomApplier, get_phenom_jobs
+    import urllib.parse
+    from database import save_job
+
+    if req.url:
+        parsed = urllib.parse.urlparse(req.url)
+        params = urllib.parse.parse_qs(parsed.query)
+        seq_no = params.get("jobSeqNo", [str(abs(hash(req.url)))])[0]
+        comp_name = "Mastercard" if "mastercard" in parsed.netloc.lower() else "Enterprise"
+        target_job = {
+            "job_id": f"phenom_{seq_no}",
+            "company_name": comp_name,
+            "title": f"{comp_name} Requisition ({seq_no})",
+            "location": "India",
+            "ats_platform": "phenom",
+            "apply_url": req.url,
+            "status": "DISCOVERED"
+        }
+        try:
+            save_job(target_job)
+        except Exception:
+            pass
+        targets = [target_job]
+    elif req.job_id:
+        all_j = get_phenom_jobs(status=None, limit=None)
+        targets = [j for j in all_j if j["job_id"] == req.job_id]
+        if not targets:
+            raise HTTPException(status_code=404, detail=f"Phenom job {req.job_id} not found")
+    else:
+        targets = get_phenom_jobs(limit=req.limit)
+        if not targets:
+            return {"status": "No pending Phenom jobs to apply", "processed": 0}
+
+    applier = PhenomApplier(dry_run=req.dry_run, headless=not req.headed, keep_open=req.headed)
+    if len(targets) > 1 and req.batch_tabs:
+        background_tasks.add_task(applier.apply_batch, targets, batch_tabs=True)
+    elif len(targets) > 1:
+        background_tasks.add_task(applier.apply_batch, targets, batch_tabs=False)
+    else:
+        background_tasks.add_task(applier.apply_to_job, targets[0])
+
+    return {
+        "status": f"Phenom application initiated for {len(targets)} job(s)",
+        "targets": [{"job_id": t["job_id"], "title": t["title"], "url": t["apply_url"]} for t in targets],
+        "dry_run": req.dry_run,
+        "headed": req.headed
+    }
+
 class UpdateStatusRequest(BaseModel):
     status: str = "APPLIED"
     job_id: Optional[str] = None

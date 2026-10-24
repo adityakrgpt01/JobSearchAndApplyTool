@@ -102,6 +102,8 @@ class StealthApplier:
             success, msg = await self._fill_workday(page, job)
         elif platform == "linkedin":
             success, msg = await self._fill_linkedin(page, job)
+        elif platform == "phenom" or "apply?jobSeqNo=" in url or "careers.mastercard.com" in url:
+            success, msg = await self._fill_phenom(page, job)
         else:
             success, msg = False, f"Unsupported platform for direct apply: {platform}"
 
@@ -1608,3 +1610,14 @@ class StealthApplier:
                 break
 
         return True, "LinkedIn Easy Apply: pre-filled multi-step modal fields up to review stage"
+
+    async def _fill_phenom(self, page, job: Dict[str, Any]) -> Tuple[bool, str]:
+        """Fills Phenom People hosted application forms (e.g. Mastercard Career Portal)."""
+        from phenom_applier import PhenomApplier
+        applier = PhenomApplier(
+            dry_run=self.dry_run,
+            headless=self.headless,
+            keep_open=self.keep_open
+        )
+        await applier.dismiss_cookie_banner(page)
+        return await applier.fill_step1_personal_info(page)
