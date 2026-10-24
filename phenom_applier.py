@@ -358,8 +358,15 @@ class PhenomApplier:
         work_exp = prof.get("work_experience", [])
         default_titles = [w.get("title", "SDE II") for w in work_exp] or ["SDE II", "SDE", "SDE"]
 
-        # 1. Fill empty job titles in experience cards
+        # 1. Fill empty job titles in experience cards and record parsed companies
+        parsed_companies = []
         for idx in range(10):
+            comp_el = await page.query_selector(f"input[id='experienceData[{idx}].companyName'], input[id='experienceData[{idx}].company']")
+            if comp_el:
+                c_name = (await comp_el.input_value()).strip()
+                if c_name:
+                    parsed_companies.append(c_name.lower())
+
             inp = await page.query_selector(f"input[id='experienceData[{idx}].title']")
             if not inp:
                 break
@@ -369,7 +376,54 @@ class PhenomApplier:
                 print(f"   Experience [{idx}] Title: {title_to_set}")
                 await self.set_field_value(page, f"input[id='experienceData[{idx}].title']", title_to_set)
 
-        # 2. Select Degree
+        # 2. Check if 73 Strings (current role) was missed by parser and add it explicitly
+        if not any("73 strings" in c for c in parsed_companies):
+            print("➕ '73 Strings' missing from parser. Clicking '+ Add experience'...")
+            add_btn = await page.query_selector("button:has-text('+ Add experience'), button:has-text('Add experience')")
+            if add_btn:
+                await add_btn.click()
+                await asyncio.sleep(1.0)
+                for idx in range(10):
+                    c_el = await page.query_selector(f"input[id='experienceData[{idx}].companyName']")
+                    if c_el and not (await c_el.input_value()).strip():
+                        print(f"   Injecting 73 Strings (SDE II) into experienceData[{idx}]...")
+                        await self.set_field_value(page, f"input[id='experienceData[{idx}].companyName']", "73 Strings")
+                        await self.set_field_value(page, f"input[id='experienceData[{idx}].title']", "SDE II")
+                        await self.set_field_value(page, f"input[id='experienceData[{idx}].location']", "Bengaluru, India")
+
+                        # Open and select from react-datepicker popup
+                        start_sel = f"input[id='experienceData[{idx}].fromTo.startDate']"
+                        try:
+                            await page.click(start_sel)
+                            await asyncio.sleep(0.5)
+                            yr_sel = await page.query_selector("select.range-select")
+                            if yr_sel:
+                                await page.select_option("select.range-select", value="2025")
+                                await asyncio.sleep(0.3)
+                            nov_el = await page.query_selector(".react-datepicker__month-10, .react-datepicker__month-text:has-text('Nov')")
+                            if nov_el:
+                                await nov_el.click()
+                                await asyncio.sleep(0.3)
+                        except Exception as de:
+                            print(f"⚠️ Datepicker interaction note: {de}")
+
+                        # Toggle 'I currently work here' to eliminate End Date requirement
+                        cb_sel = f"input[id='experienceData[{idx}].fromTo.currentlyWorkHere']"
+                        try:
+                            cb = await page.query_selector(cb_sel)
+                            if cb and not await cb.is_checked():
+                                await cb.click()
+                                await asyncio.sleep(0.3)
+                        except Exception:
+                            pass
+
+                        desc_text = self.profile.get("custom_answers", {}).get("approval_workflow_project", "Redesigned approval workflow platform for 30+ enterprise tenants in Java 17/Spring Boot and microservices.")
+                        desc_el = await page.query_selector(f"textarea[id='experienceData[{idx}].description']")
+                        if desc_el:
+                            await desc_el.fill(desc_text[:500])
+                        break
+
+        # 3. Select Degree
         deg_select = await page.query_selector("select[id='educationData[0].degree']")
         if deg_select:
             try:
@@ -528,10 +582,19 @@ class PhenomApplier:
             except Exception as e:
                 print(f"⚠️ Advance click attempt {attempt+1} note: {e}")
 
-            for _ in range(10):
+            for _ in range(12):
                 await asyncio.sleep(1.0)
                 url = page.url.lower()
-                if f"step={current_step_num + 1}" in url or "applicationreview" in url or "applythankyou" in url:
+                if (
+                    f"step={current_step_num + 1}" in url
+                    or "applicationreview" in url
+                    or "review" in url
+                    or "applythankyou" in url
+                    or (current_step_num == 1 and ("step=2" in url or "workandeducation" in url))
+                    or (current_step_num == 2 and ("step=3" in url or "jobspecificquestions" in url))
+                    or (current_step_num == 3 and ("step=4" in url or "applicationquestionnaire" in url or "voluntarydisclosures" in url))
+                    or (current_step_num == 4 and ("step=5" in url or "voluntarydisclosures" in url or "review" in url))
+                ):
                     return True
         return False
 
