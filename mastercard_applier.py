@@ -279,6 +279,7 @@ class MastercardApplier:
         try:
             await page.goto(apply_entry_url, wait_until="domcontentloaded", timeout=35000)
         except Exception as e:
+            print(f"⚠️ Page navigation note: {e}")
         await asyncio.sleep(4.0)
 
         # Check for Workday maintenance
