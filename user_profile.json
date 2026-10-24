@@ -72,7 +72,7 @@
     ],
     "notice_period_days": 30,
     "current_ctc_lpa": 28.0,
-    "expected_ctc_lpa": 55.0,
+    "expected_ctc_lpa": 40.0,
     "open_to_relocation": true,
     "work_preference": "Hybrid or Remote"
   },

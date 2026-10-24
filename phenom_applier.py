@@ -496,15 +496,27 @@ class PhenomApplier:
         sal_inputs = await page.query_selector_all("textarea, input[type=text]")
         for inp in sal_inputs:
             try:
-                lbl = await page.evaluate('''el => {
+                res = await page.evaluate('''el => {
                     let p = el.parentElement;
                     while (p && !p.querySelector('label') && p.parentElement) p = p.parentElement;
-                    return p && p.querySelector('label') ? p.querySelector('label').innerText.toLowerCase() : '';
+                    const lblEl = p ? p.querySelector('label') : null;
+                    const lblText = lblEl ? lblEl.innerText.toLowerCase() : '';
+                    const isReq = (lblEl && lblEl.innerText.includes('*')) || 
+                                  el.hasAttribute('required') || 
+                                  el.getAttribute('aria-required') === 'true' ||
+                                  (p && p.querySelector('.required, .mandatory, [aria-required="true"]'));
+                    return [lblText, !!isReq];
                 }''', inp)
+                lbl, is_req = res[0], res[1]
                 if "salary" in lbl or "desired" in lbl or "compensation" in lbl:
-                    print(f"   Desired Salary: {expected_ctc}")
-                    await inp.fill(expected_ctc)
-                    await inp.evaluate('e => { e.dispatchEvent(new Event("input", {bubbles: true})); e.dispatchEvent(new Event("change", {bubbles: true})); }')
+                    if is_req:
+                        print("💰 Feeding mandatory expected compensation: 40")
+                        await inp.fill("40")
+                        await inp.evaluate('e => { e.dispatchEvent(new Event("input", {bubbles: true})); e.dispatchEvent(new Event("change", {bubbles: true})); }')
+                    else:
+                        print("⏭️ Expected compensation is optional: leaving empty.")
+                        await inp.fill("")
+                        await inp.evaluate('e => { e.dispatchEvent(new Event("input", {bubbles: true})); e.dispatchEvent(new Event("change", {bubbles: true})); }')
             except Exception:
                 pass
 

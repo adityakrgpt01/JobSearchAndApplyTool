@@ -176,29 +176,10 @@ class FormLLMEngine:
 
         # Expected compensation / CTC
         if any(w in q for w in ["expected ctc", "expected salary", "salary expectation", "compensation", "expected"]):
-            # Dynamically compute based on how much the company pays for the role
-            expected_val = 55.0
-            if job_context:
-                tier = job_context.get("salary_tier", "")
-                if "70+" in tier:
-                    expected_val = 72.0
-                elif "60-70" in tier:
-                    expected_val = 65.0
-                elif "50-60" in tier:
-                    expected_val = 55.0
-                elif "40-50" in tier:
-                    expected_val = 45.0
-                else:
-                    est = job_context.get("estimated_ctc", "")
-                    m = re.search(r'(\d+)\s*-\s*(\d+)', est)
-                    if m:
-                        expected_val = float(m.group(2))
-            else:
-                expected_val = prof.get("expected_ctc_lpa", 55.0)
-
+            expected_val = prof.get("expected_ctc_lpa", 40.0)
             if "in lpa" in q or "lpa" in q or "number" in q:
-                return f"{expected_val:.1f} LPA"
-            return f"₹{expected_val:.1f} LPA"
+                return f"{expected_val:.0f} LPA"
+            return f"{expected_val:.0f}"
 
         # Current CTC (User explicitly specified 28)
         if any(w in q for w in ["current ctc", "current salary", "present ctc", "current"]):

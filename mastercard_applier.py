@@ -554,7 +554,20 @@ class MastercardApplier:
                     ta = await f.query_selector("textarea")
                     if ta and not await ta.input_value():
                         if "salary" in f_text or "compensation" in f_text or "desired" in f_text:
-                            await ta.fill("55 LPA")
+                            is_req = await page.evaluate('''el => {
+                                let p = el.closest('[data-automation-id^="formField-"], .form-group, div');
+                                if (!p) p = el.parentElement;
+                                if (el.hasAttribute('required') || el.getAttribute('aria-required') === 'true') return true;
+                                if (p && p.querySelector('[data-automation-id="required"], [class*="required"], abbr[title="required"], .mandatory')) return true;
+                                const lbl = p ? p.querySelector('label, [id*="label"]') : null;
+                                if (lbl && (lbl.innerText.includes('*') || lbl.querySelector('abbr[title="required"], [class*="required"]'))) return true;
+                                return false;
+                            }''', ta)
+                            if is_req:
+                                print("💰 Feeding mandatory expected compensation: 40")
+                                await ta.fill("40")
+                            else:
+                                print("⏭️ Expected compensation is optional: leaving empty.")
                         elif "notice" in f_text:
                             await ta.fill("30")
                 except Exception:
@@ -596,8 +609,21 @@ class MastercardApplier:
                             await ti.fill("30")
                         elif "current" in info and ("ctc" in info or "salary" in info or "compensation" in info):
                             await ti.fill("28 LPA")
-                        elif "expected" in info or "expectation" in info:
-                            await ti.fill("55 LPA")
+                        elif "expected" in info or "expectation" in info or ("desired" in info and ("salary" in info or "compensation" in info or "ctc" in info)):
+                            is_req = await page.evaluate('''el => {
+                                let p = el.closest('[data-automation-id^="formField-"], .form-group, div');
+                                if (!p) p = el.parentElement;
+                                if (el.hasAttribute('required') || el.getAttribute('aria-required') === 'true') return true;
+                                if (p && p.querySelector('[data-automation-id="required"], [class*="required"], abbr[title="required"], .mandatory')) return true;
+                                const lbl = p ? p.querySelector('label, [id*="label"]') : null;
+                                if (lbl && (lbl.innerText.includes('*') || lbl.querySelector('abbr[title="required"], [class*="required"]'))) return true;
+                                return false;
+                            }''', ti)
+                            if is_req:
+                                print("💰 Feeding mandatory expected compensation: 40")
+                                await ti.fill("40")
+                            else:
+                                print("⏭️ Expected compensation is optional: leaving empty.")
                         elif "city" in info or "location" in info:
                             await ti.fill("Pune")
                 except Exception:
