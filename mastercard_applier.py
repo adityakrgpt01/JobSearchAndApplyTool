@@ -279,8 +279,13 @@ class MastercardApplier:
         try:
             await page.goto(apply_entry_url, wait_until="domcontentloaded", timeout=35000)
         except Exception as e:
-            print(f"⚠️ Page navigation note: {e}")
         await asyncio.sleep(4.0)
+
+        # Check for Workday maintenance
+        body_text = (await page.content()).lower()
+        if "workday is currently unavailable" in body_text or "system maintenance" in body_text:
+            print("⚠️ Mastercard Workday portal is currently undergoing scheduled maintenance.")
+            return False, "Mastercard Workday portal is currently undergoing scheduled maintenance. Please retry in a few minutes."
 
         # Dismiss cookie banner if present
         cb = await page.query_selector('button#onetrust-accept-btn-handler, button:has-text("Accept All"), button:has-text("Accept Cookies")')
