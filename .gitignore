@@ -5,4 +5,4 @@ screenshots/
 .env
 *.log
 *.html
-phenom_*.png
+*.png
