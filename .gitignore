@@ -4,3 +4,5 @@ __pycache__/
 screenshots/
 .env
 *.log
+*.html
+phenom_*.png
