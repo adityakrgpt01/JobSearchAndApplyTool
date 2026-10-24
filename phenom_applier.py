@@ -428,6 +428,9 @@ class PhenomApplier:
                     val = next((o['v'] for o in opts if 'male' in o['t'].lower() and 'fe' not in o['t'].lower()), None)
                 elif "worked for mastercard" in lbl or "previous employee" in lbl:
                     val = next((o['v'] for o in opts if o['t'].lower().strip() == 'no'), None)
+                else:
+                    # Select 'No' for compliance, conflict of interest, government oversight, and outside employment
+                    val = next((o['v'] for o in opts if o['t'].lower().strip() == 'no'), None)
 
                 if val:
                     await sel.select_option(value=val)
@@ -483,6 +486,32 @@ class PhenomApplier:
                 }
             });
         }''')
+
+        # Voluntary Disclosures dropdowns (Veteran, Disability, Race/Ethnicity, Gender)
+        selects = await page.query_selector_all("select")
+        for sel in selects:
+            try:
+                lbl = await page.evaluate('''el => {
+                    let p = el.parentElement;
+                    while (p && !p.querySelector('label') && p.parentElement) p = p.parentElement;
+                    return p && p.querySelector('label') ? p.querySelector('label').innerText.toLowerCase() : '';
+                }''', sel)
+                opts = await page.evaluate('''el => Array.from(el.options).map(o => ({v: o.value, t: o.text}))''', sel)
+                val = None
+                if "veteran" in lbl:
+                    val = next((o['v'] for o in opts if "not" in o['t'].lower() or "no" in o['t'].lower()), None)
+                elif "disability" in lbl:
+                    val = next((o['v'] for o in opts if "not" in o['t'].lower() or "no" in o['t'].lower() or "do not" in o['t'].lower()), None)
+                elif "race" in lbl or "ethnic" in lbl:
+                    val = next((o['v'] for o in opts if "asian" in o['t'].lower()), None) or next((o['v'] for o in opts if "decline" in o['t'].lower()), None)
+                elif "gender" in lbl:
+                    val = next((o['v'] for o in opts if "male" in o['t'].lower() and "fe" not in o['t'].lower()), None)
+                if val:
+                    await sel.select_option(value=val)
+                    await page.evaluate('el => el.dispatchEvent(new Event("change", {bubbles: true}))', sel)
+            except Exception:
+                pass
+
         await asyncio.sleep(1.0)
         return True, "Step 5 completed successfully."
 
@@ -590,21 +619,23 @@ class PhenomApplier:
                 await self.fill_step3_job_specific_questions(page)
                 await self.advance_step(page, 3)
 
-            # ── Step 4: Conflict of Interest & Compliance ─────────────────────
-            if "step=4" in page.url or "applicationQuestionnaire" in page.url:
+            # ── Step 4: Questionnaire or Voluntary Disclosures ────────────────
+            url_low = page.url.lower()
+            if "applicationquestionnaire" in url_low:
                 await asyncio.sleep(2.0)
                 await self.fill_step4_conflict_and_compliance(page)
                 await self.advance_step(page, 4)
 
-            # ── Step 5: Voluntary Disclosures & Terms ─────────────────────────
-            if "step=5" in page.url or "applicantAcknowledgment" in page.url:
-                await asyncio.sleep(2.0)
-                await self.fill_step5_voluntary_disclosures(page)
-                await self.advance_step(page, 5)
+            url_low = page.url.lower()
+            if "voluntarydisclosures" in url_low or "applicantacknowledgment" in url_low or (("step=4" in url_low or "step=5" in url_low) and "review" not in url_low):
+                if "applicationreview" not in url_low and "review" not in url_low:
+                    await asyncio.sleep(2.0)
+                    await self.fill_step5_voluntary_disclosures(page)
+                    await self.advance_step(page, 5)
 
-            # ── Step 6: Review & Final Submit ─────────────────────────────────
+            # ── Step Review & Final Submit ─────────────────────────────────────
             for _ in range(15):
-                if "step=6" in page.url or "applicationreview" in page.url.lower():
+                if "applicationreview" in page.url.lower() or "review" in page.url.lower() or "step=6" in page.url:
                     break
                 await asyncio.sleep(1.0)
             await asyncio.sleep(2.5)

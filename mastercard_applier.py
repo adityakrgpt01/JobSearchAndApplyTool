@@ -172,6 +172,12 @@ class MastercardApplier:
         except Exception as e:
             print(f"⚠️ Page navigation note: {e}")
 
+        # Check for Workday maintenance outage
+        content = (await page.content()).lower()
+        if "workday is currently unavailable" in content or "system maintenance" in content or "service interruption" in content:
+            print("⚠️ Mastercard Workday portal is currently undergoing scheduled maintenance.")
+            return False
+
         # Dismiss cookie banner if present
         cb = await page.query_selector('button#onetrust-accept-btn-handler, button:has-text("Accept All"), button:has-text("Accept Cookies")')
         if cb and await cb.is_visible():
@@ -232,7 +238,7 @@ class MastercardApplier:
 
     def _resolve_workday_url(self, raw_url: str, title: str) -> str:
         """Resolves LinkedIn or aggregator URLs to official Workday job links."""
-        if "myworkdayjobs.com" in raw_url:
+        if "myworkdayjobs.com" in raw_url or "careers.mastercard.com" in raw_url:
             return raw_url
 
         # Check database for matching Workday posting with same title
@@ -262,10 +268,33 @@ class MastercardApplier:
         raw_url = job["apply_url"]
         title = job.get("title", "")
         target_url = self._resolve_workday_url(raw_url, title)
+
+        if "careers.mastercard.com" in target_url or "jobSeqNo=" in target_url or "phenom" in target_url:
+            print(f"🌐 Detected Mastercard Phenom portal URL ({target_url}). Delegating to PhenomApplier...")
+            from phenom_applier import PhenomApplier
+            p_applier = PhenomApplier(dry_run=self.dry_run, headless=self.headless, keep_open=self.keep_open)
+            # Use the existing page context
+            res = await p_applier.apply_to_job(job, context=page.context)
+            ok = res.get("status") in ["APPLIED", "READY_TO_SUBMIT (DRY_RUN)", "READY_TO_SUBMIT (REVIEW_REQUIRED)"]
+            return ok, res.get("message", "Mastercard application processed via Phenom portal")
+
+        if "myworkdayjobs.com" not in target_url:
+            if "linkedin.com" in target_url:
+                print(f"🔗 No direct Workday requisition found for '{title}'. Delegating to LinkedIn Easy Apply...")
+                from stealth_applier import StealthApplier
+                sub_applier = StealthApplier(dry_run=self.dry_run, headless=self.headless, keep_open=self.keep_open)
+                return await sub_applier._fill_linkedin(page, job)
+            return False, f"Job URL is not an official Workday portal: {target_url}"
+
         domain = urllib.parse.urlparse(target_url).netloc or "mastercard.wd1.myworkdayjobs.com"
 
         # ── 1. Ensure authenticated session ────────────────────────────────────
-        await self.ensure_logged_in(page, domain)
+        logged_in = await self.ensure_logged_in(page, domain)
+        if not logged_in:
+            content = (await page.content()).lower()
+            if "workday is currently unavailable" in content or "service interruption" in content or "system maintenance" in content:
+                return False, "Mastercard Workday portal is currently undergoing scheduled maintenance. Please retry once maintenance concludes."
+            print("⚠️ Session authentication check was not completed; proceeding directly to application entry.")
 
         # ── 2. Navigate to Job / Apply Page ───────────────────────────────────
         # Append /apply if directly pointing to a job detail URL
