@@ -251,7 +251,7 @@ class PhenomApplier:
 
         # 4. Address Details
         address_line = pers.get("current_address", "Outer Ring Road, Bellandur")
-        city = pers.get("current_city", "Bengaluru")
+        city = pers.get("current_city", "Bangalore")
         postal = pers.get("postal_code", "560103")
         await self.set_field_value(page, "input[id='cntryFields.addressLine1'], input[name='cntryFields.addressLine1']", address_line)
         await self.set_field_value(page, "input[id='cntryFields.city'], input[name='cntryFields.city']", city)
@@ -389,7 +389,7 @@ class PhenomApplier:
                         print(f"   Injecting 73 Strings (SDE II) into experienceData[{idx}]...")
                         await self.set_field_value(page, f"input[id='experienceData[{idx}].companyName']", "73 Strings")
                         await self.set_field_value(page, f"input[id='experienceData[{idx}].title']", "SDE II")
-                        await self.set_field_value(page, f"input[id='experienceData[{idx}].location']", "Bengaluru, India")
+                        await self.set_field_value(page, f"input[id='experienceData[{idx}].location']", "Bangalore, India")
 
                         # Open and select from react-datepicker popup
                         start_sel = f"input[id='experienceData[{idx}].fromTo.startDate']"
@@ -492,6 +492,23 @@ class PhenomApplier:
             except Exception:
                 pass
 
+        # Check radio buttons for gender in Step 3
+        radios = await page.query_selector_all("input[type='radio']")
+        for r in radios:
+            try:
+                r_info = await page.evaluate('''el => {
+                    let p = el.parentElement;
+                    while (p && !p.querySelector('label') && p.parentElement) p = p.parentElement;
+                    return p ? p.innerText.toLowerCase() : '';
+                }''', r)
+                if "gender" in r_info:
+                    r_lbl = await page.evaluate('el => el.parentElement ? el.parentElement.innerText.toLowerCase() : ""', r)
+                    if "male" in r_lbl and "fe" not in r_lbl:
+                        print("🔘 Selected 'Male' radio option for Gender in Step 3")
+                        await r.click()
+            except Exception:
+                pass
+
         # Desired salary field
         sal_inputs = await page.query_selector_all("textarea, input[type=text]")
         for inp in sal_inputs:
@@ -575,6 +592,23 @@ class PhenomApplier:
                 if val:
                     await sel.select_option(value=val)
                     await page.evaluate('el => el.dispatchEvent(new Event("change", {bubbles: true}))', sel)
+            except Exception:
+                pass
+
+        # Check radio buttons for gender in Step 5
+        radios = await page.query_selector_all("input[type='radio']")
+        for r in radios:
+            try:
+                r_info = await page.evaluate('''el => {
+                    let p = el.parentElement;
+                    while (p && !p.querySelector('label') && p.parentElement) p = p.parentElement;
+                    return p ? p.innerText.toLowerCase() : '';
+                }''', r)
+                if "gender" in r_info:
+                    r_lbl = await page.evaluate('el => el.parentElement ? el.parentElement.innerText.toLowerCase() : ""', r)
+                    if "male" in r_lbl and "fe" not in r_lbl:
+                        print("🔘 Selected 'Male' radio option for Gender in Step 5")
+                        await r.click()
             except Exception:
                 pass
 

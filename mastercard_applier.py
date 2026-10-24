@@ -521,6 +521,18 @@ class MastercardApplier:
                         await phone_inp.fill(target_phone)
                         await asyncio.sleep(0.4)
 
+                # 7. City / Location in My Information -> Bangalore
+                city_inp = await page.query_selector(
+                    "input[data-automation-id='addressSection_city'], "
+                    "input#addressSection_city, "
+                    "input[name*='city' i]"
+                )
+                if city_inp:
+                    target_city = pers.get("current_city", "Bangalore")
+                    print(f"📍 Setting My Information City to '{target_city}'...")
+                    await city_inp.fill(target_city)
+                    await asyncio.sleep(0.3)
+
             # ── B. Questions & Disclosures Dropdowns (Steps 3, 4, 5)
             dropdown_fields = await page.query_selector_all("div[data-automation-id^='formField-']")
             for f in dropdown_fields:
@@ -529,7 +541,14 @@ class MastercardApplier:
                     btn = await f.query_selector("button[aria-haspopup='listbox']")
                     if btn:
                         curr_txt = (await btn.inner_text()).strip()
-                        if curr_txt in ["Select One", "", "—"]:
+                        should_select = False
+                        if "gender" in f_text:
+                            if curr_txt.lower() != "male":
+                                should_select = True
+                        elif curr_txt in ["Select One", "", "—"]:
+                            should_select = True
+
+                        if should_select:
                             await btn.click()
                             await asyncio.sleep(0.6)
                             opt = None
@@ -542,13 +561,40 @@ class MastercardApplier:
                             ]):
                                 opt = await page.query_selector("li[role='option']:has-text('No'), div[data-automation-id='menuItem']:has-text('No')")
                             elif "gender" in f_text:
-                                opt = await page.query_selector("li[role='option']:has-text('Male'), div[data-automation-id='menuItem']:has-text('Male')")
+                                # Must select strictly 'Male' and NEVER match 'Female'
+                                all_opts = await page.query_selector_all("li[role='option'], div[data-automation-id='menuItem']")
+                                for o in all_opts:
+                                    t = (await o.inner_text()).strip().lower()
+                                    if t == "male" or (t.startswith("male") and "fe" not in t):
+                                        opt = o
+                                        break
+                                if not opt:
+                                    handle = await page.evaluate_handle('''() => {
+                                        const els = Array.from(document.querySelectorAll("li[role='option'], div[data-automation-id='menuItem']"));
+                                        return els.find(e => {
+                                            const s = e.innerText.trim().toLowerCase();
+                                            return s === 'male' || (s.startsWith('male') && !s.includes('fe'));
+                                        }) || null;
+                                    }''')
+                                    if handle and handle.as_element():
+                                        opt = handle.as_element()
                             else:
                                 opt = await page.query_selector("li[role='option']:has-text('No'), li[role='option']:has-text('Yes')")
 
                             if opt:
+                                print(f"🔘 Selected option for dropdown '{f_text[:30]}...'")
                                 await opt.click()
                             await asyncio.sleep(0.3)
+
+                    # Radio buttons fallback (e.g. for Gender or Yes/No)
+                    if "gender" in f_text:
+                        radios = await f.query_selector_all("label, div[role='radio'], input[type='radio']")
+                        for r in radios:
+                            r_text = (await r.inner_text()).strip().lower()
+                            if r_text == "male" or (r_text.startswith("male") and "fe" not in r_text):
+                                print("🔘 Clicked 'Male' radio option")
+                                await r.click()
+                                break
 
                     # Textareas (e.g. Desired salary)
                     ta = await f.query_selector("textarea")
@@ -625,7 +671,9 @@ class MastercardApplier:
                             else:
                                 print("⏭️ Expected compensation is optional: leaving empty.")
                         elif "city" in info or "location" in info:
-                            await ti.fill("Pune")
+                            target_city = pers.get("current_city", "Bangalore")
+                            print(f"📍 Setting location to '{target_city}'...")
+                            await ti.fill(target_city)
                 except Exception:
                     pass
 
