@@ -262,6 +262,268 @@ class MastercardApplier:
             pass
         return raw_url
 
+    async def fill_step2_experience_education_skills(self, page: Page):
+        """Fills Work Experience, Education, Skills, and Websites on Step 2 (My Experience)."""
+        print("🎓 Interacting with Step 2: My Experience...")
+
+        pers = self.profile.get("personal", {})
+        prof = self.profile.get("professional", {})
+        edu_info = prof.get("education", {
+            "institution": "Jss Academy of Technical Education Noida",
+            "degree": "Bachelor's",
+            "field_of_study": "Computer Science",
+            "gpa": "7.97",
+            "start_year": 2017,
+            "graduation_year": 2021
+        })
+
+        # ── 1. Work Experience ────────────────────────────────────────────────
+        try:
+            exp_sec = await page.query_selector("div[aria-labelledby='Work-Experience-section'], div[aria-labelledby*='Work-Experience']")
+            if exp_sec:
+                comp_inps = await exp_sec.query_selector_all("input[name*='company' i], input[id*='company' i]")
+                if not comp_inps:
+                    add_exp_btn = await exp_sec.query_selector("button[data-automation-id='add-button']")
+                    if add_exp_btn and await add_exp_btn.is_visible():
+                        print("🏢 Adding Work Experience 1: 73 Strings...")
+                        await add_exp_btn.click(force=True)
+                        await asyncio.sleep(1.5)
+
+                # Ensure company names
+                comp_inps = await exp_sec.query_selector_all("input[name*='company' i], input[id*='company' i]")
+                for idx, ci in enumerate(comp_inps):
+                    try:
+                        val = (await ci.input_value()).strip()
+                        if not val:
+                            cname = "73 Strings" if idx == 0 else ("Sumo Logic" if idx == 1 else ("Open Financial Technologies" if idx == 2 else "Exotel"))
+                            print(f"🏢 Setting missing Work Experience {idx+1} Company: '{cname}'")
+                            await ci.fill(cname)
+                            await asyncio.sleep(0.3)
+                    except Exception:
+                        pass
+
+                # Ensure job titles
+                title_inps = await exp_sec.query_selector_all("input[name*='jobTitle' i], input[id*='jobTitle' i], input[name*='title' i]")
+                for idx, ti in enumerate(title_inps):
+                    try:
+                        val = (await ti.input_value()).strip()
+                        if not val:
+                            tname = "Software Development Engineer II"
+                            print(f"💼 Setting missing Work Experience {idx+1} Title: '{tname}'")
+                            await ti.fill(tname)
+                            await asyncio.sleep(0.3)
+                    except Exception:
+                        pass
+
+                # Ensure locations
+                loc_inps = await exp_sec.query_selector_all("input[name*='location' i], input[id*='location' i]")
+                for idx, li in enumerate(loc_inps):
+                    try:
+                        val = (await li.input_value()).strip()
+                        if not val:
+                            lname = "Bangalore, India" if idx != 1 else "Noida, India"
+                            await li.fill(lname)
+                            await asyncio.sleep(0.3)
+                    except Exception:
+                        pass
+
+                # Ensure "I currently work here" checkbox
+                curr_work = await exp_sec.query_selector("input[type='checkbox']")
+                if curr_work and not await curr_work.is_checked():
+                    await curr_work.check(force=True)
+
+                # Ensure Start Date (From: Month 11 / Year 2025)
+                m_inps = await exp_sec.query_selector_all("input[data-automation-id='dateSectionMonth-input']")
+                y_inps = await exp_sec.query_selector_all("input[data-automation-id='dateSectionYear-input']")
+                for idx, (m, y) in enumerate(zip(m_inps, y_inps)):
+                    try:
+                        if not (await m.input_value()).strip():
+                            print(f"📅 Setting Work Experience {idx+1} Start Month -> '11'")
+                            await m.fill("11")
+                        if not (await y.input_value()).strip():
+                            print(f"📅 Setting Work Experience {idx+1} Start Year -> '2025'")
+                            await y.fill("2025")
+                    except Exception:
+                        pass
+
+                # Generic placeholder MM/YYYY input fallback
+                generic_date_inps = await exp_sec.query_selector_all("input[placeholder*='YYYY' i]")
+                for di in generic_date_inps:
+                    try:
+                        if not (await di.input_value()).strip():
+                            print("📅 Setting generic date input -> '11/2025'")
+                            await di.fill("11/2025")
+                    except Exception:
+                        pass
+        except Exception as we_err:
+            print(f"⚠️ Work Experience handling note: {we_err}")
+
+        # ── 2. Education Section ───────────────────────────────────────────────
+        try:
+            edu_sec = await page.query_selector("div[aria-labelledby='Education-section']")
+            if edu_sec:
+                school_inp = await page.query_selector("input[name='schoolName'], input[id*='schoolName'], div[data-automation-id='formField-schoolName'] input")
+                if not school_inp or not await school_inp.is_visible():
+                    add_edu = await edu_sec.query_selector("button[data-automation-id='add-button']")
+                    if add_edu and await add_edu.is_visible():
+                        print("🎓 Clicking 'Add' in Education section...")
+                        await add_edu.click(force=True)
+                        await asyncio.sleep(1.5)
+                        school_inp = await page.query_selector("input[name='schoolName'], input[id*='schoolName'], div[data-automation-id='formField-schoolName'] input")
+
+                # School Name
+                if school_inp:
+                    curr_school = (await school_inp.input_value()).strip()
+                    if not curr_school:
+                        inst_name = edu_info.get("institution", "Jss Academy of Technical Education Noida")
+                        print(f"🎓 Filling Education School Name: '{inst_name}'")
+                        await school_inp.fill(inst_name)
+                        await asyncio.sleep(0.3)
+
+                # Degree Dropdown
+                deg_btn = await page.query_selector("button[name='degree'], button[id*='degree'], div[data-automation-id='formField-degree'] button[aria-haspopup='listbox']")
+                if deg_btn:
+                    deg_txt = (await deg_btn.inner_text()).strip()
+                    if deg_txt in ["Select One", "", "—", "Select"]:
+                        print("🎓 Selecting Degree: Bachelor's...")
+                        await deg_btn.click(force=True)
+                        await asyncio.sleep(0.8)
+                        d_opt = await page.query_selector("li[role='option']:has-text('Bachelor'), div[data-automation-id='menuItem']:has-text('Bachelor')")
+                        if d_opt:
+                            print(f"🎓 Degree option selected: {await d_opt.inner_text()}")
+                            await d_opt.click(force=True)
+                        await asyncio.sleep(0.4)
+
+                # Field of Study (multiselect)
+                fos_inp = await page.query_selector("input[id*='fieldOfStudy'], div[data-automation-id='formField-fieldOfStudy'] input")
+                if fos_inp:
+                    has_fos = await page.evaluate('''() => {
+                        const p = document.querySelector("div[data-automation-id='formField-fieldOfStudy'] [data-automation-id='selectedItem']");
+                        return !!p && p.innerText.trim().length > 0;
+                    }''')
+                    if not has_fos:
+                        fos_val = edu_info.get("field_of_study", "Computer Science")
+                        print(f"🎓 Setting Field of Study: '{fos_val}'")
+                        await fos_inp.focus()
+                        await fos_inp.type(fos_val, delay=50)
+                        await asyncio.sleep(1.2)
+                        f_opt = await page.query_selector(f"li[role='option']:has-text('{fos_val}'), [data-automation-label*='{fos_val}' i]")
+                        if f_opt:
+                            await f_opt.click(force=True)
+                        else:
+                            await page.keyboard.press("Enter")
+                        await asyncio.sleep(0.4)
+                        await page.keyboard.press("Escape")
+                        await asyncio.sleep(0.2)
+
+                # GPA / Grade Average
+                gpa_inp = await page.query_selector("input[name='gradeAverage'], input[id*='gradeAverage'], div[data-automation-id='formField-gradeAverage'] input")
+                if gpa_inp:
+                    curr_gpa = (await gpa_inp.input_value()).strip()
+                    if not curr_gpa:
+                        gpa_val = str(edu_info.get("gpa", "7.97"))
+                        print(f"🎓 Setting Overall Result (GPA): '{gpa_val}'")
+                        await gpa_inp.fill(gpa_val)
+                        await asyncio.sleep(0.3)
+
+                # From Year
+                from_yr = await page.query_selector("input[id*='firstYearAttended'], div[data-automation-id='formField-firstYearAttended'] input")
+                if from_yr:
+                    curr_from = (await from_yr.input_value()).strip()
+                    if not curr_from:
+                        from_val = str(edu_info.get("start_year", "2017"))
+                        print(f"🎓 Setting Education From Year: '{from_val}'")
+                        await from_yr.fill(from_val)
+                        await asyncio.sleep(0.3)
+
+                # To Year
+                to_yr = await page.query_selector("input[id*='lastYearAttended'], div[data-automation-id='formField-lastYearAttended'] input")
+                if to_yr:
+                    curr_to = (await to_yr.input_value()).strip()
+                    if not curr_to:
+                        to_val = str(edu_info.get("graduation_year", "2021"))
+                        print(f"🎓 Setting Education To Year: '{to_val}'")
+                        await to_yr.fill(to_val)
+                        await asyncio.sleep(0.3)
+        except Exception as edu_err:
+            print(f"⚠️ Education handling note: {edu_err}")
+
+        # ── 3. Websites Section ────────────────────────────────────────────────
+        try:
+            web_sec = await page.query_selector("div[aria-labelledby='Websites-section'], div[data-automation-id='websitesSection']")
+            if web_sec:
+                url_inp = await page.query_selector("input[name='url'], input[id*='webAddress'], div[data-automation-id='formField-url'] input")
+                if not url_inp or not await url_inp.is_visible():
+                    add_web = await web_sec.query_selector("button[data-automation-id='add-button']")
+                    if add_web and await add_web.is_visible():
+                        print("🔗 Clicking 'Add' in Websites section...")
+                        await add_web.click(force=True)
+                        await asyncio.sleep(1.2)
+                        url_inp = await page.query_selector("input[name='url'], input[id*='webAddress'], div[data-automation-id='formField-url'] input")
+
+                if url_inp:
+                    curr_url = (await url_inp.input_value()).strip()
+                    if not curr_url:
+                        linkedin_target = pers.get("linkedin_url", "https://www.linkedin.com/in/aditya-kumar-a518571b5/")
+                        print(f"🔗 Setting LinkedIn Website URL: '{linkedin_target}'")
+                        await url_inp.fill(linkedin_target)
+                        await asyncio.sleep(0.3)
+        except Exception as web_err:
+            print(f"⚠️ Websites handling note: {web_err}")
+
+        # ── 4. Skills Section ──────────────────────────────────────────────────
+        try:
+            skills_inp = await page.query_selector("input#skills--skills, div[data-automation-id='formField-skills'] input")
+            if skills_inp:
+                skills_to_add = prof.get("primary_skills", [
+                    "Java", "Golang", "Data Structure", "Problem Solving", "Algorithm",
+                    "Microservices", "Distributed Design", "Low Level Design", "High Level Design",
+                    "Mysql", "Postgresql", "AWS", "Nosql", "Redis", "Kafka",
+                    "CI/CD", "Docker", "Kubernetes", "Amazon SQS", "DynamoDB", "Elastic Search"
+                ])
+
+                existing = await page.evaluate('''() => {
+                    const pills = document.querySelectorAll("div[data-automation-id='formField-skills'] ul[role='list'] li, div[data-automation-id='formField-skills'] [data-automation-id='selectedItem']");
+                    return Array.from(pills).map(p => {
+                        const clone = p.cloneNode(true);
+                        clone.querySelectorAll("button, [data-automation-id='delete-button']").forEach(b => b.remove());
+                        return clone.innerText.trim().toLowerCase();
+                    }).filter(Boolean);
+                }''')
+                print(f"💡 Skills section currently has {len(existing)} existing pills.")
+
+                if len(existing) < 18:
+                    added_count = 0
+                    for sk in skills_to_add:
+                        sk_clean = sk.strip()
+                        sk_lower = sk_clean.lower()
+                        if any(sk_lower == e or sk_lower in e or e in sk_lower for e in existing):
+                            continue
+
+                        try:
+                            await skills_inp.click()
+                            await skills_inp.fill("")
+                            await skills_inp.type(sk_clean, delay=35)
+                            await asyncio.sleep(0.8)
+                            opt = await page.query_selector(f"li[role='option']:has-text('{sk_clean}'), [data-automation-label='{sk_clean}'], div[data-automation-id='menuItem']")
+                            if opt:
+                                await opt.click(force=True)
+                            else:
+                                await page.keyboard.press("Enter")
+                            await asyncio.sleep(0.3)
+                            await page.keyboard.press("Escape")
+                            await asyncio.sleep(0.2)
+                            existing.append(sk_lower)
+                            added_count += 1
+                        except Exception as ske:
+                            print(f"⚠️ Note adding skill '{sk_clean}': {ske}")
+
+                    print(f"✅ Added {added_count} new skills to Skills section.")
+                    await page.keyboard.press("Escape")
+                    await asyncio.sleep(0.3)
+        except Exception as sk_err:
+            print(f"⚠️ Skills handling note: {sk_err}")
+
     async def fill_workday_form(self, page: Page, job: Dict[str, Any]) -> Tuple[bool, str]:
         """Fills out Mastercard's Workday application completely through all steps."""
         pers = self.profile["personal"]
@@ -311,11 +573,14 @@ class MastercardApplier:
             print(f"⚠️ Page navigation note: {e}")
         await asyncio.sleep(4.0)
 
-        # Check for Workday maintenance
+        # Check for Workday maintenance or removed posting
         body_text = (await page.content()).lower()
         if "workday is currently unavailable" in body_text or "system maintenance" in body_text:
             print("⚠️ Mastercard Workday portal is currently undergoing scheduled maintenance.")
             return False, "Mastercard Workday portal is currently undergoing scheduled maintenance. Please retry in a few minutes."
+        if "page you are looking for doesn't exist" in body_text or "job is no longer available" in body_text or "no longer accepting applications" in body_text:
+            print("⚠️ Job posting has expired or been removed from Mastercard Workday.")
+            return False, "Mastercard Workday: Job posting has expired or been removed."
 
         # Dismiss cookie banner if present
         cb = await page.query_selector('button#onetrust-accept-btn-handler, button:has-text("Accept All"), button:has-text("Accept Cookies")')
@@ -366,7 +631,7 @@ class MastercardApplier:
                     print(f"ℹ️ Resume upload step note: {fe}")
 
         # ── 3. Multi-Step Workday Questionnaire Navigation ─────────────────────
-        max_steps = 7
+        max_steps = 10
         for step in range(1, max_steps + 1):
             await asyncio.sleep(3.5)
 
@@ -388,6 +653,10 @@ class MastercardApplier:
                 or "review" in current_step_text.lower()
                 or "step 6" in current_step_text.lower()
             ):
+                proof_path = os.path.join("screenshots", f"mastercard_review_{job.get('job_id', 'latest')}.png")
+                await capture_proof(page, proof_path)
+                print(f"📸 Captured final Review proof to {proof_path}!")
+
                 if self.dry_run:
                     print("🏁 Reached final Review step! [Review First Mode active: Stopping before submit].")
                     try:
@@ -532,8 +801,33 @@ class MastercardApplier:
                     print(f"📍 Setting My Information City to '{target_city}'...")
                     await city_inp.fill(target_city)
                     await asyncio.sleep(0.3)
+                    await page.keyboard.press("Escape")
+                    await asyncio.sleep(0.4)
 
-            # ── B. Questions & Disclosures Dropdowns (Steps 3, 4, 5)
+                # 8. Country in My Information -> India
+                c_btn = await page.query_selector("button[data-automation-id='addressSection_countryRegion'], div[data-automation-id*='country' i] button[aria-haspopup='listbox']")
+                if c_btn:
+                    c_txt = (await c_btn.inner_text()).strip()
+                    if "india" not in c_txt.lower():
+                        print("📍 Setting Country to 'India'...")
+                        await c_btn.click(force=True)
+                        await asyncio.sleep(0.8)
+                        ind_opt = await page.query_selector("li[role='option']:has-text('India'), div[data-automation-id='menuItem']:has-text('India')")
+                        if ind_opt:
+                            await ind_opt.click(force=True)
+                        await asyncio.sleep(0.4)
+                        await page.keyboard.press("Escape")
+
+            # ── B. Step 2: My Experience (Education, Skills, Websites, Experience)
+            is_step2 = (
+                "experience" in current_step_text.lower()
+                or "step 2" in current_step_text.lower()
+                or await page.query_selector("div[aria-labelledby='Education-section'], div[data-automation-id='formField-skills'], div[aria-labelledby='Websites-section']")
+            )
+            if is_step2:
+                await self.fill_step2_experience_education_skills(page)
+
+            # ── C. Questions & Disclosures Dropdowns (Steps 3, 4, 5)
             dropdown_fields = await page.query_selector_all("div[data-automation-id^='formField-']")
             for f in dropdown_fields:
                 try:
@@ -545,14 +839,19 @@ class MastercardApplier:
                         if "gender" in f_text:
                             if curr_txt.lower() != "male":
                                 should_select = True
+                        elif "country" in f_text:
+                            if "india" not in curr_txt.lower():
+                                should_select = True
                         elif curr_txt in ["Select One", "", "—"]:
                             should_select = True
 
                         if should_select:
-                            await btn.click()
+                            await btn.click(force=True)
                             await asyncio.sleep(0.6)
                             opt = None
-                            if "authorized" in f_text:
+                            if "country" in f_text:
+                                opt = await page.query_selector("li[role='option']:has-text('India'), div[data-automation-id='menuItem']:has-text('India')")
+                            elif "authorized" in f_text:
                                 opt = await page.query_selector("li[role='option']:has-text('Yes'), div[data-automation-id='menuItem']:has-text('Yes')")
                             elif any(k in f_text for k in [
                                 "sponsorship", "restrictive covenant", "mastercard", "worked",
@@ -937,10 +1236,16 @@ def main():
 
     # Select target jobs
     if args.job_id:
-        all_jobs = get_mastercard_jobs(status=None, limit=None)
-        targets = [j for j in all_jobs if j["job_id"] == args.job_id]
-        if not targets:
-            print(f"❌ Job ID '{args.job_id}' not found among Mastercard jobs in jobs.db")
+        conn = get_db_connection()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM job_postings WHERE job_id = ? OR id = ?", (args.job_id, args.job_id))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            targets = [dict(row)]
+        else:
+            print(f"❌ Job ID '{args.job_id}' not found in jobs.db")
             sys.exit(1)
     else:
         targets = get_mastercard_jobs(status=args.status, limit=args.limit)
