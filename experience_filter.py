@@ -20,7 +20,9 @@ EXCLUDED_SENIORITY_KEYWORDS = [
     "director",
     "vp",
     "vice president",
+    "manager",
     "engineering manager",
+    "program manager",
     "head of"
 ]
 
@@ -164,10 +166,11 @@ DISALLOWED_TITLE_KEYWORDS = [
     "servicenow", "service now", "service-now",
     # Quality & Testing
     "qa engineer", "qa tester", "qa lead", "quality assurance", "sdet", "test engineer",
+    "engineer in test", "software engineer in test",
     # Student / Junior
     "intern", "internship", "graduate", "trainee",
     # Management / Non-tech
-    "director", "vp", "vice president", "engineering manager", "devops",
+    "director", "vp", "vice president", "manager", "engineering manager", "program management", "program manager", "devops",
     "marketing", "sales", "support", "recruiter", "talent", "scrum master"
 ]
 

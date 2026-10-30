@@ -129,26 +129,38 @@ class GmailVerificationReader:
 
     def _extract_pin(self, text: str) -> Optional[str]:
         """Extracts verification code from email text (supports 6-digit PINs and 8-character Greenhouse security codes)."""
-        # 1. Look for Greenhouse / Portal 8-char security code: e.g. <h1>5BauOzP1</h1> or code into the security code field: 5BauOzP1
-        m_gh = re.search(r'(?:<h\d>|\bcode(?:\s+is|\s+into|\s*[:=-])?\s*)([A-Za-z0-9]{8})(?:</h\d>|\b|\s)', text, re.IGNORECASE)
-        if m_gh:
-            candidate = m_gh.group(1).strip()
-            # Verify candidate has both letters and numbers or is 8 chars
-            if len(candidate) == 8 and not candidate.lower() in ("security", "recruiti"):
-                return candidate
+        skip = {"security", "recruiti", "airbnbco", "doordash", "continue", "password"}
 
-        # 2. Look for explicit 6-digit or 4-8 digit numeric code
-        m = re.search(r'(?:code|pin|verification|passcode)\D{1,15}(\b\d{6}\b)', text, re.IGNORECASE)
+        def _ok_alnum8(candidate: str) -> bool:
+            c = candidate.strip()
+            return len(c) == 8 and c.lower() not in skip and re.search(r"[A-Za-z]", c) and re.search(r"\d", c)
+
+        # 1. Heading / prominent 8-char Greenhouse code
+        m_h = re.search(r"<h[1-6][^>]*>\s*([A-Za-z0-9]{8})\s*</h[1-6]>", text, re.IGNORECASE)
+        if m_h and _ok_alnum8(m_h.group(1)):
+            return m_h.group(1).strip()
+
+        # 2. "security code is: 5BauOzP1" / "enter the code into the security code field: 5BauOzP1"
+        for m_gh in re.finditer(
+            r"\bcode(?:\s+\w+){0,8}?\s*[:=\-]?\s*([A-Za-z0-9]{8})\b",
+            text,
+            re.IGNORECASE,
+        ):
+            if _ok_alnum8(m_gh.group(1)):
+                return m_gh.group(1).strip()
+
+        # 3. Look for explicit 6-digit numeric code
+        m = re.search(r"(?:code|pin|verification|passcode)\D{1,20}(\b\d{6}\b)", text, re.IGNORECASE)
         if m:
             return m.group(1)
-        
-        # 3. Fallback: any isolated 6-digit block
-        m2 = re.search(r'\b\d{6}\b', text)
+
+        # 4. Fallback: any isolated 6-digit block
+        m2 = re.search(r"\b\d{6}\b", text)
         if m2:
             return m2.group(0)
 
-        # 4. Fallback 8-character alphanumeric tag
-        m3 = re.search(r'<h\d>([A-Za-z0-9]{6,10})</h\d>', text)
+        # 5. Fallback 8-character alphanumeric tag in a heading
+        m3 = re.search(r"<h[1-6][^>]*>([A-Za-z0-9]{6,10})</h[1-6]>", text, re.IGNORECASE)
         if m3:
             return m3.group(1).strip()
 

@@ -41,6 +41,12 @@ def get_mastercard_dashboard_html() -> str:
                 <a href="/" class="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold flex items-center gap-2 transition border border-slate-700/60">
                     <i class="fa-solid fa-arrow-left"></i> All Companies
                 </a>
+                <a href="/visa" class="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold flex items-center gap-2 transition border border-slate-700/60">
+                    <span class="w-2 h-2 rounded-full bg-blue-500"></span> Visa
+                </a>
+                <a href="/lseg" class="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold flex items-center gap-2 transition border border-slate-700/60">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400"></span> LSEG
+                </a>
                 <div class="h-5 w-px bg-slate-700/60 hidden sm:block"></div>
                 <div class="flex items-center gap-2.5">
                     <!-- Mastercard Interlocking Circles Logo -->

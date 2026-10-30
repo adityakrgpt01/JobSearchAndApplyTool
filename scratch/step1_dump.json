@@ -1,0 +1,236 @@
+[
+  {
+    "tag": "BUTTON",
+    "id": "languageSelectorButton",
+    "name": "",
+    "type": "submit",
+    "aid": "utilityMenuButton",
+    "aria": null,
+    "text": "English"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "settingsSelectorButton",
+    "name": "",
+    "type": "submit",
+    "aid": "utilityMenuButton",
+    "aria": null,
+    "text": "Settings"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "accountSettingsButton",
+    "name": "",
+    "type": "submit",
+    "aid": "utilityMenuButton",
+    "aria": null,
+    "text": "adityakumargupta521@gmail.com"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "",
+    "name": "",
+    "type": "submit",
+    "aid": "navigationItem-Careers Page",
+    "aria": null,
+    "text": "Careers Page"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "",
+    "name": "",
+    "type": "submit",
+    "aid": "navigationItem-Search for Jobs",
+    "aria": null,
+    "text": "Search for Jobs"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "",
+    "name": "",
+    "type": "submit",
+    "aid": "navigationItem-Candidate Home",
+    "aria": null,
+    "text": "Candidate Home"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "",
+    "name": "",
+    "type": "submit",
+    "aid": "navigationItem-Job Alerts",
+    "aria": null,
+    "text": "Job Alerts"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "hammyMenuIcon",
+    "name": "",
+    "type": "submit",
+    "aid": "hammyMenuIcon",
+    "aria": "main menu",
+    "text": ""
+  },
+  {
+    "tag": "BUTTON",
+    "id": "",
+    "name": "",
+    "type": "button",
+    "aid": "backToJobPosting",
+    "aria": null,
+    "text": "Back to Job Posting"
+  },
+  {
+    "tag": "INPUT",
+    "id": "source--source",
+    "name": "",
+    "type": "text",
+    "aid": null,
+    "aria": null,
+    "text": ""
+  },
+  {
+    "tag": "BUTTON",
+    "id": "country--country",
+    "name": "country",
+    "type": "button",
+    "aid": null,
+    "aria": "Country / Territory Select One Required",
+    "text": "Select One"
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "text",
+    "aid": null,
+    "aria": null,
+    "text": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "name--legalName--firstName",
+    "name": "legalName--firstName",
+    "type": "text",
+    "aid": null,
+    "aria": null,
+    "text": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "name--legalName--middleName",
+    "name": "legalName--middleName",
+    "type": "text",
+    "aid": null,
+    "aria": null,
+    "text": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "name--legalName--lastName",
+    "name": "legalName--lastName",
+    "type": "text",
+    "aid": null,
+    "aria": null,
+    "text": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "name--legalName--firstNameLocal",
+    "name": "legalName--firstNameLocal",
+    "type": "text",
+    "aid": null,
+    "aria": null,
+    "text": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "name--legalName--middleNameLocal",
+    "name": "legalName--middleNameLocal",
+    "type": "text",
+    "aid": null,
+    "aria": null,
+    "text": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "name--legalName--lastNameLocal",
+    "name": "legalName--lastNameLocal",
+    "type": "text",
+    "aid": null,
+    "aria": null,
+    "text": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "name--preferredCheck",
+    "name": "preferredCheck",
+    "type": "checkbox",
+    "aid": null,
+    "aria": null,
+    "text": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "address--addressLine1",
+    "name": "addressLine1",
+    "type": "text",
+    "aid": null,
+    "aria": null,
+    "text": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "address--city",
+    "name": "city",
+    "type": "text",
+    "aid": null,
+    "aria": null,
+    "text": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "address--postalCode",
+    "name": "postalCode",
+    "type": "text",
+    "aid": null,
+    "aria": null,
+    "text": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "fo772",
+    "name": "",
+    "type": "checkbox",
+    "aid": "phone-sms-opt-in",
+    "aria": null,
+    "text": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "fo774",
+    "name": "",
+    "type": "checkbox",
+    "aid": "phone-whatsapp-opt-in",
+    "aria": null,
+    "text": ""
+  },
+  {
+    "tag": "BUTTON",
+    "id": "",
+    "name": "",
+    "type": "submit",
+    "aid": "pageFooterBackButton",
+    "aria": null,
+    "text": "Back"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "",
+    "name": "",
+    "type": "submit",
+    "aid": "pageFooterNextButton",
+    "aria": null,
+    "text": "Save and Continue"
+  }
+]

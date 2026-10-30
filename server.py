@@ -55,6 +55,16 @@ async def continuous_elite_spider_worker():
         # Run every 6 hours to avoid Playwright overhead
         await asyncio.sleep(6 * 3600)
 
+async def continuous_enterprise_hourly_worker():
+    from cron_enterprise_auto_apply import run_enterprise_cycle
+    while True:
+        try:
+            print("⏰ [Enterprise Cron] Running hourly Mastercard, Visa, and LSEG auto-discovery & apply cycle...")
+            await asyncio.to_thread(run_enterprise_cycle)
+        except Exception as e:
+            print(f"Enterprise hourly worker note: {e}")
+        await asyncio.sleep(3600)
+
 @app.on_event("startup")
 async def on_startup():
     init_db()
@@ -62,6 +72,7 @@ async def on_startup():
     asyncio.create_task(continuous_crawler_worker())
     # Launch persistent Playwright spider for bespoke Elite FAANG portals
     asyncio.create_task(continuous_elite_spider_worker())
+    # Note: Enterprise hourly cycle is managed by dedicated cron_enterprise_auto_apply daemon
 @app.get("/api/jobs")
 def get_jobs(
     status: Optional[str] = None,
@@ -276,7 +287,19 @@ async def apply_single_job(job_id: str, background_tasks: BackgroundTasks, dry_r
 
     # When single job autofill is triggered from UI, default to headed=True, keep_open=True so user sees editable prefilled form
     headless_flag = False if headed else True
-    applier = StealthApplier(dry_run=dry_run, headless=headless_flag, keep_open=keep_open)
+    c_name = (target_job.get("company_name") or "").lower()
+    apply_url = (target_job.get("apply_url") or "").lower()
+    if "mastercard" in c_name or "mastercard" in apply_url:
+        from mastercard_applier import MastercardApplier
+        applier = MastercardApplier(dry_run=dry_run, headless=headless_flag, keep_open=keep_open)
+    elif "visa" in c_name or "visa.wd5" in apply_url:
+        from visa_applier import VisaApplier
+        applier = VisaApplier(dry_run=dry_run, headless=headless_flag, keep_open=keep_open)
+    elif "lseg" in c_name or "london stock" in c_name or "lseg.wd3" in apply_url:
+        from lseg_applier import LsegApplier
+        applier = LsegApplier(dry_run=dry_run, headless=headless_flag, keep_open=keep_open)
+    else:
+        applier = StealthApplier(dry_run=dry_run, headless=headless_flag, keep_open=keep_open)
     background_tasks.add_task(applier.apply_to_job, target_job)
     return {"status": "Application process initiated in interactive headed mode", "dry_run": dry_run, "headed": headed, "keep_open": keep_open}
 
@@ -327,6 +350,115 @@ async def api_apply_mastercard(req: MastercardApplyRequest, background_tasks: Ba
         "dry_run": req.dry_run,
         "headed": req.headed
     }
+
+class VisaApplyRequest(BaseModel):
+    job_id: Optional[str] = None
+    dry_run: bool = True
+    headed: bool = True
+    limit: int = 1
+
+@app.get("/api/visa/jobs")
+def api_get_visa_jobs(status: Optional[str] = None, limit: Optional[int] = 50):
+    from visa_applier import get_visa_jobs
+    jobs = get_visa_jobs(status=status, limit=limit)
+    return {"jobs": jobs, "total": len(jobs)}
+
+@app.post("/api/visa/apply")
+async def api_apply_visa(req: VisaApplyRequest, background_tasks: BackgroundTasks):
+    from apply_all_visa import run_batch_applier
+    if req.job_id:
+        background_tasks.add_task(run_batch_applier, limit=1, headless=not req.headed, job_id=req.job_id, dry_run=req.dry_run)
+        return {"status": f"Visa application initiated for job {req.job_id}", "job_id": req.job_id}
+    else:
+        background_tasks.add_task(run_batch_applier, limit=req.limit, headless=not req.headed, dry_run=req.dry_run)
+        return {"status": f"Visa batch application initiated for up to {req.limit} jobs", "limit": req.limit}
+
+@app.post("/api/visa/sync")
+async def api_sync_visa():
+    from sync_visa_jobs import sync_and_audit_visa_database
+    res = await asyncio.to_thread(sync_and_audit_visa_database)
+    return {"status": "Visa synchronization completed", "summary": res}
+
+class LsegApplyRequest(BaseModel):
+    job_id: Optional[str] = None
+    dry_run: bool = True
+    headed: bool = True
+    limit: int = 1
+
+@app.get("/api/lseg/jobs")
+def api_get_lseg_jobs(status: Optional[str] = None, limit: Optional[int] = 50):
+    from lseg_applier import get_lseg_jobs
+    jobs = get_lseg_jobs(status=status, limit=limit)
+    return {"jobs": jobs, "total": len(jobs)}
+
+@app.post("/api/lseg/apply")
+async def api_apply_lseg(req: LsegApplyRequest, background_tasks: BackgroundTasks):
+    from apply_all_lseg import run_batch_applier
+    if req.job_id:
+        background_tasks.add_task(run_batch_applier, limit=1, headless=not req.headed, job_id=req.job_id, dry_run=req.dry_run)
+        return {"status": f"LSEG application initiated for job {req.job_id}", "job_id": req.job_id}
+    else:
+        background_tasks.add_task(run_batch_applier, limit=req.limit, headless=not req.headed, dry_run=req.dry_run)
+        return {"status": f"LSEG batch application initiated for up to {req.limit} jobs", "limit": req.limit}
+
+@app.post("/api/lseg/sync")
+async def api_sync_lseg():
+    from sync_lseg_jobs import sync_and_audit_lseg_database
+    res = await asyncio.to_thread(sync_and_audit_lseg_database)
+    return {"status": "LSEG synchronization completed", "summary": res}
+
+class UniversalEnterpriseApplyRequest(BaseModel):
+    job_id: Optional[str] = None
+    dry_run: bool = True
+    headed: bool = False
+    limit: int = 5
+
+@app.get("/api/enterprise/{company}/jobs")
+def api_get_enterprise_jobs(company: str, status: Optional[str] = None, limit: Optional[int] = 50):
+    clean_company = company.replace("_", " ").lower()
+    conn = sqlite3.connect("jobs.db")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    query = "SELECT * FROM job_postings WHERE LOWER(company_name) LIKE ? OR apply_url LIKE ?"
+    params = [f"%{clean_company}%", f"%{company.lower()}%"]
+    if status:
+        query += " AND status = ?"
+        params.append(status)
+    query += " ORDER BY id DESC LIMIT ?"
+    params.append(limit or 50)
+    c.execute(query, params)
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return {"company": company, "jobs": rows, "total": len(rows)}
+
+@app.post("/api/enterprise/{company}/apply")
+async def api_apply_enterprise(company: str, req: UniversalEnterpriseApplyRequest, background_tasks: BackgroundTasks):
+    slug = company.lower().replace("-", "_").replace(" ", "_")
+    mod_name = f"apply_all_{slug}"
+    try:
+        mod = __import__(mod_name)
+        apply_fn = getattr(mod, "run_batch_applier", None) or getattr(mod, "run_batch", None)
+        if not apply_fn:
+            raise HTTPException(status_code=404, detail=f"No batch runner found in {mod_name}")
+        background_tasks.add_task(apply_fn, limit=req.limit, headless=not req.headed, dry_run=req.dry_run)
+        return {"status": f"Batch application initiated for {company} (limit={req.limit}, dry_run={req.dry_run})", "company": company}
+    except ImportError:
+        raise HTTPException(status_code=404, detail=f"Module {mod_name} not found")
+
+@app.post("/api/enterprise/{company}/sync")
+async def api_sync_enterprise(company: str):
+    slug = company.lower().replace("-", "_").replace(" ", "_")
+    mod_name = f"sync_{slug}_jobs"
+    try:
+        mod = __import__(mod_name)
+        sync_fn = getattr(mod, "sync_jobs", None) or getattr(mod, "sync_and_audit_database", None)
+        if not sync_fn:
+            raise HTTPException(status_code=404, detail=f"No sync function found in {mod_name}")
+        res = await asyncio.to_thread(sync_fn)
+        return {"status": f"Synchronization completed for {company}", "summary": res}
+    except ImportError:
+        raise HTTPException(status_code=404, detail=f"Module {mod_name} not found")
+
 
 class PhenomApplyRequest(BaseModel):
     url: Optional[str] = None
@@ -550,6 +682,18 @@ def mastercard_dashboard_page():
     return get_mastercard_dashboard_html()
 
 
+@app.get("/visa", response_class=HTMLResponse)
+def visa_dashboard_page():
+    from visa_ui import get_visa_dashboard_html
+    return get_visa_dashboard_html()
+
+
+@app.get("/lseg", response_class=HTMLResponse)
+def lseg_dashboard_page():
+    from lseg_ui import get_lseg_dashboard_html
+    return get_lseg_dashboard_html()
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard_html():
     return r"""
@@ -588,6 +732,12 @@ def dashboard_html():
                     </button>
                     <a href="/mastercard" class="px-3.5 py-2 bg-gradient-to-r from-red-600 via-orange-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold rounded-lg shadow-lg flex items-center gap-2 transition text-xs border border-amber-500/30">
                         <i class="fa-solid fa-credit-card"></i> Mastercard Hub
+                    </a>
+                    <a href="/visa" class="px-3.5 py-2 bg-gradient-to-r from-blue-700 via-indigo-600 to-amber-500 hover:opacity-90 text-white font-bold rounded-lg shadow-lg flex items-center gap-2 transition text-xs border border-amber-400/40">
+                        <i class="fa-brands fa-cc-visa"></i> Visa Hub
+                    </a>
+                    <a href="/lseg" class="px-3.5 py-2 bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 hover:opacity-90 text-white font-bold rounded-lg shadow-lg flex items-center gap-2 transition text-xs border border-cyan-400/40">
+                        <i class="fa-solid fa-chart-line"></i> LSEG Hub
                     </a>
                     <a href="/docs" target="_blank" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition">
                         API Docs
@@ -2201,8 +2351,35 @@ def dashboard_html():
                 const s = String(postedVal || '').trim();
                 const sLow = s.toLowerCase();
 
+                // Calculate elapsed time since discovery (ensure UTC parsing when offset is absent)
+                let discElapsedHours = 0;
+                if (discoveredVal) {
+                    let discStr = String(discoveredVal).trim();
+                    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(discStr) && !discStr.endsWith('Z') && !discStr.includes('+')) {
+                        discStr = discStr.replace(' ', 'T') + 'Z';
+                    }
+                    const dDisc = new Date(discStr);
+                    if (!isNaN(dDisc.getTime())) {
+                        discElapsedHours = Math.max(0, (Date.now() - dDisc.getTime()) / 3600000);
+                    }
+                }
+
+                // If postedVal is absent, display elapsed time from discovery
+                if (!s) {
+                    const totalHours = Math.floor(discElapsedHours);
+                    if (totalHours < 1) return `${prefix}Just now`;
+                    if (totalHours < 24) return `${prefix}${totalHours}h ago`;
+                    const days = Math.floor(totalHours / 24);
+                    if (days === 1) return isInstahyre ? 'Indexed Yesterday' : 'Yesterday (1d ago)';
+                    return `${prefix}${days}d ago`;
+                }
+
                 // 1. If it has an absolute timestamp (ISO or date string), calculate relative to browser current time
-                const d = new Date(s);
+                let postedStr = s;
+                if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(postedStr) && !postedStr.endsWith('Z') && !postedStr.includes('+')) {
+                    postedStr = postedStr.replace(' ', 'T') + 'Z';
+                }
+                const d = new Date(postedStr);
                 if (!isNaN(d.getTime())) {
                     const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
                     if (diffSec < 0) return `${prefix}Just now`;
@@ -2215,29 +2392,32 @@ def dashboard_html():
 
                 // 2. If it's a relative string from scraping (e.g. Workday "Posted Yesterday"),
                 // calculate elapsed time since it was discovered so it dynamically updates
-                let discElapsedHours = 0;
-                if (discoveredVal) {
-                    const dDisc = new Date(discoveredVal);
-                    if (!isNaN(dDisc.getTime())) {
-                        discElapsedHours = Math.max(0, (Date.now() - dDisc.getTime()) / 3600000);
-                    }
-                }
-
                 if (sLow.includes('just now') || sLow.includes('minute')) {
                     const totalHours = Math.floor(discElapsedHours);
                     return totalHours < 1 ? `${prefix}Just now` : `${prefix}${totalHours}h ago`;
                 }
                 if (sLow.includes('today')) {
                     const totalHours = Math.floor(4 + discElapsedHours);
-                    return totalHours < 24 ? `${prefix}${totalHours}h ago` : (isInstahyre ? 'Indexed Yesterday' : 'Yesterday (1d ago)');
+                    if (totalHours < 24) return `${prefix}${totalHours}h ago`;
+                    const days = Math.floor(totalHours / 24);
+                    if (days === 1) return isInstahyre ? 'Indexed Yesterday' : 'Yesterday (1d ago)';
+                    return `${prefix}${days}d ago`;
                 }
                 if (sLow.includes('yesterday') || sLow.includes('1 day ago')) {
                     const totalHours = Math.floor(24 + discElapsedHours);
-                    return totalHours < 48 ? (isInstahyre ? 'Indexed Yesterday' : 'Yesterday (1d ago)') : `${prefix}2 days ago`;
+                    const days = Math.floor(totalHours / 24);
+                    if (days === 1) return isInstahyre ? 'Indexed Yesterday' : 'Yesterday (1d ago)';
+                    return `${prefix}${days}d ago`;
                 }
-                if (sLow.includes('2 days ago') || sLow.includes('2 day ago')) {
-                    const totalDays = Math.floor((48 + discElapsedHours) / 24);
-                    return `${prefix}${totalDays} days ago`;
+                const matchDays = sLow.match(/(\d+)\s*\+?\s*days?\s*ago/);
+                if (matchDays) {
+                    const baseDays = parseInt(matchDays[1], 10);
+                    const totalDays = Math.floor((baseDays * 24 + discElapsedHours) / 24);
+                    return `${prefix}${totalDays}d ago`;
+                }
+                if (sLow.includes('30+ days')) {
+                    const totalDays = Math.floor((30 * 24 + discElapsedHours) / 24);
+                    return `${prefix}${totalDays}d ago`;
                 }
                 return s || (isInstahyre ? 'Recently indexed' : 'Recently');
             }

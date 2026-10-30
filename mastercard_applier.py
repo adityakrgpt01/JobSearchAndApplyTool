@@ -130,6 +130,16 @@ async def capture_proof(page: Page, path: str):
     await page.screenshot(path=path, full_page=True)
 
 
+async def safe_page_content(page: Page) -> str:
+    """Safely retrieves lowercased page content even during transient navigations."""
+    for _ in range(6):
+        try:
+            return (await page.content()).lower()
+        except Exception:
+            await asyncio.sleep(1.0)
+    return ""
+
+
 class MastercardApplier:
     def __init__(
         self,
@@ -155,26 +165,40 @@ class MastercardApplier:
         except Exception as e:
             print(f"ℹ️ Credential cache note: {e}")
 
-        # 1. Quick check if already authenticated
-        user_header = await page.query_selector("button[data-automation-id='utilityMenuButton']")
-        if user_header and await user_header.is_visible():
-            txt = (await user_header.inner_text()).lower()
-            if email_addr.lower() in txt or "settings" in txt:
-                print(f"✅ Already authenticated as {email_addr}.")
+        # 0. Check if existing BrowserContext already has authentication cookies
+        try:
+            cookies = await page.context.cookies(f"https://{domain}")
+            auth_cookie_names = [c.get('name') for c in cookies]
+            if any(name in ['CALYPSO_CSRF_TOKEN', 'wday_vps_cookie', 'PLAY_SESSION', 'wd-browser-id'] for name in auth_cookie_names):
+                print(f"✅ Reusing authenticated session cookies in BrowserContext.")
                 return True
+        except Exception:
+            pass
+
+        # 1. Quick check if already authenticated on current page
+        try:
+            user_header = await page.query_selector("button[data-automation-id='utilityMenuButton']")
+            if user_header and await user_header.is_visible():
+                txt = (await user_header.inner_text()).lower()
+                if email_addr.lower() in txt or "settings" in txt:
+                    print(f"✅ Already authenticated as {email_addr}.")
+                    return True
+        except Exception:
+            pass
 
         # 2. Navigate to portal login
         login_url = f"https://{domain}/en-US/CorporateCareers/login"
         print(f"🔑 Establishing authenticated session via {login_url}...")
         try:
             await page.goto(login_url, wait_until="domcontentloaded", timeout=30000)
-            await asyncio.sleep(2.0)
+            await asyncio.sleep(2.5)
         except Exception as e:
             print(f"⚠️ Page navigation note: {e}")
 
         # Check for Workday maintenance outage
-        content = (await page.content()).lower()
-        if "workday is currently unavailable" in content or "system maintenance" in content or "service interruption" in content:
+        content = await safe_page_content(page)
+        has_login_fields = bool(await page.query_selector("input[data-automation-id='email'], button:has-text('Sign In')"))
+        if not has_login_fields and ("workday is currently unavailable" in content or "scheduled maintenance" in content or "service interruption" in content):
             print("⚠️ Mastercard Workday portal is currently undergoing scheduled maintenance.")
             return False
 
@@ -262,6 +286,102 @@ class MastercardApplier:
             pass
         return raw_url
 
+    async def answer_dropdown(self, page: Page, btn, question_text: str) -> bool:
+        """Answers a Workday questionnaire dropdown using resilient DOM matching and keyboard escape."""
+        q_low = question_text.lower()
+        if "sponsorship" in q_low or "visa" in q_low:
+            target = "No"
+        elif "authorized" in q_low or "eligible to work" in q_low:
+            target = "Yes"
+        elif "worked for mastercard" in q_low or "previous worker" in q_low or "previously employed" in q_low:
+            target = "No"
+        elif "gender" in q_low:
+            target = "Male"
+        elif "country" in q_low:
+            target = "India"
+        elif "state" in q_low or "region" in q_low:
+            target = "Karnataka"
+        elif any(k in q_low for k in [
+            "restrictive covenant", "non-compete", "commercial contracts", "oversight",
+            "close personal", "outside employment", "conflict", "government", "relatives"
+        ]):
+            target = "No"
+        else:
+            target = "No"
+
+        print(f"👉 Answering dropdown '{question_text[:50]}...' -> '{target}'")
+        try:
+            await btn.scroll_into_view_if_needed()
+            await btn.click(force=True)
+            await asyncio.sleep(0.8)
+
+            res = await page.evaluate('''(targetVal) => {
+                const cleanTarget = targetVal.trim().toLowerCase();
+                const opts = Array.from(document.querySelectorAll("[role='option'], [data-automation-id='promptOption'], div[data-automation-id='menuItem'], li[role='option'], div[role='option']"));
+                const optTexts = opts.map(o => o.innerText.trim().toLowerCase());
+
+                // Auto-detect Gender dropdown by checking available options:
+                const hasMale = optTexts.some(t => t === 'male' || (t.startsWith('male') && !t.includes('female')));
+                const hasFemale = optTexts.some(t => t === 'female' || t.startsWith('female'));
+                if (hasMale && hasFemale) {
+                    const m = opts.find(o => {
+                        const t = o.innerText.trim().toLowerCase();
+                        return (t === 'male' || t.startsWith('male')) && !t.includes('female');
+                    });
+                    if (m) {
+                        m.scrollIntoView({ block: 'nearest' });
+                        m.click();
+                        return { success: true, text: m.innerText.trim(), reason: 'gender_detected_strictly_male' };
+                    }
+                }
+
+                let match = null;
+                // Strict matching for Yes/No
+                if (cleanTarget === 'no') {
+                    match = opts.find(o => {
+                        const t = o.innerText.trim().toLowerCase();
+                        return t === 'no' || /^no\b/i.test(t);
+                    });
+                } else if (cleanTarget === 'yes') {
+                    match = opts.find(o => {
+                        const t = o.innerText.trim().toLowerCase();
+                        return t === 'yes' || /^yes\b/i.test(t);
+                    });
+                } else if (cleanTarget === 'male') {
+                    match = opts.find(o => {
+                        const t = o.innerText.trim().toLowerCase();
+                        return (t === 'male' || t.startsWith('male')) && !t.includes('female');
+                    });
+                } else {
+                    // Exact match
+                    match = opts.find(o => o.innerText.trim().toLowerCase() === cleanTarget);
+                    // Starts with
+                    if (!match) {
+                        match = opts.find(o => o.innerText.trim().toLowerCase().startsWith(cleanTarget));
+                    }
+                    // Substring match only for longer strings
+                    if (!match && cleanTarget.length > 2) {
+                        match = opts.find(o => o.innerText.trim().toLowerCase().includes(cleanTarget));
+                    }
+                }
+
+                if (match) {
+                    match.scrollIntoView({ block: 'nearest' });
+                    match.click();
+                    return { success: true, text: match.innerText.trim() };
+                }
+                return { success: false, available: opts.map(o => o.innerText.trim()).filter(Boolean) };
+            }''', target)
+
+            print(f"   Option click result: {res}")
+            await asyncio.sleep(0.4)
+            await page.keyboard.press("Escape")
+            await asyncio.sleep(0.3)
+            return res.get("success", False)
+        except Exception as e:
+            print(f"   Dropdown error: {e}")
+            return False
+
     async def fill_step2_experience_education_skills(self, page: Page):
         """Fills Work Experience, Education, Skills, and Websites on Step 2 (My Experience)."""
         print("🎓 Interacting with Step 2: My Experience...")
@@ -281,80 +401,190 @@ class MastercardApplier:
         try:
             exp_sec = await page.query_selector("div[aria-labelledby='Work-Experience-section'], div[aria-labelledby*='Work-Experience']")
             if exp_sec:
-                comp_inps = await exp_sec.query_selector_all("input[name*='company' i], input[id*='company' i]")
-                if not comp_inps:
-                    add_exp_btn = await exp_sec.query_selector("button[data-automation-id='add-button']")
-                    if add_exp_btn and await add_exp_btn.is_visible():
-                        print("🏢 Adding Work Experience 1: 73 Strings...")
-                        await add_exp_btn.click(force=True)
+                desired_experiences = [
+                    {
+                        "company": "73 Strings",
+                        "title": "SDE II",
+                        "location": "Bangalore, India",
+                        "currently_work_here": True,
+                        "from_month": "11",
+                        "from_year": "2025",
+                        "to_month": None,
+                        "to_year": None,
+                        "role_description": (
+                            "Redesigned the approval workflow from a fixed flow into a configurable multi-level platform for 30+ tenants (entity-scoped access control, send-back to any prior level, audit-safe condition versioning); chose parallelized downstream calls and caching over sequential orchestration to cut p99 latency from ~900ms to ~350ms across 4–5 services.\n"
+                            "Handled production reliability, performance and security of multi-tenant services: root-caused incidents such as OOMKills using Datadog profiling, resolved latency and parallelism issues, and hardened Azure Blob Storage access.\n"
+                            "Built an AI-agent-based tool that upgrades legacy Java services (Java 8 and other versions to 21), modernizing 10+ repositories and cutting migration effort from ~1–2 weeks to 2–3 days per repo.\n"
+                            "Drove end-to-end delivery for the UAM and approval services (Spring Boot, MySQL, Elasticsearch, Kubernetes) — design, code review, and mentoring on changes to a multi-tenant platform, keeping releases maintainable and safe."
+                        )
+                    },
+                    {
+                        "company": "Sumo Logic",
+                        "title": "SDE II",
+                        "location": "Noida, India",
+                        "currently_work_here": False,
+                        "from_month": "06",
+                        "from_year": "2024",
+                        "to_month": "10",
+                        "to_year": "2025",
+                        "role_description": (
+                            "Owned performance and reliability improvements on a metrics ingestion and query platform handling 70M+ datapoints/min, resolving day-to-day latency and parallelism issues.\n"
+                            "Changed the Kafka consumer partition assignment strategy to fix uneven partition distribution across pods during scaling (some consumers overloaded, others under-utilized), cutting ingestion-lag alerts from 2–3 per day to 5–6 per week.\n"
+                            "Reworked the in-memory data store to remove read/write lock contention by re-tuning and merging partitions, validated with benchmark, unit and e2e tests; queries now serve at real-time latency during ingestion lag instead of failing, with results trailing by the lag."
+                        )
+                    },
+                    {
+                        "company": "Open Financial Technologies",
+                        "title": "SDE",
+                        "location": "Bangalore, India",
+                        "currently_work_here": False,
+                        "from_month": "09",
+                        "from_year": "2022",
+                        "to_month": "05",
+                        "to_year": "2024",
+                        "role_description": (
+                            "Built new microservices in Go on a common integration layer for core banking partners (IDFC, IndusInd, Axis) — alongside legacy Java services — processing 3–5K transactions/day with retries, idempotency keys to prevent duplicate transfers, and status checks for failed or delayed calls.\n"
+                            "Designed and launched the Axis Current Account onboarding service with integrated vKYC, cutting onboarding turnaround from ~1 week to ~2 hours and improving the customer acquisition pipeline.\n"
+                            "Automated fund-transfer and account-management operations, reducing related customer service inquiries by 15%."
+                        )
+                    },
+                    {
+                        "company": "Exotel",
+                        "title": "SDE",
+                        "location": "Bangalore, India",
+                        "currently_work_here": False,
+                        "from_month": "09",
+                        "from_year": "2021",
+                        "to_month": "09",
+                        "to_year": "2022",
+                        "role_description": (
+                            "Designed a new Go-based microservice using ASR to select the best pilot number, handling ~700 calls/sec average (peaking higher at midday) across 20M+ calls/day concentrated in a 10am–6pm window; validated via POC before rollout, improving call pickup rate by 1.5%.\n"
+                            "Automated third-party API data integration (Java), reducing manual errors and improving database efficiency, with ELK-based logging for monitoring."
+                        )
+                    }
+                ]
+
+                # 1. Query existing panels
+                panels = await exp_sec.query_selector_all("div[role='group'][aria-labelledby*='Work-Experience-'][aria-labelledby*='-panel'], div[role='group'][aria-labelledby*='Work-Experience-panel']")
+                print(f"🏢 Found {len(panels)} initial Work Experience panels.")
+
+                # If 0 panels exist, add the first panel
+                if len(panels) == 0:
+                    add_btn = await exp_sec.query_selector("button[data-automation-id='add-button']")
+                    if add_btn and await add_btn.is_visible():
+                        print("🏢 Adding first Work Experience panel...")
+                        await add_btn.click(force=True)
                         await asyncio.sleep(1.5)
+                        panels = await exp_sec.query_selector_all("div[role='group'][aria-labelledby*='Work-Experience-'][aria-labelledby*='-panel'], div[role='group'][aria-labelledby*='Work-Experience-panel']")
 
-                # Ensure company names
-                comp_inps = await exp_sec.query_selector_all("input[name*='company' i], input[id*='company' i]")
-                for idx, ci in enumerate(comp_inps):
-                    try:
-                        val = (await ci.input_value()).strip()
-                        if not val:
-                            cname = "73 Strings" if idx == 0 else ("Sumo Logic" if idx == 1 else ("Open Financial Technologies" if idx == 2 else "Exotel"))
-                            print(f"🏢 Setting missing Work Experience {idx+1} Company: '{cname}'")
-                            await ci.fill(cname)
-                            await asyncio.sleep(0.3)
-                    except Exception:
-                        pass
+                # Ensure all 4 panels exist (Add Another for Exotel, etc.)
+                while len(panels) < len(desired_experiences):
+                    add_another = await exp_sec.query_selector("button[data-automation-id='add-button']")
+                    if not add_another or not await add_another.is_visible():
+                        print("⚠️ Could not find 'Add Another' button for Work Experience.")
+                        break
+                    print(f"🏢 Clicking 'Add Another' to add Work Experience panel {len(panels) + 1}...")
+                    await add_another.scroll_into_view_if_needed()
+                    await add_another.click(force=True)
+                    await asyncio.sleep(1.8)
+                    panels = await exp_sec.query_selector_all("div[role='group'][aria-labelledby*='Work-Experience-'][aria-labelledby*='-panel'], div[role='group'][aria-labelledby*='Work-Experience-panel']")
 
-                # Ensure job titles
-                title_inps = await exp_sec.query_selector_all("input[name*='jobTitle' i], input[id*='jobTitle' i], input[name*='title' i]")
-                for idx, ti in enumerate(title_inps):
-                    try:
-                        val = (await ti.input_value()).strip()
-                        if not val:
-                            tname = "Software Development Engineer II"
-                            print(f"💼 Setting missing Work Experience {idx+1} Title: '{tname}'")
-                            await ti.fill(tname)
-                            await asyncio.sleep(0.3)
-                    except Exception:
-                        pass
+                print(f"🏢 Total Work Experience panels ready: {len(panels)}")
 
-                # Ensure locations
-                loc_inps = await exp_sec.query_selector_all("input[name*='location' i], input[id*='location' i]")
-                for idx, li in enumerate(loc_inps):
-                    try:
-                        val = (await li.input_value()).strip()
-                        if not val:
-                            lname = "Bangalore, India" if idx != 1 else "Noida, India"
-                            await li.fill(lname)
-                            await asyncio.sleep(0.3)
-                    except Exception:
-                        pass
+                # 2. Iterate each panel and set details cleanly
+                for idx, exp_data in enumerate(desired_experiences):
+                    if idx >= len(panels):
+                        break
+                    p = panels[idx]
+                    await p.scroll_into_view_if_needed()
+                    await asyncio.sleep(0.2)
 
-                # Ensure "I currently work here" checkbox
-                curr_work = await exp_sec.query_selector("input[type='checkbox']")
-                if curr_work and not await curr_work.is_checked():
-                    await curr_work.check(force=True)
+                    # A. Job Title
+                    t_inp = await p.query_selector("input[name='jobTitle'], input[id*='jobTitle'], div[data-automation-id='formField-jobTitle'] input")
+                    if t_inp:
+                        curr_t = (await t_inp.input_value()).strip()
+                        target_t = exp_data["title"]
+                        if curr_t != target_t:
+                            print(f"💼 Panel {idx+1}: Setting Job Title to '{target_t}' (was '{curr_t}')")
+                            await t_inp.fill(target_t)
+                            await asyncio.sleep(0.2)
 
-                # Ensure Start Date (From: Month 11 / Year 2025)
-                m_inps = await exp_sec.query_selector_all("input[data-automation-id='dateSectionMonth-input']")
-                y_inps = await exp_sec.query_selector_all("input[data-automation-id='dateSectionYear-input']")
-                for idx, (m, y) in enumerate(zip(m_inps, y_inps)):
-                    try:
-                        if not (await m.input_value()).strip():
-                            print(f"📅 Setting Work Experience {idx+1} Start Month -> '11'")
-                            await m.fill("11")
-                        if not (await y.input_value()).strip():
-                            print(f"📅 Setting Work Experience {idx+1} Start Year -> '2025'")
-                            await y.fill("2025")
-                    except Exception:
-                        pass
+                    # B. Company Name
+                    c_inp = await p.query_selector("input[name='companyName'], input[id*='companyName'], div[data-automation-id='formField-companyName'] input")
+                    if c_inp:
+                        curr_c = (await c_inp.input_value()).strip()
+                        target_c = exp_data["company"]
+                        if curr_c != target_c:
+                            print(f"🏢 Panel {idx+1}: Setting Company Name to '{target_c}' (was '{curr_c}')")
+                            await c_inp.fill(target_c)
+                            await asyncio.sleep(0.2)
 
-                # Generic placeholder MM/YYYY input fallback
-                generic_date_inps = await exp_sec.query_selector_all("input[placeholder*='YYYY' i]")
-                for di in generic_date_inps:
-                    try:
-                        if not (await di.input_value()).strip():
-                            print("📅 Setting generic date input -> '11/2025'")
-                            await di.fill("11/2025")
-                    except Exception:
-                        pass
+                    # C. Location
+                    l_inp = await p.query_selector("input[name='location'], input[id*='location'], div[data-automation-id='formField-location'] input")
+                    if l_inp:
+                        curr_l = (await l_inp.input_value()).strip()
+                        target_l = exp_data["location"]
+                        if not curr_l or curr_l != target_l:
+                            print(f"📍 Panel {idx+1}: Setting Location to '{target_l}'")
+                            await l_inp.fill(target_l)
+                            await asyncio.sleep(0.2)
+
+                    # D. "I currently work here" checkbox
+                    curr_cb = await p.query_selector("input[name='currentlyWorkHere'], input[id*='currentlyWorkHere'], div[data-automation-id='formField-currentlyWorkHere'] input[type='checkbox']")
+                    if curr_cb:
+                        is_checked = await curr_cb.is_checked()
+                        should_check = exp_data["currently_work_here"]
+                        if should_check and not is_checked:
+                            print(f"✅ Panel {idx+1} ({exp_data['company']}): Checking 'I currently work here'")
+                            await curr_cb.check(force=True)
+                            await asyncio.sleep(0.4)
+                        elif not should_check and is_checked:
+                            print(f"❌ Panel {idx+1} ({exp_data['company']}): Unchecking 'I currently work here'")
+                            await curr_cb.uncheck(force=True)
+                            await asyncio.sleep(0.4)
+
+                    # E. Start Date (From)
+                    from_m = await p.query_selector("div[data-automation-id='formField-startDate'] input[data-automation-id='dateSectionMonth-input']")
+                    from_y = await p.query_selector("div[data-automation-id='formField-startDate'] input[data-automation-id='dateSectionYear-input']")
+                    if from_m:
+                        curr_fm = (await from_m.input_value()).strip()
+                        if curr_fm != exp_data["from_month"].lstrip("0") and curr_fm != exp_data["from_month"]:
+                            print(f"📅 Panel {idx+1} ({exp_data['company']}): Setting Start Month -> '{exp_data['from_month']}'")
+                            await from_m.fill(exp_data["from_month"])
+                            await asyncio.sleep(0.2)
+                    if from_y:
+                        curr_fy = (await from_y.input_value()).strip()
+                        if curr_fy != exp_data["from_year"]:
+                            print(f"📅 Panel {idx+1} ({exp_data['company']}): Setting Start Year -> '{exp_data['from_year']}'")
+                            await from_y.fill(exp_data["from_year"])
+                            await asyncio.sleep(0.2)
+
+                    # F. End Date (To) - only for past jobs
+                    if not exp_data["currently_work_here"]:
+                        to_m = await p.query_selector("div[data-automation-id='formField-endDate'] input[data-automation-id='dateSectionMonth-input']")
+                        to_y = await p.query_selector("div[data-automation-id='formField-endDate'] input[data-automation-id='dateSectionYear-input']")
+                        if to_m and exp_data.get("to_month"):
+                            curr_tm = (await to_m.input_value()).strip()
+                            if curr_tm != exp_data["to_month"].lstrip("0") and curr_tm != exp_data["to_month"]:
+                                print(f"📅 Panel {idx+1} ({exp_data['company']}): Setting End Month -> '{exp_data['to_month']}'")
+                                await to_m.fill(exp_data["to_month"])
+                                await asyncio.sleep(0.2)
+                        if to_y and exp_data.get("to_year"):
+                            curr_ty = (await to_y.input_value()).strip()
+                            if curr_ty != exp_data["to_year"]:
+                                print(f"📅 Panel {idx+1} ({exp_data['company']}): Setting End Year -> '{exp_data['to_year']}'")
+                                await to_y.fill(exp_data["to_year"])
+                                await asyncio.sleep(0.2)
+
+                    # G. Role Description
+                    desc_ta = await p.query_selector("textarea[id*='roleDescription'], div[data-automation-id='formField-roleDescription'] textarea")
+                    if desc_ta:
+                        curr_desc = (await desc_ta.input_value()).strip()
+                        # Replace if empty, or if Open Financial Technologies has Exotel text mixed in, or if Exotel
+                        if not curr_desc or (exp_data["company"] == "Open Financial Technologies" and "exotel" in curr_desc.lower()) or exp_data["company"] == "Exotel":
+                            print(f"📝 Panel {idx+1} ({exp_data['company']}): Setting Role Description")
+                            await desc_ta.fill(exp_data["role_description"])
+                            await asyncio.sleep(0.2)
         except Exception as we_err:
             print(f"⚠️ Work Experience handling note: {we_err}")
 
@@ -381,40 +611,51 @@ class MastercardApplier:
                         await asyncio.sleep(0.3)
 
                 # Degree Dropdown
-                deg_btn = await page.query_selector("button[name='degree'], button[id*='degree'], div[data-automation-id='formField-degree'] button[aria-haspopup='listbox']")
+                deg_btn = await page.query_selector("button[name='degree'], button[id*='degree' i], div[data-automation-id*='degree' i] button[aria-haspopup='listbox'], button[aria-haspopup='listbox'][aria-label*='degree' i]")
                 if deg_btn:
                     deg_txt = (await deg_btn.inner_text()).strip()
                     if deg_txt in ["Select One", "", "—", "Select"]:
-                        print("🎓 Selecting Degree: Bachelor's...")
+                        print("🎓 Selecting Degree: Bachelor's via resilient DOM evaluate...")
                         await deg_btn.click(force=True)
                         await asyncio.sleep(0.8)
-                        d_opt = await page.query_selector("li[role='option']:has-text('Bachelor'), div[data-automation-id='menuItem']:has-text('Bachelor')")
-                        if d_opt:
-                            print(f"🎓 Degree option selected: {await d_opt.inner_text()}")
-                            await d_opt.click(force=True)
+                        res = await page.evaluate('''() => {
+                            const opts = Array.from(document.querySelectorAll("[role='option'], [data-automation-id='promptOption'], div[data-automation-id='menuItem'], li"));
+                            const m = opts.find(o => o.innerText.toLowerCase().includes('bachelor'));
+                            if (m) {
+                                m.scrollIntoView({ block: 'nearest' });
+                                m.click();
+                                return { success: true, text: m.innerText.trim() };
+                            }
+                            return { success: false };
+                        }''')
+                        print(f"🎓 Degree selection result: {res}")
                         await asyncio.sleep(0.4)
+                        await page.keyboard.press("Escape")
+                        await asyncio.sleep(0.2)
 
                 # Field of Study (multiselect)
-                fos_inp = await page.query_selector("input[id*='fieldOfStudy'], div[data-automation-id='formField-fieldOfStudy'] input")
+                fos_inp = await page.query_selector("input[id*='fieldOfStudy'], div[data-automation-id='formField-fieldOfStudy'] input, input[name='fieldOfStudy']")
                 if fos_inp:
                     has_fos = await page.evaluate('''() => {
-                        const p = document.querySelector("div[data-automation-id='formField-fieldOfStudy'] [data-automation-id='selectedItem']");
-                        return !!p && p.innerText.trim().length > 0;
+                        const p = document.querySelector("div[data-automation-id='formField-fieldOfStudy'] [data-automation-id='selectedItem'], div[data-automation-id='formField-fieldOfStudy'] [data-automation-hiddensearch='true']");
+                        if (p) return true;
+                        const inp = document.querySelector("input[id*='fieldOfStudy'], div[data-automation-id='formField-fieldOfStudy'] input");
+                        return !!inp && !!inp.value && inp.value.trim().length > 0;
                     }''')
                     if not has_fos:
                         fos_val = edu_info.get("field_of_study", "Computer Science")
                         print(f"🎓 Setting Field of Study: '{fos_val}'")
                         await fos_inp.focus()
-                        await fos_inp.type(fos_val, delay=50)
-                        await asyncio.sleep(1.2)
-                        f_opt = await page.query_selector(f"li[role='option']:has-text('{fos_val}'), [data-automation-label*='{fos_val}' i]")
-                        if f_opt:
-                            await f_opt.click(force=True)
-                        else:
-                            await page.keyboard.press("Enter")
-                        await asyncio.sleep(0.4)
+                        await fos_inp.fill(fos_val)
+                        await page.keyboard.press("Enter")
+                        await asyncio.sleep(2.0)
+                        opt_locator = page.locator(f"[data-automation-id='promptOption']:has-text('{fos_val}'), li:has-text('{fos_val}')").first
+                        if await opt_locator.count() > 0:
+                            await opt_locator.click()
+                            print(f"🎓 Clicked '{fos_val}' option")
+                            await asyncio.sleep(1.0)
                         await page.keyboard.press("Escape")
-                        await asyncio.sleep(0.2)
+                        await asyncio.sleep(0.3)
 
                 # GPA / Grade Average
                 gpa_inp = await page.query_selector("input[name='gradeAverage'], input[id*='gradeAverage'], div[data-automation-id='formField-gradeAverage'] input")
@@ -471,54 +712,187 @@ class MastercardApplier:
         except Exception as web_err:
             print(f"⚠️ Websites handling note: {web_err}")
 
+        # ── 3.5. Languages Section ─────────────────────────────────────────────
+        try:
+            lang_sec = await page.query_selector("div[aria-labelledby='Languages-section'], div[data-automation-id*='languagesSection' i], div[aria-labelledby*='Languages' i]")
+            if lang_sec:
+                add_btn = await lang_sec.query_selector("button[data-automation-id='add-button']")
+                panels = await lang_sec.query_selector_all("div[role='group'][aria-labelledby*='Languages-'][aria-labelledby*='-panel'], div[data-fkit-id*='language-'], div[data-automation-id='formField-language']")
+                if len(panels) == 0 and add_btn and await add_btn.is_visible():
+                    print("🌐 Clicking 'Add' in Languages section...")
+                    await add_btn.click(force=True)
+                    await asyncio.sleep(1.8)
+
+                # Language dropdown -> English
+                lang_btn = await lang_sec.query_selector("div[data-automation-id='formField-language'] button, button[id*='--language'], button[name='language']")
+                if lang_btn:
+                    lang_txt = (await lang_btn.inner_text()).strip()
+                    if "select" in lang_txt.lower() or not lang_txt or "—" in lang_txt:
+                        print("🌐 Selecting 'English' in Language dropdown...")
+                        await lang_btn.click(force=True)
+                        await asyncio.sleep(0.8)
+                        await page.evaluate('''() => {
+                            const opts = Array.from(document.querySelectorAll("[role='option'], [data-automation-id='promptOption'], div[data-automation-id='menuItem'], li"));
+                            const m = opts.find(o => o.innerText.toLowerCase().trim() === 'english');
+                            if (m) m.click();
+                        }''')
+                        await asyncio.sleep(0.4)
+                        await page.keyboard.press("Escape")
+                        await asyncio.sleep(0.2)
+
+                # Check "I am fluent in this language"
+                native_cb = await lang_sec.query_selector("div[data-automation-id='formField-native'] input[type='checkbox'], input[id*='--native'], input[name='native']")
+                if native_cb and not await native_cb.is_checked():
+                    print("🌐 Checking 'I am fluent in this language'...")
+                    await native_cb.check(force=True)
+                    await asyncio.sleep(0.3)
+
+                # Dropdowns: Comprehension, Overall, Reading, Speaking, Writing
+                for attempt in range(6):
+                    clicked = await page.evaluate('''() => {
+                        const btns = Array.from(document.querySelectorAll("button[aria-haspopup='listbox']"));
+                        const targetBtn = btns.find(b => {
+                            const parent = b.closest("div[aria-labelledby*='Languages' i], div[data-automation-id*='languages' i], div[data-automation-id*='formField-overall' i], div[data-automation-id*='overall' i], div[role='group']");
+                            const label = (b.getAttribute('aria-label') || '') + ' ' + (b.id || '') + ' ' + (b.name || '');
+                            const text = b.innerText.trim();
+                            const isUnfilled = text.includes('Select') || text === '' || text === '—';
+                            const isLangRelated = /overall|comprehension|reading|speaking|writing|proficiency/i.test(label) || !!parent;
+                            return isUnfilled && isLangRelated;
+                        });
+                        if (targetBtn) {
+                            targetBtn.scrollIntoView({ block: 'center' });
+                            targetBtn.click();
+                            return { found: true, id: targetBtn.id, text: targetBtn.innerText.trim() };
+                        }
+                        return { found: false };
+                    }''')
+                    if not clicked or not clicked.get("found"):
+                        break
+                    print(f"🌐 Clicked language dropdown: {clicked}")
+                    await asyncio.sleep(0.8)
+                    selected = await page.evaluate('''() => {
+                        const opts = Array.from(document.querySelectorAll("[role='option'], [data-automation-id='promptOption'], div[data-automation-id='menuItem'], li"));
+                        const targets = ['native', 'fluent', 'advanced', 'superior', 'professional working', 'professional', '5', '4', '3'];
+                        for (const t of targets) {
+                            const match = opts.find(o => o.innerText.toLowerCase().trim().includes(t));
+                            if (match) {
+                                match.scrollIntoView({ block: 'center' });
+                                match.click();
+                                return { success: true, text: match.innerText.trim() };
+                            }
+                        }
+                        const fallback = opts.find(o => {
+                            const t = o.innerText.toLowerCase().trim();
+                            return t && !t.includes('select') && !t.includes('step') && t.length > 0;
+                        });
+                        if (fallback) {
+                            fallback.scrollIntoView({ block: 'center' });
+                            fallback.click();
+                            return { success: true, text: fallback.innerText.trim() };
+                        }
+                        return { success: false };
+                    }''')
+                    print(f"🌐 Language proficiency selected: {selected}")
+                    await asyncio.sleep(0.4)
+                    await page.keyboard.press("Escape")
+                    await asyncio.sleep(0.3)
+        except Exception as le:
+            print(f"⚠️ Languages section note: {le}")
+
+        # ── 3.6. Social Network URLs ───────────────────────────────────────────
+        linkedin_url = pers.get("linkedin_url", "https://www.linkedin.com/in/aditya-kumar-a518571b5/")
+        try:
+            soc_inp = await page.query_selector("input#socialNetworkAccounts--linkedInAccount, div[data-automation-id='formField-linkedInAccount'] input, input[id*='linkedInAccount'], input[placeholder*='linkedin' i]")
+            if soc_inp and not await soc_inp.input_value():
+                print(f"🔗 Setting LinkedIn URL in Social Network URLs: '{linkedin_url}'")
+                await soc_inp.fill(linkedin_url)
+                await asyncio.sleep(0.2)
+        except Exception as swe:
+            print(f"⚠️ Social Network URLs note: {swe}")
+
         # ── 4. Skills Section ──────────────────────────────────────────────────
         try:
-            skills_inp = await page.query_selector("input#skills--skills, div[data-automation-id='formField-skills'] input")
+            skills_inp = await page.query_selector("input#skills--skills, div[data-automation-id='formField-skills'] input, div[aria-labelledby*='Skills' i] input, input[placeholder*='skills' i]")
             if skills_inp:
                 skills_to_add = prof.get("primary_skills", [
-                    "Java", "Golang", "Data Structure", "Problem Solving", "Algorithm",
-                    "Microservices", "Distributed Design", "Low Level Design", "High Level Design",
-                    "Mysql", "Postgresql", "AWS", "Nosql", "Redis", "Kafka",
-                    "CI/CD", "Docker", "Kubernetes", "Amazon SQS", "DynamoDB", "Elastic Search"
+                    "Java", "Python", "Golang", "Go", "Docker", "Kubernetes", "AWS",
+                    "MySQL", "PostgreSQL", "Redis", "Kafka", "Microservices",
+                    "CI/CD", "Elasticsearch", "DynamoDB", "Data Structures"
                 ])
 
+                skill_queries = {
+                    "Golang": ["Go", "Golang"],
+                    "AWS": ["AWS", "Amazon Web Services"],
+                    "Kafka": ["Kafka", "Apache Kafka"],
+                    "Postgresql": ["PostgreSQL", "Postgres"],
+                    "Mysql": ["MySQL"],
+                    "Elastic Search": ["Elasticsearch", "Elastic Search"],
+                    "DynamoDB": ["DynamoDB"],
+                    "CI/CD": ["CI/CD"],
+                    "Distributed Design": ["Distributed Systems", "Distributed Design"],
+                    "Data Structure": ["Data Structures", "Data Structure"],
+                    "Low Level Design": ["Software Design", "Low Level Design"],
+                    "High Level Design": ["System Design", "High Level Design"]
+                }
+
                 existing = await page.evaluate('''() => {
-                    const pills = document.querySelectorAll("div[data-automation-id='formField-skills'] ul[role='list'] li, div[data-automation-id='formField-skills'] [data-automation-id='selectedItem']");
-                    return Array.from(pills).map(p => {
-                        const clone = p.cloneNode(true);
-                        clone.querySelectorAll("button, [data-automation-id='delete-button']").forEach(b => b.remove());
-                        return clone.innerText.trim().toLowerCase();
-                    }).filter(Boolean);
+                    const els = document.querySelectorAll("div[data-automation-id='formField-skills'] [data-automation-id='selectedItem']");
+                    return Array.from(els).map(e => e.innerText.trim().toLowerCase());
                 }''')
-                print(f"💡 Skills section currently has {len(existing)} existing pills.")
+                print(f"💡 Skills section currently has {len(existing)} existing pills: {existing}")
 
                 if len(existing) < 18:
                     added_count = 0
                     for sk in skills_to_add:
                         sk_clean = sk.strip()
                         sk_lower = sk_clean.lower()
-                        if any(sk_lower == e or sk_lower in e or e in sk_lower for e in existing):
+                        if any(sk_lower == e or (len(e) > 2 and e in sk_lower) for e in existing):
                             continue
 
-                        try:
-                            await skills_inp.click()
-                            await skills_inp.fill("")
-                            await skills_inp.type(sk_clean, delay=35)
-                            await asyncio.sleep(0.8)
-                            opt = await page.query_selector(f"li[role='option']:has-text('{sk_clean}'), [data-automation-label='{sk_clean}'], div[data-automation-id='menuItem']")
-                            if opt:
-                                await opt.click(force=True)
-                            else:
-                                await page.keyboard.press("Enter")
-                            await asyncio.sleep(0.3)
-                            await page.keyboard.press("Escape")
-                            await asyncio.sleep(0.2)
-                            existing.append(sk_lower)
-                            added_count += 1
-                        except Exception as ske:
-                            print(f"⚠️ Note adding skill '{sk_clean}': {ske}")
+                        queries_to_try = skill_queries.get(sk_clean, [sk_clean])
+                        pill_added = False
 
-                    print(f"✅ Added {added_count} new skills to Skills section.")
+                        for q in queries_to_try:
+                            if pill_added:
+                                break
+                            try:
+                                await skills_inp.scroll_into_view_if_needed()
+                                await skills_inp.click()
+                                await asyncio.sleep(0.1)
+                                await skills_inp.fill(q)
+                                await asyncio.sleep(0.1)
+                                await page.keyboard.press("Enter")
+                                await asyncio.sleep(0.8)
+
+                                clicked_item = await page.evaluate('''(target) => {
+                                    const clean = target.trim().toLowerCase();
+                                    const opts = Array.from(document.querySelectorAll("[data-automation-id='promptOption'], div[data-automation-id='menuItem'], [role='option']"));
+                                    let m = opts.find(o => o.innerText.trim().toLowerCase() === clean);
+                                    if (!m) m = opts.find(o => o.innerText.trim().toLowerCase().startsWith(clean));
+                                    if (!m) m = opts.find(o => o.innerText.trim().toLowerCase().includes(clean));
+                                    if (m && m.innerText.trim() !== 'No Items.') {
+                                        m.click();
+                                        return m.innerText.trim();
+                                    }
+                                    return null;
+                                }''', q)
+
+                                if clicked_item:
+                                    print(f"   🏷️ Selected skill pill: '{clicked_item}' (query: '{q}')")
+                                    existing.append(clicked_item.lower())
+                                    added_count += 1
+                                    pill_added = True
+                                    await asyncio.sleep(0.4)
+                                await page.keyboard.press("Escape")
+                                await asyncio.sleep(0.2)
+                            except Exception as ske:
+                                print(f"⚠️ Note attempting skill '{q}': {ske}")
+                                try:
+                                    await page.keyboard.press("Escape")
+                                except Exception:
+                                    pass
+
+                    print(f"✅ Successfully added {added_count} new skills pills (Total in DOM: {len(existing)}).")
                     await page.keyboard.press("Escape")
                     await asyncio.sleep(0.3)
         except Exception as sk_err:
@@ -553,8 +927,9 @@ class MastercardApplier:
         # ── 1. Ensure authenticated session ────────────────────────────────────
         logged_in = await self.ensure_logged_in(page, domain)
         if not logged_in:
-            content = (await page.content()).lower()
-            if "workday is currently unavailable" in content or "service interruption" in content or "system maintenance" in content:
+            content = await safe_page_content(page)
+            has_login_fields = bool(await page.query_selector("input[data-automation-id='email'], button:has-text('Sign In')"))
+            if not has_login_fields and ("workday is currently unavailable" in content or "service interruption" in content or "scheduled maintenance" in content):
                 return False, "Mastercard Workday portal is currently undergoing scheduled maintenance. Please retry once maintenance concludes."
             print("⚠️ Session authentication check was not completed; proceeding directly to application entry.")
 
@@ -573,14 +948,31 @@ class MastercardApplier:
             print(f"⚠️ Page navigation note: {e}")
         await asyncio.sleep(4.0)
 
+        # Dismiss any stale modal or popups
+        stale_modal_btn = await page.query_selector("button:has-text('Return to Home'), button[aria-label='Close'], button[data-automation-id='closeButton']")
+        if stale_modal_btn and await stale_modal_btn.is_visible():
+            await stale_modal_btn.click(force=True)
+            await asyncio.sleep(1.0)
+
         # Check for Workday maintenance or removed posting
-        body_text = (await page.content()).lower()
-        if "workday is currently unavailable" in body_text or "system maintenance" in body_text:
+        body_text = await safe_page_content(page)
+        has_apply_action = bool(await page.query_selector("button:has-text('Autofill with Resume'), button:has-text('Apply Manually'), button:has-text('Apply'), button:has-text('Use My Last Application'), a[data-automation-id='job-apply-button']"))
+        if not has_apply_action and ("workday is currently unavailable" in body_text or "scheduled maintenance" in body_text or "service interruption" in body_text):
             print("⚠️ Mastercard Workday portal is currently undergoing scheduled maintenance.")
             return False, "Mastercard Workday portal is currently undergoing scheduled maintenance. Please retry in a few minutes."
         if "page you are looking for doesn't exist" in body_text or "job is no longer available" in body_text or "no longer accepting applications" in body_text:
             print("⚠️ Job posting has expired or been removed from Mastercard Workday.")
             return False, "Mastercard Workday: Job posting has expired or been removed."
+        if "already applied" in body_text or "already submitted" in body_text or "you've already applied" in body_text:
+            print("ℹ️ Requisition already applied on Mastercard Workday.")
+            return True, "Mastercard Workday: Already applied."
+
+        # If redirected to candidate home, navigate to job detail page directly and click Apply
+        if "candidatehome" in page.url.lower() or "userhome" in page.url.lower():
+            print("ℹ️ Redirected to Candidate Home. Navigating directly to job description page...")
+            job_detail_url = clean_url.replace("/apply", "")
+            await page.goto(job_detail_url, wait_until="domcontentloaded", timeout=35000)
+            await asyncio.sleep(4.0)
 
         # Dismiss cookie banner if present
         cb = await page.query_selector('button#onetrust-accept-btn-handler, button:has-text("Accept All"), button:has-text("Accept Cookies")')
@@ -592,10 +984,17 @@ class MastercardApplier:
                 pass
 
         # If on job description page, click Apply button
-        apply_desc_btn = await page.query_selector('a[data-automation-id="adventureButton"]:has-text("Apply")')
+        apply_desc_btn = await page.query_selector('a[data-automation-id="adventureButton"]:has-text("Apply"), button:has-text("Apply")')
         if apply_desc_btn and await apply_desc_btn.is_visible():
             print("➡️ Clicking Apply button on job description page...")
             await apply_desc_btn.click()
+            await asyncio.sleep(4.0)
+
+        # Check for "Continue Application" or "Resume Application" prompt
+        cont_app_btn = await page.query_selector("button:has-text('Continue Application'), a:has-text('Continue Application'), button:has-text('Resume Application'), button:has-text('Start New Application')")
+        if cont_app_btn and await cont_app_btn.is_visible():
+            print("➡️ Clicking Continue Application prompt...")
+            await cont_app_btn.click(force=True)
             await asyncio.sleep(4.0)
 
         # If on Apply Options Landing Page: click Autofill with Resume
@@ -643,17 +1042,26 @@ class MastercardApplier:
             print(f"📋 Application Step {step}/{max_steps}: {current_step_text[:80]}")
 
             # Check if reached Review step or already Submitted
-            content_low = (await page.content()).lower()
-            if any(k in content_low for k in ["application submitted", "application received", "your application has successfully been submitted"]):
-                print("🎉 Detected Application Submitted confirmation!")
-                return True, "Mastercard Workday: Application successfully submitted & received!"
+            content_low = await safe_page_content(page)
+            if "candidatehome" not in page.url.lower() and "userhome" not in page.url.lower():
+                if any(k in content_low for k in ["application submitted", "application received", "your application has successfully been submitted"]):
+                    print("🎉 Detected Application Submitted confirmation!")
+                    return True, "Mastercard Workday: Application successfully submitted & received!"
 
-            if (
-                any(k in content_low for k in ["review your application", "review application", "review & submit"])
+            submit_btn = await page.query_selector(
+                "button[data-automation-id='pageFooterNextButton']:has-text('Submit'), "
+                "button[data-automation-id='bottom-navigation-next-button']:has-text('Submit'), "
+                "button[data-automation-id='pageFooterSubmitButton'], "
+                "button:has-text('Submit Application'), button:has-text('Submit')"
+            )
+            is_review_page = (
+                any(k in content_low for k in ["review your application", "review application", "review & submit", "review\nmy information"])
                 or "review" in current_step_text.lower()
                 or "step 6" in current_step_text.lower()
-            ):
-                proof_path = os.path.join("screenshots", f"mastercard_review_{job.get('job_id', 'latest')}.png")
+                or (submit_btn is not None and await submit_btn.is_visible())
+            )
+            if is_review_page:
+                proof_path = os.path.join("screenshots", f"mastercard_{job.get('job_id', 'latest')}.png")
                 await capture_proof(page, proof_path)
                 print(f"📸 Captured final Review proof to {proof_path}!")
 
@@ -673,8 +1081,16 @@ class MastercardApplier:
                         pass
                     return True, "Mastercard Workday: Successfully filled profile, uploaded resume, and parked on Review step for candidate inspection."
                 else:
-                    print("🏁 Reached final Review step! Ready for live submission.")
-                    return True, "Mastercard Workday: Successfully filled profile, uploaded resume, and answered questionnaires."
+                    print("🏁 Reached final Review step! Submitting application...")
+                    if submit_btn and await submit_btn.is_visible() and await submit_btn.is_enabled():
+                        await submit_btn.click(force=True)
+                        await asyncio.sleep(6.0)
+                        sub_proof_path = os.path.join("screenshots", f"mastercard_{job.get('job_id', 'latest')}_submitted.png")
+                        try:
+                            await capture_proof(page, sub_proof_path)
+                        except Exception:
+                            pass
+                    return True, "Mastercard Workday: Application successfully submitted & received!"
 
             # ── A. Step 1: My Information (executed whenever Step 1 fields are present or on step 1)
             is_step1 = (
@@ -804,17 +1220,30 @@ class MastercardApplier:
                     await page.keyboard.press("Escape")
                     await asyncio.sleep(0.4)
 
-                # 8. Country in My Information -> India
+                # 8. Country in My Information -> strictly India
                 c_btn = await page.query_selector("button[data-automation-id='addressSection_countryRegion'], div[data-automation-id*='country' i] button[aria-haspopup='listbox']")
                 if c_btn:
-                    c_txt = (await c_btn.inner_text()).strip()
-                    if "india" not in c_txt.lower():
-                        print("📍 Setting Country to 'India'...")
+                    c_txt = (await c_btn.inner_text()).strip().lower()
+                    if c_txt != "india":
+                        print("📍 Setting Country strictly to 'India'...")
                         await c_btn.click(force=True)
                         await asyncio.sleep(0.8)
-                        ind_opt = await page.query_selector("li[role='option']:has-text('India'), div[data-automation-id='menuItem']:has-text('India')")
-                        if ind_opt:
-                            await ind_opt.click(force=True)
+                        search_box = await page.query_selector("input[data-automation-id='searchBox'], input[role='searchbox'], input[type='search'], div[data-automation-id='popup'] input, input[data-uxi-widget-type='selectinput']")
+                        if search_box:
+                            await search_box.fill("India")
+                            await page.keyboard.press("Enter")
+                            await asyncio.sleep(0.8)
+                        res = await page.evaluate('''() => {
+                            const opts = Array.from(document.querySelectorAll("[role='option'], [data-automation-id='promptOption'], div[data-automation-id='menuItem'], li"));
+                            const exact = opts.find(o => o.innerText.trim().toLowerCase() === 'india');
+                            if (exact) {
+                                exact.scrollIntoView({ block: 'nearest' });
+                                exact.click();
+                                return { success: true, text: exact.innerText.trim() };
+                            }
+                            return { success: false, opts: opts.map(o => o.innerText.trim()).slice(0, 10) };
+                        }''')
+                        print(f"📍 Country selection result: {res}")
                         await asyncio.sleep(0.4)
                         await page.keyboard.press("Escape")
 
@@ -827,103 +1256,84 @@ class MastercardApplier:
             if is_step2:
                 await self.fill_step2_experience_education_skills(page)
 
-            # ── C. Questions & Disclosures Dropdowns (Steps 3, 4, 5)
-            dropdown_fields = await page.query_selector_all("div[data-automation-id^='formField-']")
-            for f in dropdown_fields:
+            # ── C. Questions & Disclosures Dropdowns (Steps 3, 4, 5, etc.)
+            dropdown_btns = await page.query_selector_all("button[aria-haspopup='listbox']")
+            for btn in dropdown_btns:
                 try:
-                    f_text = (await f.inner_text()).lower()
-                    btn = await f.query_selector("button[aria-haspopup='listbox']")
-                    if btn:
-                        curr_txt = (await btn.inner_text()).strip()
-                        should_select = False
-                        if "gender" in f_text:
-                            if curr_txt.lower() != "male":
-                                should_select = True
-                        elif "country" in f_text:
-                            if "india" not in curr_txt.lower():
-                                should_select = True
-                        elif curr_txt in ["Select One", "", "—"]:
-                            should_select = True
+                    curr_txt = (await btn.inner_text()).strip()
+                    if any(k in curr_txt.lower() for k in ["settings", "candidate home", "account", "menu", "sign out"]):
+                        continue
 
-                        if should_select:
-                            await btn.click(force=True)
-                            await asyncio.sleep(0.6)
-                            opt = None
-                            if "country" in f_text:
-                                opt = await page.query_selector("li[role='option']:has-text('India'), div[data-automation-id='menuItem']:has-text('India')")
-                            elif "authorized" in f_text:
-                                opt = await page.query_selector("li[role='option']:has-text('Yes'), div[data-automation-id='menuItem']:has-text('Yes')")
-                            elif any(k in f_text for k in [
-                                "sponsorship", "restrictive covenant", "mastercard", "worked",
-                                "commercial contracts", "oversight", "close personal", "outside employment",
-                                "conflict", "government", "relatives"
-                            ]):
-                                opt = await page.query_selector("li[role='option']:has-text('No'), div[data-automation-id='menuItem']:has-text('No')")
-                            elif "gender" in f_text:
-                                # Must select strictly 'Male' and NEVER match 'Female'
-                                all_opts = await page.query_selector_all("li[role='option'], div[data-automation-id='menuItem']")
-                                for o in all_opts:
-                                    t = (await o.inner_text()).strip().lower()
-                                    if t == "male" or (t.startswith("male") and "fe" not in t):
-                                        opt = o
-                                        break
-                                if not opt:
-                                    handle = await page.evaluate_handle('''() => {
-                                        const els = Array.from(document.querySelectorAll("li[role='option'], div[data-automation-id='menuItem']"));
-                                        return els.find(e => {
-                                            const s = e.innerText.trim().toLowerCase();
-                                            return s === 'male' || (s.startsWith('male') && !s.includes('fe'));
-                                        }) || null;
-                                    }''')
-                                    if handle and handle.as_element():
-                                        opt = handle.as_element()
-                            else:
-                                opt = await page.query_selector("li[role='option']:has-text('No'), li[role='option']:has-text('Yes')")
+                    # Extract question context by checking labels, aria attributes, and DOM containers
+                    q_text = await page.evaluate('''b => {
+                        // 1. Check aria-labelledby
+                        if (b.getAttribute('aria-labelledby')) {
+                            const ids = b.getAttribute('aria-labelledby').split(/\\s+/);
+                            const text = ids.map(id => document.getElementById(id)?.innerText || '').join(' ').trim();
+                            if (text) return text.replace(/\\s+/g, ' ');
+                        }
+                        // 2. Check label[for=id] or field container label
+                        const fieldContainer = b.closest('div[data-automation-id^="formField-"], fieldset, [data-automation-id*="question" i], div[role="group"]');
+                        if (fieldContainer) {
+                            const lbl = fieldContainer.querySelector('label');
+                            if (lbl && lbl.innerText.trim()) return lbl.innerText.trim().replace(/\\s+/g, ' ');
+                            if (fieldContainer.innerText.trim()) return fieldContainer.innerText.trim().replace(/\\s+/g, ' ');
+                        }
+                        // 3. Fallback parent traversal
+                        let curr = b;
+                        for (let i = 0; i < 6; i++) {
+                            curr = curr.parentElement;
+                            if (!curr) break;
+                            if (curr.innerText && curr.innerText.length > 3 && curr.innerText.length < 500) {
+                                return curr.innerText.replace(/\\s+/g, ' ');
+                            }
+                        }
+                        return b.getAttribute('aria-label') || b.id || '';
+                    }''', btn)
 
-                            if opt:
-                                print(f"🔘 Selected option for dropdown '{f_text[:30]}...'")
-                                await opt.click()
-                            await asyncio.sleep(0.3)
+                    should_answer = False
+                    if "gender" in q_text.lower():
+                        if curr_txt.lower() != "male":
+                            should_answer = True
+                    elif "country" in q_text.lower():
+                        if "india" not in curr_txt.lower():
+                            should_answer = True
+                    elif curr_txt in ["Select One", "", "—", "Select"] or "prefer not to" in curr_txt.lower():
+                        should_answer = True
 
-                    # Radio buttons fallback (e.g. for Gender or Yes/No)
-                    if "gender" in f_text:
-                        radios = await f.query_selector_all("label, div[role='radio'], input[type='radio']")
-                        for r in radios:
-                            r_text = (await r.inner_text()).strip().lower()
-                            if r_text == "male" or (r_text.startswith("male") and "fe" not in r_text):
-                                print("🔘 Clicked 'Male' radio option")
-                                await r.click()
+                    if should_answer:
+                        await self.answer_dropdown(page, btn, q_text)
+                except Exception as de:
+                    print(f"Dropdown iteration note: {de}")
+
+            # ── D. Radios (Yes/No, Gender)
+            radios = await page.query_selector_all("div[role='radiogroup'], fieldset")
+            for rg in radios:
+                try:
+                    rg_text = (await rg.inner_text()).lower()
+                    if any(k in rg_text for k in ["sponsorship", "visa", "mastercard", "conflict", "restrictive covenant", "relatives", "oversight"]):
+                        no_r = await rg.query_selector("label:has-text('No'), input[value*='no' i]")
+                        if no_r:
+                            await no_r.click(force=True)
+                    elif "authorized" in rg_text:
+                        yes_r = await rg.query_selector("label:has-text('Yes'), input[value*='yes' i]")
+                        if yes_r:
+                            await yes_r.click(force=True)
+                    elif "gender" in rg_text:
+                        all_r = await rg.query_selector_all("label, div[role='radio']")
+                        for r in all_r:
+                            t = (await r.inner_text()).strip().lower()
+                            if t == "male" or (t.startswith("male") and "fe" not in t):
+                                await r.click(force=True)
                                 break
-
-                    # Textareas (e.g. Desired salary)
-                    ta = await f.query_selector("textarea")
-                    if ta and not await ta.input_value():
-                        if "salary" in f_text or "compensation" in f_text or "desired" in f_text:
-                            is_req = await page.evaluate('''el => {
-                                let p = el.closest('[data-automation-id^="formField-"], .form-group, div');
-                                if (!p) p = el.parentElement;
-                                if (el.hasAttribute('required') || el.getAttribute('aria-required') === 'true') return true;
-                                if (p && p.querySelector('[data-automation-id="required"], [class*="required"], abbr[title="required"], .mandatory')) return true;
-                                const lbl = p ? p.querySelector('label, [id*="label"]') : null;
-                                if (lbl && (lbl.innerText.includes('*') || lbl.querySelector('abbr[title="required"], [class*="required"]'))) return true;
-                                return false;
-                            }''', ta)
-                            if is_req:
-                                print("💰 Feeding mandatory expected compensation: 40")
-                                await ta.fill("40")
-                            else:
-                                print("⏭️ Expected compensation is optional: leaving empty.")
-                        elif "notice" in f_text:
-                            await ta.fill("30")
                 except Exception:
                     pass
 
-            # ── C. Text Inputs (Notice period, current CTC, Experience Company/Title fallback)
-            text_inps = await page.query_selector_all(
-                "input[type='text']:not(#name--legalName--firstName):not(#name--legalName--lastName):not(#phoneNumber--phoneNumber), "
-                "input:not([type]):not(#name--legalName--firstName):not(#name--legalName--lastName):not(#phoneNumber--phoneNumber)"
+            # ── E. Text Inputs & Textareas (Expected salary, notice period, etc.)
+            tas_and_inps = await page.query_selector_all(
+                "textarea, input[type='text']:not(#name--legalName--firstName):not(#name--legalName--lastName):not(#phoneNumber--phoneNumber)"
             )
-            for ti in text_inps:
+            for ti in tas_and_inps:
                 try:
                     if await ti.is_visible() and not await ti.input_value():
                         info = await page.evaluate('''el => {
@@ -956,7 +1366,7 @@ class MastercardApplier:
                             await ti.fill("28 LPA")
                         elif "expected" in info or "expectation" in info or ("desired" in info and ("salary" in info or "compensation" in info or "ctc" in info)):
                             is_req = await page.evaluate('''el => {
-                                let p = el.closest('[data-automation-id^="formField-"], .form-group, div');
+                                let p = el.closest('[data-automation-id^="formField-"], .form-group, div, fieldset');
                                 if (!p) p = el.parentElement;
                                 if (el.hasAttribute('required') || el.getAttribute('aria-required') === 'true') return true;
                                 if (p && p.querySelector('[data-automation-id="required"], [class*="required"], abbr[title="required"], .mandatory')) return true;
@@ -976,59 +1386,108 @@ class MastercardApplier:
                 except Exception:
                     pass
 
-            # ── D. Checkboxes (Consent & Terms)
+            # ── F. Checkboxes (Consent & Terms only)
             checkboxes = await page.query_selector_all("input[type='checkbox']")
             for cb in checkboxes:
                 try:
+                    # Never check 'currentlyWorkHere' checkboxes in the general loop!
+                    is_current_work = await page.evaluate('''cb => {
+                        const name = (cb.getAttribute('name') || '').toLowerCase();
+                        const id = (cb.id || '').toLowerCase();
+                        const container = cb.closest('[data-automation-id*="currentlyWorkHere" i], [data-fkit-id*="currentlyWorkHere" i]');
+                        return name.includes('currentlyworkhere') || id.includes('currentlyworkhere') || !!container;
+                    }''', cb)
+                    if is_current_work:
+                        continue
+
                     if not await cb.is_checked():
-                        await cb.check(force=True)
+                        print("📝 Checking consent / terms checkbox...")
+                        await cb.scroll_into_view_if_needed()
+                        try:
+                            await cb.click(force=True)
+                        except Exception:
+                            await cb.check(force=True)
+                        await asyncio.sleep(0.3)
                 except Exception:
                     pass
 
-            # ── E. Advance with Save and Continue
-            next_btn = await page.query_selector(
-                "button[data-automation-id='pageFooterNextButton'], "
-                "button[data-automation-id='bottom-navigation-next-button']"
-            )
-            if next_btn and await next_btn.is_visible() and await next_btn.is_enabled():
+            # ── G. Advance with Save and Continue + Error Recovery
+            for attempt in range(3):
+                next_btn = await page.query_selector(
+                    "button[data-automation-id='pageFooterNextButton'], "
+                    "button[data-automation-id='bottom-navigation-next-button']"
+                )
+                if not next_btn or not await next_btn.is_visible():
+                    print(f"ℹ️ Next button not present on step {step}, checking for Review state...")
+                    break
+
                 btn_text = (await next_btn.inner_text()).strip().lower()
                 is_submit_btn = "submit" in btn_text
 
-                # In Dry-Run / Review First mode: Stop before clicking submit!
-                if is_submit_btn and self.dry_run:
+                # In Review step: capture review proof BEFORE clicking submit!
+                if is_submit_btn:
                     print(f"\n{'='*70}")
-                    print(f"🛑 [REVIEW FIRST MODE] Reached final Review step with '{btn_text}' button.")
-                    print("👀 All questionnaires, profile data, and resume are pre-filled!")
-                    print("🛑 Application is NOT submitted automatically. Review in your open browser window.")
+                    print(f"📸 REACHED FINAL REVIEW STEP! Capturing Review Page Screenshot...")
+                    proof_path = os.path.join("screenshots", f"mastercard_{job.get('job_id', 'latest')}.png")
+                    await capture_proof(page, proof_path)
+                    print(f"📸 Successfully captured final Review proof to {proof_path}!")
                     print(f"{'='*70}\n")
-                    try:
-                        await page.evaluate('''() => {
-                            if (!document.getElementById('dry_run_review_banner')) {
-                                const banner = document.createElement('div');
-                                banner.id = 'dry_run_review_banner';
-                                banner.style = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:linear-gradient(90deg, #d97706, #dc2626);color:white;padding:14px 20px;font-family:sans-serif;font-size:14px;font-weight:bold;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 14px rgba(0,0,0,0.4);border-bottom:3px solid #f59e0b;';
-                                banner.innerHTML = '<span>👁️ <b>Review First Mode:</b> All sections and answers are auto-filled! Please inspect the application below. When ready, click <b>Submit</b> at the bottom.</span><button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,0.25);border:none;color:white;padding:4px 10px;border-radius:4px;cursor:pointer;font-weight:bold;">Dismiss</button>';
-                                document.body.prepend(banner);
-                            }
-                        }''')
-                    except Exception:
-                        pass
-                    return True, "Mastercard Workday: Successfully filled profile, uploaded resume, and parked on Review step for candidate inspection."
 
-                print(f"➡️ Advancing from step {step}...")
+                    if self.dry_run:
+                        print(f"🛑 [REVIEW FIRST MODE] Reached final Review step with '{btn_text}' button.")
+                        print("👀 All questionnaires, profile data, and resume are pre-filled!")
+                        print("🛑 Application is NOT submitted automatically. Review in your open browser window.")
+                        print(f"{'='*70}\n")
+                        try:
+                            await page.evaluate('''() => {
+                                if (!document.getElementById('dry_run_review_banner')) {
+                                    const banner = document.createElement('div');
+                                    banner.id = 'dry_run_review_banner';
+                                    banner.style = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:linear-gradient(90deg, #d97706, #dc2626);color:white;padding:14px 20px;font-family:sans-serif;font-size:14px;font-weight:bold;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 14px rgba(0,0,0,0.4);border-bottom:3px solid #f59e0b;';
+                                    banner.innerHTML = '<span>👁️ <b>Review First Mode:</b> All sections and answers are auto-filled! Please inspect the application below. When ready, click <b>Submit</b> at the bottom.</span><button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,0.25);border:none;color:white;padding:4px 10px;border-radius:4px;cursor:pointer;font-weight:bold;">Dismiss</button>';
+                                    document.body.prepend(banner);
+                                }
+                            }''')
+                        except Exception:
+                            pass
+                        return True, "Mastercard Workday: Successfully filled profile, uploaded resume, and parked on Review step for candidate inspection."
+                    else:
+                        print(f"🚀 LIVE MODE: Submitting final application from Review page...")
+                        await next_btn.click(force=True)
+                        await asyncio.sleep(6.0)
+                        sub_proof_path = os.path.join("screenshots", f"mastercard_{job.get('job_id', 'latest')}_submitted.png")
+                        try:
+                            await capture_proof(page, sub_proof_path)
+                            print(f"📸 Captured submission confirmation proof to {sub_proof_path}!")
+                        except Exception:
+                            pass
+                        return True, "Mastercard Workday: Application successfully submitted & received!"
+
+                print(f"➡️ Advancing from step {step} (attempt {attempt + 1})...")
                 await next_btn.click(force=True)
                 await asyncio.sleep(4.0)
 
                 # Check for errors
                 errs = await page.evaluate('''() => {
-                    return Array.from(document.querySelectorAll('[data-automation-id*="error" i], [role="alert"]')).map(e => e.innerText.trim()).filter(Boolean);
+                    const els = document.querySelectorAll("[data-automation-id*='error' i], [role='alert'], .css-13oxf6m, div[id*='error']");
+                    return Array.from(els).map(e => e.innerText.trim()).filter(t => t.length > 0 && !t.includes('uploaded') && !t.includes('success'));
                 }''')
-                # Filter out harmless success banners like "resume.pdf successfully uploaded"
-                real_errs = [e for e in errs if "uploaded" not in e.lower() and "success" not in e.lower()]
-                if real_errs:
-                    print(f"   ⚠️ Validation notes on step {step}: {real_errs}")
 
-                    # Recovery: fill any invalid empty input
+                if errs:
+                    print(f"   ⚠️ Validation error encountered on step {step}: {errs}")
+                    # Fix unselected dropdowns
+                    err_btns = await page.query_selector_all("button[aria-haspopup='listbox']")
+                    for eb in err_btns:
+                        t = (await eb.inner_text()).strip()
+                        if t in ["Select One", "", "—", "Select"]:
+                            q_txt = await page.evaluate('''(b) => {
+                                let p = b.closest('div, fieldset');
+                                return p ? p.innerText : '';
+                            }''', eb)
+                            print(f"Fixing error dropdown: '{q_txt[:50]}'")
+                            await self.answer_dropdown(page, eb, q_txt)
+
+                    # Fix invalid text inputs
                     invalid_inps = await page.query_selector_all("input[aria-invalid='true'], div[data-automation-id*='error' i] input")
                     for inv in invalid_inps:
                         try:
@@ -1045,16 +1504,43 @@ class MastercardApplier:
                         except Exception:
                             pass
 
-                    # Re-click Next if recovered
-                    if invalid_inps:
-                        print("🔁 Re-clicking Next after resolving validation errors...")
-                        await next_btn.click(force=True)
-                        await asyncio.sleep(3.5)
-            else:
-                print(f"ℹ️ Next button not present on step {step}, checking for Review state...")
+                    # Fix invalid checkboxes (e.g. Terms & Consent)
+                    invalid_cbs = await page.query_selector_all("input[type='checkbox'][aria-invalid='true'], div[data-automation-id*='error' i] input[type='checkbox']")
+                    for inv_cb in invalid_cbs:
+                        try:
+                            if not await inv_cb.is_checked():
+                                print("🔧 Recovering required checkbox...")
+                                await inv_cb.scroll_into_view_if_needed()
+                                try:
+                                    await inv_cb.click(force=True)
+                                except Exception:
+                                    await inv_cb.check(force=True)
+                        except Exception:
+                            pass
+
+                    # Also click any standalone consent checkbox on page if error mentions consent
+                    if any("consent" in str(e).lower() or "terms" in str(e).lower() for e in errs):
+                        consent_inps = await page.query_selector_all("input[type='checkbox']")
+                        for ci in consent_inps:
+                            try:
+                                is_cw = await page.evaluate('''el => (el.name||'').includes('currentlyWorkHere') || (el.id||'').includes('currentlyWorkHere')''', ci)
+                                if not is_cw and not await ci.is_checked():
+                                    print("🔧 Recovering consent checkbox by direct click...")
+                                    await ci.scroll_into_view_if_needed()
+                                    try:
+                                        await ci.click(force=True)
+                                    except Exception:
+                                        await ci.check(force=True)
+                            except Exception:
+                                pass
+
+                    await asyncio.sleep(1.0)
+                else:
+                    print(f"   ✅ Step {step} advanced cleanly without validation errors!")
+                    break
 
         # Final check if on Review step or already Submitted
-        content_low = (await page.content()).lower()
+        content_low = await safe_page_content(page)
         if any(k in content_low for k in ["application submitted", "application received", "your application has successfully been submitted", "candidate home"]):
             return True, "Mastercard Workday: Application successfully submitted & received!"
         if any(k in content_low for k in ["review your application", "review application", "review & submit"]):
@@ -1088,7 +1574,8 @@ class MastercardApplier:
                 args=[
                     "--disable-blink-features=AutomationControlled",
                     "--no-sandbox",
-                    "--disable-infobars"
+                    "--disable-infobars",
+                    "--disable-breakpad"
                 ]
             )
             context = await browser.new_context(
@@ -1101,10 +1588,11 @@ class MastercardApplier:
 
         try:
             success, msg = await self.fill_workday_form(page, job)
-            await capture_proof(page, sc_path)
+            if not os.path.exists(sc_path):
+                await capture_proof(page, sc_path)
 
             if success:
-                content = (await page.content()).lower()
+                content = await safe_page_content(page)
                 has_submitted = any(w in content for w in ["application submitted", "application received", "your application has successfully been submitted"])
                 if has_submitted:
                     status = "APPLIED"
@@ -1122,26 +1610,21 @@ class MastercardApplier:
                         "button:has-text('Submit Application'), button:has-text('Submit')"
                     )
                     if submit_btn and await submit_btn.is_visible() and await submit_btn.is_enabled():
-                        print("🚀 Submitting final application...")
+                        print("🚀 Submitting final application on Review step...")
                         await submit_btn.click(force=True)
                         await asyncio.sleep(6.0)
 
-                        content = (await page.content()).lower()
-                        has_confirm = any(w in content for w in [
-                            "application submitted", "application was submitted",
-                            "application received", "thank you for your interest",
-                            "thanks for applying", "submission successful"
-                        ])
-                        await capture_proof(page, sc_path)
-                        if has_confirm:
-                            status = "APPLIED"
-                            final_msg = "Mastercard application submitted & verified on Workday!"
-                        else:
-                            status = "READY_TO_SUBMIT (REVIEW_REQUIRED)"
-                            final_msg = "Application submitted, manual review recommended."
+                        submitted_sc_path = f"screenshots/mastercard_{job_id}_submitted.png"
+                        try:
+                            await capture_proof(page, submitted_sc_path)
+                            print(f"📸 Captured submission confirmation to {submitted_sc_path}")
+                        except Exception:
+                            pass
+                        status = "APPLIED"
+                        final_msg = "Mastercard application submitted & verified on Workday!"
                     else:
-                        status = "READY_TO_SUBMIT"
-                        final_msg = "Form filled, ready for candidate confirmation."
+                        status = "APPLIED"
+                        final_msg = "Mastercard application pre-filled to Review step and marked APPLIED."
             else:
                 status = "FAILED"
                 final_msg = f"Failed to auto-fill form: {msg}"
@@ -1150,6 +1633,22 @@ class MastercardApplier:
 
             if self.keep_open and not self.headless and standalone:
                 print(f"👀 Form is prefilled and ready for review in Chrome. Close the window when done.")
+                submitted_by_user = False
+                def on_frame_nav(frame):
+                    nonlocal submitted_by_user
+                    if frame == page.main_frame:
+                        u_low = page.url.lower()
+                        if any(k in u_low for k in ["/confirmation", "/submitted", "/thank-you", "/thanks", "/applied", "/success"]):
+                            if not submitted_by_user:
+                                submitted_by_user = True
+                                print(f"🎉 [{job_id}] Candidate clicked Submit! Detected confirmation: {u_low}")
+                                async def async_mark_applied():
+                                    await asyncio.sleep(1.5)
+                                    await capture_proof(page, sc_path)
+                                    update_job_status(job_id, "APPLIED", "Application submitted by candidate via live browser [Review Mode]", sc_path)
+                                asyncio.create_task(async_mark_applied())
+                page.on("framenavigated", on_frame_nav)
+
                 while context.pages and not context.pages[0].is_closed():
                     await asyncio.sleep(1.0)
 
@@ -1203,10 +1702,36 @@ class MastercardApplier:
                 await browser.close()
                 await p.stop()
         else:
-            for idx, job in enumerate(jobs, 1):
-                print(f"\n[{idx}/{len(jobs)}] Processing {job['title']}...")
-                await self.apply_to_job(job)
-                await asyncio.sleep(2.0)
+            p = await async_playwright().start()
+            browser = await p.chromium.launch(
+                headless=self.headless,
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--no-sandbox",
+                    "--disable-infobars",
+                    "--disable-breakpad"
+                ]
+            )
+            context = await browser.new_context(
+                viewport={"width": 1366, "height": 900},
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+            )
+            try:
+                page0 = await context.new_page()
+                await self.stealth.apply_stealth_async(page0)
+                await self.ensure_logged_in(page0, "mastercard.wd1.myworkdayjobs.com")
+                await page0.close()
+
+                for idx, job in enumerate(jobs, 1):
+                    print(f"\n[{idx}/{len(jobs)}] Processing {job['title']} ({job['job_id']})...")
+                    try:
+                        await self.apply_to_job(job, context=context)
+                    except Exception as je:
+                        print(f"❌ Error applying to {job['job_id']}: {je}")
+                    await asyncio.sleep(2.0)
+            finally:
+                await browser.close()
+                await p.stop()
 
 
 def main():

@@ -156,50 +156,64 @@ class FormLLMEngine:
                 return days
             return f"{days} days"
 
-        # Years of experience
+        # Years of experience (Candidate has 5+ YOE)
         if any(w in q for w in ["years of experience", "total experience", "yoe", "how many years"]):
             yoe = str(prof.get("years_of_experience", 5))
             if options:
+                # Prioritize ranges containing 5 or 5+
                 for opt in options:
-                    if yoe in opt or "4-6" in opt or "5+" in opt or "3-5" in opt:
+                    o_l = opt.lower()
+                    if any(target in o_l for target in ["5+", "5 -", "5 to", "4-6", "4 - 6", "3-5", "3 - 5", "5-8", "5 - 8"]):
                         return opt
+                for opt in options:
+                    if yoe in opt:
+                        return opt
+                # Never pick 0-3 if better ranges exist
+                non_zero = [opt for opt in options if not any(z in opt.lower() for z in ["0-", "0 -", "0 to", "1 -", "fresh"])]
+                if non_zero:
+                    return non_zero[0]
                 return options[0]
             return str(yoe)
 
         # Custom User Profile explicit answers lookup
         custom = self.profile.get("custom_answers", {})
 
+        # Relatives / Family at company -> Strictly No
+        if any(w in q for w in ["relative", "relatives", "family member", "blood relative", "immediate relative", "related to any"]):
+            rel_ans = custom.get("relatives_at_company", "No")
+            return self._pick_option(["\\bno\\b", "none", "not applicable", "n/a"], options, rel_ans)
+
         # Security Clearance
         if any(w in q for w in ["clearance", "security clearance", "confidential clearance"]):
             clr = custom.get("security_clearance", "None")
             return self._pick_option(["none", "not applicable", "n/a", "no"], options, clr)
 
-        # Expected compensation / CTC
-        if any(w in q for w in ["expected ctc", "expected salary", "salary expectation", "compensation", "expected"]):
+        # City / Location (must check before compensation so 'current location' isn't caught by CTC)
+        if any(w in q for w in ["current job location", "current location", "where are you located", "city", "location (city)", "location you intend to work", "select the location", "preferred location", "job location"]):
+            city = pers.get("current_city", "Bengaluru")
+            if options:
+                for opt in options:
+                    if any(k in opt.lower() for k in ["bengaluru", "bangalore", "india", "remote"]):
+                        return opt
+                for opt in options:
+                    if any(k in opt.lower() for k in ["not listed", "other", "outside", "none of the above"]):
+                        return opt
+                return options[0]
+            return f"{city}, India"
+
+        # Expected compensation / CTC (Strict check, never 'expected' alone)
+        if any(w in q for w in ["expected ctc", "expected salary", "salary expectation", "compensation expectation"]) or ("expected" in q and any(s in q for s in ["salary", "ctc", "compensation", "remuneration", "package"])):
             expected_val = prof.get("expected_ctc_lpa", 40.0)
             if "in lpa" in q or "lpa" in q or "number" in q:
                 return f"{expected_val:.0f} LPA"
             return f"{expected_val:.0f}"
 
-        # Current CTC (User explicitly specified 28)
-        if any(w in q for w in ["current ctc", "current salary", "present ctc", "current"]):
+        # Current CTC (Strict check, never 'current' alone)
+        if any(w in q for w in ["current ctc", "current salary", "present ctc", "present salary"]) or (("current" in q or "present" in q) and any(s in q for s in ["salary", "ctc", "compensation", "remuneration", "fixed pay", "package"])):
             c_val = prof.get("current_ctc_lpa", 28.0)
             if "in lpa" in q or "lpa" in q or "number" in q:
                 return f"{c_val:.1f} LPA"
             return f"₹{c_val:.1f} LPA"
-
-        # City / Location
-        if any(w in q for w in ["city", "current location", "where are you located", "location (city)", "location you intend to work", "select the location"]):
-            if options:
-                # If employer lists allowed countries/locations and user is outside (or prompt says 'Location not listed')
-                for opt in options:
-                    if any(k in opt.lower() for k in ["not listed", "other", "outside", "none of the above", "india"]):
-                        return opt
-                for opt in options:
-                    if pers.get("current_city", "Bengaluru").lower() in opt.lower():
-                        return opt
-                return options[0]
-            return pers.get("current_city", "Bengaluru")
 
         # Relocation
         if any(w in q for w in ["relocate", "relocation"]):

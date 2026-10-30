@@ -1,0 +1,274 @@
+[
+  {
+    "id": "workExperience-9--jobTitle",
+    "name": "jobTitle",
+    "autoId": null,
+    "val": "SDE II",
+    "ffAutoId": "formField-jobTitle",
+    "label": "Job Title*"
+  },
+  {
+    "id": "workExperience-9--companyName",
+    "name": "companyName",
+    "autoId": null,
+    "val": "",
+    "ffAutoId": "formField-companyName",
+    "label": "Company*"
+  },
+  {
+    "id": "workExperience-9--location",
+    "name": "location",
+    "autoId": null,
+    "val": "",
+    "ffAutoId": "formField-location",
+    "label": "Location"
+  },
+  {
+    "id": "workExperience-9--currentlyWorkHere",
+    "name": "currentlyWorkHere",
+    "autoId": null,
+    "val": "on",
+    "ffAutoId": "formField-currentlyWorkHere",
+    "label": "I currently work here"
+  },
+  {
+    "id": "workExperience-9--startDate-dateSectionMonth-input",
+    "name": "",
+    "autoId": "dateSectionMonth-input",
+    "val": "11",
+    "ffAutoId": "dateInputWrapper",
+    "label": ""
+  },
+  {
+    "id": "workExperience-9--startDate-dateSectionYear-input",
+    "name": "",
+    "autoId": "dateSectionYear-input",
+    "val": "2025",
+    "ffAutoId": "dateInputWrapper",
+    "label": ""
+  },
+  {
+    "id": "workExperience-9--roleDescription",
+    "name": "",
+    "autoId": null,
+    "val": "Redesigned the approval workflow from a fixed flow into a configurable multi-level platform for 30+ tenants (entity-scoped access\ncontrol, send-back to any prior level, audit-safe condition versioning); chose parallelized downstream calls and caching over sequential\norchestration to cut p99 latency from ~900ms to ~350ms across 4\u20135 services.\nHandled production reliability, performance and security of multi-tenant services: root-caused incidents such as OOMKills using Datadog\nprofiling, resolved latency and parallelism issues, and hardened Azure Blob Storage access.\nBuilt an AI-agent-based tool that upgrades legacy Java services (Java 8 and other versions to 21), modernizing 10+ repositories and\ncutting migration effort from ~1\u20132 weeks to 2\u20133 days per repo.\nDrove end-to-end delivery for the UAM and approval services (Spring Boot, MySQL, Elasticsearch, Kubernetes) \u2014 design, code review,\nand mentoring on changes to a multi-tenant platform, keeping releases maintainable and safe.",
+    "ffAutoId": "formField-roleDescription",
+    "label": "Role Description"
+  },
+  {
+    "id": "workExperience-10--jobTitle",
+    "name": "jobTitle",
+    "autoId": null,
+    "val": "Sumo Logic \u2014 SDE II",
+    "ffAutoId": "formField-jobTitle",
+    "label": "Job Title*"
+  },
+  {
+    "id": "workExperience-10--companyName",
+    "name": "companyName",
+    "autoId": null,
+    "val": "",
+    "ffAutoId": "formField-companyName",
+    "label": "Company*"
+  },
+  {
+    "id": "workExperience-10--location",
+    "name": "location",
+    "autoId": null,
+    "val": "",
+    "ffAutoId": "formField-location",
+    "label": "Location"
+  },
+  {
+    "id": "workExperience-10--currentlyWorkHere",
+    "name": "currentlyWorkHere",
+    "autoId": null,
+    "val": "on",
+    "ffAutoId": "formField-currentlyWorkHere",
+    "label": "I currently work here"
+  },
+  {
+    "id": "workExperience-10--startDate-dateSectionMonth-input",
+    "name": "",
+    "autoId": "dateSectionMonth-input",
+    "val": "6",
+    "ffAutoId": "dateInputWrapper",
+    "label": ""
+  },
+  {
+    "id": "workExperience-10--startDate-dateSectionYear-input",
+    "name": "",
+    "autoId": "dateSectionYear-input",
+    "val": "2024",
+    "ffAutoId": "dateInputWrapper",
+    "label": ""
+  },
+  {
+    "id": "workExperience-10--endDate-dateSectionMonth-input",
+    "name": "",
+    "autoId": "dateSectionMonth-input",
+    "val": "10",
+    "ffAutoId": "dateInputWrapper",
+    "label": ""
+  },
+  {
+    "id": "workExperience-10--endDate-dateSectionYear-input",
+    "name": "",
+    "autoId": "dateSectionYear-input",
+    "val": "2025",
+    "ffAutoId": "dateInputWrapper",
+    "label": ""
+  },
+  {
+    "id": "workExperience-10--roleDescription",
+    "name": "",
+    "autoId": null,
+    "val": "Owned performance and reliability improvements on a metrics ingestion and query platform handling 70M+ datapoints/min, resolving\nday-to-day latency and parallelism issues.\nChanged the Kafka consumer partition assignment strategy to fix uneven partition distribution across pods during scaling (some\nconsumers overloaded, others under-utilized), cutting ingestion-lag alerts from 2\u20133 per day to 5\u20136 per week.\nReworked the in-memory data store to remove read/write lock contention by re-tuning and merging partitions, validated with\nbenchmark, unit and e2e tests; queries now serve at real-time latency during ingestion lag instead of failing, with results trailing by the\nlag.",
+    "ffAutoId": "formField-roleDescription",
+    "label": "Role Description"
+  },
+  {
+    "id": "workExperience-11--jobTitle",
+    "name": "jobTitle",
+    "autoId": null,
+    "val": "",
+    "ffAutoId": "formField-jobTitle",
+    "label": "Job Title*"
+  },
+  {
+    "id": "workExperience-11--companyName",
+    "name": "companyName",
+    "autoId": null,
+    "val": "Open Financial Technologies \u2014 SDE",
+    "ffAutoId": "formField-companyName",
+    "label": "Company*"
+  },
+  {
+    "id": "workExperience-11--location",
+    "name": "location",
+    "autoId": null,
+    "val": "",
+    "ffAutoId": "formField-location",
+    "label": "Location"
+  },
+  {
+    "id": "workExperience-11--currentlyWorkHere",
+    "name": "currentlyWorkHere",
+    "autoId": null,
+    "val": "on",
+    "ffAutoId": "formField-currentlyWorkHere",
+    "label": "I currently work here"
+  },
+  {
+    "id": "workExperience-11--startDate-dateSectionMonth-input",
+    "name": "",
+    "autoId": "dateSectionMonth-input",
+    "val": "9",
+    "ffAutoId": "dateInputWrapper",
+    "label": ""
+  },
+  {
+    "id": "workExperience-11--startDate-dateSectionYear-input",
+    "name": "",
+    "autoId": "dateSectionYear-input",
+    "val": "2022",
+    "ffAutoId": "dateInputWrapper",
+    "label": ""
+  },
+  {
+    "id": "workExperience-11--endDate-dateSectionMonth-input",
+    "name": "",
+    "autoId": "dateSectionMonth-input",
+    "val": "5",
+    "ffAutoId": "dateInputWrapper",
+    "label": ""
+  },
+  {
+    "id": "workExperience-11--endDate-dateSectionYear-input",
+    "name": "",
+    "autoId": "dateSectionYear-input",
+    "val": "2024",
+    "ffAutoId": "dateInputWrapper",
+    "label": ""
+  },
+  {
+    "id": "workExperience-11--roleDescription",
+    "name": "",
+    "autoId": null,
+    "val": "Built new microservices in Go on a common integration layer for core banking partners (IDFC, IndusInd, Axis) \u2014 alongside legacy Java\nservices \u2014 processing 3\u20135K transactions/day with retries, idempotency keys to prevent duplicate transfers, and status checks for failed\nor delayed calls.\nDesigned and launched the Axis Current Account onboarding service with integrated vKYC, cutting onboarding turnaround from ~1 week\nto ~2 hours and improving the customer acquisition pipeline.\nAutomated fund-transfer and account-management operations, reducing related customer service inquiries by 15%.\nExotel \u2014 SDE Sep 2021 \u2013 Sep 2022\nDesigned a new Go-based microservice using ASR to select the best pilot number, handling ~700 calls/sec average (peaking higher at\nmidday) across 20M+ calls/day concentrated in a 10am\u20136pm window; validated via POC before rollout, improving call pickup rate by\n1.5%.\nAutomated third-party API data integration (Java), reducing manual errors and improving database efficiency, with ELK-based logging for\nmonitoring.",
+    "ffAutoId": "formField-roleDescription",
+    "label": "Role Description"
+  },
+  {
+    "id": "education-25--schoolName",
+    "name": "schoolName",
+    "autoId": null,
+    "val": "",
+    "ffAutoId": "formField-schoolName",
+    "label": "School or University*"
+  },
+  {
+    "id": "",
+    "name": "",
+    "autoId": null,
+    "val": "",
+    "ffAutoId": "formField-degree",
+    "label": "Degree*"
+  },
+  {
+    "id": "education-25--fieldOfStudy",
+    "name": "",
+    "autoId": null,
+    "val": "",
+    "ffAutoId": "formField-fieldOfStudy",
+    "label": "Field of Study"
+  },
+  {
+    "id": "education-25--gradeAverage",
+    "name": "gradeAverage",
+    "autoId": null,
+    "val": "",
+    "ffAutoId": "formField-gradeAverage",
+    "label": "Overall Result (GPA)"
+  },
+  {
+    "id": "education-25--firstYearAttended-dateSectionYear-input",
+    "name": "",
+    "autoId": "dateSectionYear-input",
+    "val": "",
+    "ffAutoId": "dateInputWrapper",
+    "label": ""
+  },
+  {
+    "id": "education-25--lastYearAttended-dateSectionYear-input",
+    "name": "",
+    "autoId": "dateSectionYear-input",
+    "val": "",
+    "ffAutoId": "dateInputWrapper",
+    "label": ""
+  },
+  {
+    "id": "skills--skills",
+    "name": "",
+    "autoId": null,
+    "val": "",
+    "ffAutoId": "formField-skills",
+    "label": "Type to Add Skills"
+  },
+  {
+    "id": "",
+    "name": "",
+    "autoId": "file-upload-input-ref",
+    "val": "",
+    "ffAutoId": "formField-",
+    "label": "Upload a file (5MB max)*"
+  },
+  {
+    "id": "socialNetworkAccounts--linkedInAccount",
+    "name": "linkedInAccount",
+    "autoId": null,
+    "val": "",
+    "ffAutoId": "formField-linkedInAccount",
+    "label": "Share your LinkedIn Profile site"
+  }
+]

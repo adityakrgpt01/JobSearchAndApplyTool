@@ -1,0 +1,1 @@
+0 * * * * cd /Users/noody/Downloads/JobSearchAndApplyTool && ./venv/bin/python cron_enterprise_auto_apply.py >> logs/enterprise_cron.log 2>&1

@@ -262,10 +262,49 @@ def get_company_intelligence(company_name: str, db_path: str = DB_PATH) -> Optio
         return dict(row)
     return None
 
+def normalize_posted_iso(posted_at: Optional[str], discovered_at: Optional[str] = None) -> str:
+    now_utc = datetime.now(timezone.utc)
+    disc_dt = parse_posted_dt(discovered_at) or now_utc
+    if not posted_at or str(posted_at).strip().lower() in ("", "none", "null"):
+        return disc_dt.strftime("%Y-%m-%d %H:%M:%S")
+    p = str(posted_at).strip()
+    iso_dt = parse_posted_dt(p)
+    if iso_dt:
+        return iso_dt.strftime("%Y-%m-%d %H:%M:%S")
+    p_lower = p.lower()
+    if any(w in p_lower for w in ["just now", "minute"]):
+        return disc_dt.strftime("%Y-%m-%d %H:%M:%S")
+    m_hr = re.search(r"(\d+)\s+hour", p_lower)
+    if m_hr:
+        return (disc_dt - timedelta(hours=int(m_hr.group(1)))).strftime("%Y-%m-%d %H:%M:%S")
+    if "today" in p_lower:
+        return (disc_dt - timedelta(hours=4)).strftime("%Y-%m-%d %H:%M:%S")
+    if "yesterday" in p_lower or "1 day ago" in p_lower:
+        return (disc_dt - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+    if "2 days ago" in p_lower:
+        return (disc_dt - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
+    m_days = re.search(r"(\d+)\s*\+?\s*days?\s*ago", p_lower)
+    if m_days:
+        return (disc_dt - timedelta(days=int(m_days.group(1)))).strftime("%Y-%m-%d %H:%M:%S")
+    if "30+ days" in p_lower:
+        return (disc_dt - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+    m_weeks = re.search(r"(\d+)\s*\+?\s*weeks?\s*ago", p_lower)
+    if m_weeks:
+        return (disc_dt - timedelta(weeks=int(m_weeks.group(1)))).strftime("%Y-%m-%d %H:%M:%S")
+    if "week" in p_lower:
+        return (disc_dt - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+    m_months = re.search(r"(\d+)\s*\+?\s*months?\s*ago", p_lower)
+    if m_months:
+        return (disc_dt - timedelta(days=int(m_months.group(1)) * 30)).strftime("%Y-%m-%d %H:%M:%S")
+    if "month" in p_lower:
+        return (disc_dt - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+    return disc_dt.strftime("%Y-%m-%d %H:%M:%S")
+
 def save_job(job: Dict[str, Any], db_path: str = DB_PATH) -> bool:
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     try:
+        norm_posted_at = normalize_posted_iso(job.get("posted_at"), job.get("discovered_at"))
         cursor.execute("""
         INSERT INTO job_postings (
             job_id, company_name, title, location, is_remote, ats_platform,
@@ -284,7 +323,7 @@ def save_job(job: Dict[str, Any], db_path: str = DB_PATH) -> bool:
             job.get("ats_platform", "unknown"),
             job["apply_url"],
             job.get("jd_content", ""),
-            job.get("posted_at"),
+            norm_posted_at,
             job.get("experience_required", "~5 YoE"),
             job.get("salary_tier", "50-60LPA"),
             job.get("estimated_ctc", ""),
@@ -621,18 +660,38 @@ def list_jobs(
     ]
 
     if (max_age_hours and max_age_hours > 0) or (min_age_hours and min_age_hours > 0) or start_date or end_date:
-        _always_keep_statuses = ("APPLIED", "READY_TO_SUBMIT (DRY_RUN)", "READY_TO_SUBMIT (REVIEW_REQUIRED)", "APPLYING", "FAILED")
-        rows = [
-            r for r in rows
-            if r.get("status") in _always_keep_statuses or is_within_age(
+        def _check_row_age(r):
+            # 1. Primary check: posted_at or discovered_at within requested window
+            if is_within_age(
                 r.get("posted_at"),
                 r.get("discovered_at"),
                 max_age_hours=max_age_hours,
                 min_age_hours=min_age_hours,
                 start_date=start_date,
                 end_date=end_date
-            )
-        ]
+            ):
+                return True
+            # 2. If status is APPLIED, check if applied_at occurred within requested window
+            if r.get("status") == "APPLIED" and r.get("applied_at"):
+                if is_within_age(
+                    r.get("applied_at"),
+                    r.get("applied_at"),
+                    max_age_hours=max_age_hours,
+                    min_age_hours=min_age_hours,
+                    start_date=start_date,
+                    end_date=end_date
+                ):
+                    return True
+            # 3. If in active review / applying right now (last 2 hours), keep
+            if r.get("status") in ("READY_TO_SUBMIT (REVIEW_REQUIRED)", "READY_TO_SUBMIT (DRY_RUN)", "APPLYING"):
+                disc_dt = parse_posted_dt(r.get("discovered_at"))
+                if disc_dt:
+                    age_h = (datetime.now(timezone.utc) - disc_dt).total_seconds() / 3600.0
+                    if age_h <= (max_age_hours if max_age_hours else 24):
+                        return True
+            return False
+
+        rows = [r for r in rows if _check_row_age(r)]
 
     rows.sort(key=get_job_sort_timestamp, reverse=True)
     return rows

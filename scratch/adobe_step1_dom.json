@@ -1,0 +1,42 @@
+[
+  {
+    "tag": "BUTTON",
+    "type": "submit",
+    "autoId": "utilityMenuButton",
+    "id": "languageSelectorButton",
+    "name": "",
+    "ariaLabel": "",
+    "text": "English",
+    "parentText": "English"
+  },
+  {
+    "tag": "BUTTON",
+    "type": "submit",
+    "autoId": "utilityButtonSignIn",
+    "id": "",
+    "name": "",
+    "ariaLabel": "",
+    "text": "Sign In",
+    "parentText": "English Sign In"
+  },
+  {
+    "tag": "BUTTON",
+    "type": "submit",
+    "autoId": "navigationItem-Search for Jobs",
+    "id": "",
+    "name": "",
+    "ariaLabel": "",
+    "text": "Search for Jobs",
+    "parentText": "Search for Jobs"
+  },
+  {
+    "tag": "BUTTON",
+    "type": "submit",
+    "autoId": "hammyMenuIcon",
+    "id": "hammyMenuIcon",
+    "name": "",
+    "ariaLabel": "main menu",
+    "text": "",
+    "parentText": "English Sign In Search for Jobs"
+  }
+]

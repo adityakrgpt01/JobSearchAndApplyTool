@@ -84,6 +84,31 @@ class StealthApplier:
         os.makedirs("screenshots", exist_ok=True)
         screenshot_path = f"screenshots/{job_id}.png"
 
+        from company_applier_router import delegate_tracked_fill, run_sync_tracked_job
+        sync_result = await run_sync_tracked_job(job, dry_run, self.headless, self.keep_open)
+        if sync_result is not None:
+            ok = sync_result.get("status") != "FAILED"
+            return ok, sync_result.get("status", ""), sync_result.get("message", "")
+
+        delegated = await delegate_tracked_fill(page, job, dry_run, self.headless, self.keep_open)
+        if delegated is not None:
+            success, msg = delegated
+            try:
+                await capture_clean_screenshot(page, screenshot_path)
+            except Exception:
+                pass
+            lowered = (msg or "").lower()
+            if not success:
+                status = "FAILED"
+            elif dry_run:
+                status = "READY_TO_SUBMIT (DRY_RUN)"
+            elif any(k in lowered for k in ["submitted", "applied", "received"]):
+                status = "APPLIED"
+            else:
+                status = "READY_TO_SUBMIT"
+            update_job_status(job_id, status, msg, screenshot_path)
+            return success, status, msg
+
         print(f"Navigating to {url}...")
         try:
             await page.goto(url, wait_until="commit", timeout=30000)
@@ -234,15 +259,24 @@ class StealthApplier:
     async def apply_to_job(self, job: Dict[str, Any]) -> Dict[str, Any]:
         job_id = job["job_id"]
         screenshot_path = f"screenshots/{job_id}.png"
+
+        from company_applier_router import resolve_linkedin_card, run_sync_tracked_job
+        linkedin_result = await resolve_linkedin_card(job)
+        if linkedin_result is not None:
+            return linkedin_result
+
         update_job_status(job_id, "APPLYING", f"Starting stealth application for {job['title']} at {job['company_name']}")
+
+        if self.headless is not None:
+            headless_mode = self.headless
+        else:
+            headless_mode = os.environ.get("HEADLESS", "true").lower() in ("true", "1", "yes")
+        sync_result = await run_sync_tracked_job(job, self.dry_run, headless_mode, self.keep_open)
+        if sync_result is not None:
+            return sync_result
 
         p = await async_playwright().start()
         try:
-            if self.headless is not None:
-                headless_mode = self.headless
-            else:
-                headless_mode = os.environ.get("HEADLESS", "true").lower() in ("true", "1", "yes")
-
             browser = await p.chromium.launch(
                 headless=headless_mode,
                 args=[
@@ -266,21 +300,23 @@ class StealthApplier:
                     print(f"[{job_id}] Headed browser mode active: Leaving form open on screen for user review and direct submission.")
                     
                     async def watch_user_submission_and_keep_alive():
+                        active_page = page
                         try:
                             submitted = False
                             def on_nav(frame):
-                                if frame == active_page.main_frame:
-                                    url_low = active_page.url.lower()
-                                    if any(k in url_low for k in ["/confirmation", "/submitted", "/thank-you", "/thanks", "/applied", "/success"]):
-                                        nonlocal submitted
-                                        if not submitted:
-                                            submitted = True
-                                            print(f"🎉 [{job_id}] Detected confirmation URL navigation: {url_low}! Updating status to APPLIED...")
-                                            async def async_save():
-                                                await asyncio.sleep(1.5)
-                                                await capture_clean_screenshot(active_page, screenshot_path)
-                                                update_job_status(job_id, "APPLIED", "Application submitted by candidate via live browser [URL Confirmation Verified]", screenshot_path)
-                                            asyncio.create_task(async_save())
+                                if active_page.is_closed() or frame != active_page.main_frame:
+                                    return
+                                url_low = active_page.url.lower()
+                                if any(k in url_low for k in ["/confirmation", "/submitted", "/thank-you", "/thanks", "/applied", "/success"]):
+                                    nonlocal submitted
+                                    if not submitted:
+                                        submitted = True
+                                        print(f"🎉 [{job_id}] Detected confirmation URL navigation: {url_low}! Updating status to APPLIED...")
+                                        async def async_save():
+                                            await asyncio.sleep(1.5)
+                                            await capture_clean_screenshot(active_page, screenshot_path)
+                                            update_job_status(job_id, "APPLIED", "Application submitted by candidate via live browser [URL Confirmation Verified]", screenshot_path)
+                                        asyncio.create_task(async_save())
 
                             active_page.on("framenavigated", on_nav)
 
@@ -289,7 +325,7 @@ class StealthApplier:
                                     break
                                 active_page = context.pages[0]
                                 try:
-                                    content = (await active_page.content()).lower()
+                                    content = (await active_page.inner_text("body")).lower()
                                     curr_url = active_page.url.lower()
                                     has_confirmed = any(w in content for w in [
                                         "thank you for your interest",
@@ -354,7 +390,10 @@ class StealthApplier:
                 await p.stop()
             except Exception:
                 pass
-            raise launch_err
+            err_msg = str(launch_err).splitlines()[0]
+            print(f"Error launching browser for {job_id}: {err_msg}")
+            update_job_status(job_id, "FAILED", err_msg, screenshot_path)
+            return {"job_id": job_id, "status": "FAILED", "message": err_msg, "screenshot": screenshot_path}
 
     async def apply_batch_headed(self, jobs: List[Dict[str, Any]], dry_run: bool = True):
         """
@@ -1105,6 +1144,18 @@ class StealthApplier:
         domain = urllib.parse.urlparse(portal_url).netloc
         company = job.get("company_name", "Workday Employer")
 
+        if "mastercard" in company.lower() or "mastercard" in portal_url.lower():
+            print(f"[Workday] Detected Mastercard requisition. Delegating to specialized MastercardApplier...")
+            from mastercard_applier import MastercardApplier
+            m_applier = MastercardApplier(dry_run=self.dry_run, headless=self.headless, keep_open=self.keep_open)
+            return await m_applier.fill_workday_form(page, job)
+
+        if "nvidia" in company.lower() or "nvidia.wd5" in portal_url.lower():
+            print("[Workday] Detected NVIDIA requisition. Delegating to specialized NvidiaApplier...")
+            from nvidia_applier import NvidiaApplier
+            n_applier = NvidiaApplier(dry_run=self.dry_run, headless=self.headless, keep_open=self.keep_open)
+            return await n_applier.fill_workday_form(page, job)
+
         # ── 1. Cookie Banner ──────────────────────────────────────────────────────
         for _ in range(2):
             cookie_btn = await page.query_selector(
@@ -1396,7 +1447,98 @@ class StealthApplier:
                 except Exception:
                     pass
 
-            # Work Authorization → Yes (Workday radio or yes/no widget)
+            # Work Authorization & Questionnaire Dropdowns
+            dropdown_btns = await page.query_selector_all("button[aria-haspopup='listbox']")
+            for btn in dropdown_btns:
+                try:
+                    curr_txt = (await btn.inner_text()).strip()
+                    if any(k in curr_txt.lower() for k in ["settings", "candidate home", "account", "menu", "sign out"]):
+                        continue
+                    if curr_txt in ["Select One", "", "—", "Select"] or "prefer not to" in curr_txt.lower():
+                        q_text = await page.evaluate('''b => {
+                            if (b.getAttribute('aria-labelledby')) {
+                                const ids = b.getAttribute('aria-labelledby').split(/\\s+/);
+                                const text = ids.map(id => document.getElementById(id)?.innerText || '').join(' ').trim();
+                                if (text) return text.replace(/\\s+/g, ' ');
+                            }
+                            const fieldContainer = b.closest('div[data-automation-id^="formField-"], fieldset, [data-automation-id*="question" i], div[role="group"]');
+                            if (fieldContainer) {
+                                const lbl = fieldContainer.querySelector('label');
+                                if (lbl && lbl.innerText.trim()) return lbl.innerText.trim().replace(/\\s+/g, ' ');
+                                if (fieldContainer.innerText.trim()) return fieldContainer.innerText.trim().replace(/\\s+/g, ' ');
+                            }
+                            let curr = b;
+                            for (let i = 0; i < 6; i++) {
+                                curr = curr.parentElement;
+                                if (!curr) break;
+                                if (curr.innerText && curr.innerText.length > 3 && curr.innerText.length < 500) {
+                                    return curr.innerText.replace(/\\s+/g, ' ');
+                                }
+                            }
+                            return b.getAttribute('aria-label') || b.id || '';
+                        }''', btn)
+                        q_low = q_text.lower()
+                        target = "No"
+                        if "authorized" in q_low or "eligible" in q_low:
+                            target = "Yes"
+                        elif "sponsorship" in q_low or "visa" in q_low:
+                            target = "No"
+                        elif "gender" in q_low:
+                            target = "Male"
+                        await btn.scroll_into_view_if_needed()
+                        await btn.click(force=True)
+                        await asyncio.sleep(0.8)
+                        await page.evaluate('''(targetVal) => {
+                            const cleanTarget = targetVal.trim().toLowerCase();
+                            const opts = Array.from(document.querySelectorAll("[role='option'], [data-automation-id='promptOption'], div[data-automation-id='menuItem'], li[role='option'], div[role='option']"));
+                            const optTexts = opts.map(o => o.innerText.trim().toLowerCase());
+
+                            const hasMale = optTexts.some(t => t === 'male' || (t.startsWith('male') && !t.includes('female')));
+                            const hasFemale = optTexts.some(t => t === 'female' || t.startsWith('female'));
+                            if (hasMale && hasFemale) {
+                                const m = opts.find(o => {
+                                    const t = o.innerText.trim().toLowerCase();
+                                    return (t === 'male' || t.startsWith('male')) && !t.includes('female');
+                                });
+                                if (m) {
+                                    m.scrollIntoView({ block: 'nearest' });
+                                    m.click();
+                                    return;
+                                }
+                            }
+
+                            let match = null;
+                            if (cleanTarget === 'no') {
+                                match = opts.find(o => {
+                                    const t = o.innerText.trim().toLowerCase();
+                                    return t === 'no' || /^no\b/i.test(t);
+                                });
+                            } else if (cleanTarget === 'yes') {
+                                match = opts.find(o => {
+                                    const t = o.innerText.trim().toLowerCase();
+                                    return t === 'yes' || /^yes\b/i.test(t);
+                                });
+                            } else if (cleanTarget === 'male') {
+                                match = opts.find(o => {
+                                    const t = o.innerText.trim().toLowerCase();
+                                    return (t === 'male' || t.startsWith('male')) && !t.includes('female');
+                                });
+                            } else {
+                                match = opts.find(o => o.innerText.trim().toLowerCase() === cleanTarget);
+                                if (!match && cleanTarget.length > 2) match = opts.find(o => o.innerText.trim().toLowerCase().includes(cleanTarget));
+                            }
+
+                            if (match) {
+                                match.scrollIntoView({ block: 'nearest' });
+                                match.click();
+                            }
+                        }''', target)
+                        await asyncio.sleep(0.4)
+                        await page.keyboard.press("Escape")
+                        await asyncio.sleep(0.3)
+                except Exception:
+                    pass
+
             for auth_sel in [
                 "button[data-automation-id*='authorized' i]:has-text('Yes')",
                 "label:has-text('Yes'):near(label:has-text('authorized'))",
@@ -1418,6 +1560,13 @@ class StealthApplier:
                 checkboxes = await page.query_selector_all(cb_sel)
                 for cb in checkboxes:
                     try:
+                        is_cw = await page.evaluate('''cb => {
+                            const name = cb.getAttribute('name') || '';
+                            const id = cb.id || '';
+                            return name.includes('currentlyWorkHere') || id.includes('currentlyWorkHere');
+                        }''', cb)
+                        if is_cw:
+                            continue
                         if not await cb.is_checked():
                             await cb.click(force=True)
                     except Exception:
@@ -1441,6 +1590,19 @@ class StealthApplier:
                 # No next button found — likely on Review page, stop advancing
                 print(f"[Workday] Step {step_idx + 1}: no Next button found, stopping step advancement")
                 break
+
+        still_on_posting = await page.query_selector(
+            'a[data-automation-id="adventureButton"], a[data-automation-id="jobPostingApplyButton"]'
+        )
+        form_present = await page.query_selector(
+            "input[data-automation-id='legalNameSection_firstName'], "
+            "input[id='name--legalName--firstName'], "
+            "button[data-automation-id='bottom-navigation-next-button'], "
+            "button[data-automation-id='pageFooterNextButton'], "
+            "button[data-automation-id='pageFooterSubmitButton']"
+        )
+        if still_on_posting and not form_present:
+            return False, "Workday: still on the job description page. Apply was not opened, so no application was filled."
 
         return True, f"Workday: navigated {company} portal, uploaded resume, filled 6-step form, synced credentials"
 

@@ -1,0 +1,672 @@
+{
+  "url": "https://mastercard.wd1.myworkdayjobs.com/en-US/CorporateCareers/job/Pune-India/Lead-Software-Engineer---Java-Backend_R-273738/apply/autofillWithResume",
+  "title": "Lead Software Engineer - Java Backend",
+  "sections": [
+    {
+      "id": "accessibilitySkipToMainContent",
+      "tag": "A",
+      "text": "Skip to main content",
+      "ariaLabel": ""
+    },
+    {
+      "id": "header",
+      "tag": "DIV",
+      "text": "Settings adityakumargupta521@gmail.com Search for Jobs Candidate Home",
+      "ariaLabel": ""
+    },
+    {
+      "id": "logoLink",
+      "tag": "A",
+      "text": "",
+      "ariaLabel": ""
+    },
+    {
+      "id": "logo",
+      "tag": "IMG",
+      "text": "",
+      "ariaLabel": ""
+    },
+    {
+      "id": "headerTitle",
+      "tag": "DIV",
+      "text": "",
+      "ariaLabel": ""
+    },
+    {
+      "id": "navigationContainer",
+      "tag": "DIV",
+      "text": "Settings adityakumargupta521@gmail.com Search for Jobs Candidate Home",
+      "ariaLabel": ""
+    },
+    {
+      "id": "utilityButtonBar",
+      "tag": "DIV",
+      "text": "Settings adityakumargupta521@gmail.com",
+      "ariaLabel": ""
+    },
+    {
+      "id": "utilityButtonBarSettingsMenu",
+      "tag": "DIV",
+      "text": "Settings",
+      "ariaLabel": ""
+    },
+    {
+      "id": "utilityMenuButton",
+      "tag": "BUTTON",
+      "text": "Settings",
+      "ariaLabel": ""
+    },
+    {
+      "id": "utility-button-bar-divider",
+      "tag": "DIV",
+      "text": "",
+      "ariaLabel": ""
+    },
+    {
+      "id": "utilityButtonAccountTasksMenu",
+      "tag": "DIV",
+      "text": "adityakumargupta521@gmail.com",
+      "ariaLabel": ""
+    },
+    {
+      "id": "utilityMenuButton",
+      "tag": "BUTTON",
+      "text": "adityakumargupta521@gmail.com",
+      "ariaLabel": ""
+    },
+    {
+      "id": "navigationItem-Search for Jobs",
+      "tag": "BUTTON",
+      "text": "Search for Jobs",
+      "ariaLabel": ""
+    },
+    {
+      "id": "navigationItem-Candidate Home",
+      "tag": "BUTTON",
+      "text": "Candidate Home",
+      "ariaLabel": ""
+    },
+    {
+      "id": "hammyMenuIcon",
+      "tag": "BUTTON",
+      "text": "",
+      "ariaLabel": "main menu"
+    },
+    {
+      "id": "applyFlowPage",
+      "tag": "DIV",
+      "text": "Back to Job Posting Lead Software Engineer - Java Backend completed step 1 of 7 Autofill with Resume",
+      "ariaLabel": ""
+    },
+    {
+      "id": "backToJobPosting",
+      "tag": "BUTTON",
+      "text": "Back to Job Posting",
+      "ariaLabel": ""
+    },
+    {
+      "id": "jobTitleHeading",
+      "tag": "H2",
+      "text": "Lead Software Engineer - Java Backend",
+      "ariaLabel": ""
+    },
+    {
+      "id": "progressBar",
+      "tag": "OL",
+      "text": "completed step 1 of 7 Autofill with Resume completed step 2 of 7 My Information current step 3 of 7 ",
+      "ariaLabel": ""
+    },
+    {
+      "id": "progressBarCompletedStep",
+      "tag": "LI",
+      "text": "completed step 1 of 7 Autofill with Resume",
+      "ariaLabel": ""
+    },
+    {
+      "id": "progressBarCompletedStep",
+      "tag": "LI",
+      "text": "completed step 2 of 7 My Information",
+      "ariaLabel": ""
+    },
+    {
+      "id": "progressBarActiveStep",
+      "tag": "LI",
+      "text": "current step 3 of 7 My Experience",
+      "ariaLabel": ""
+    },
+    {
+      "id": "progressBarInactiveStep",
+      "tag": "LI",
+      "text": "step 4 of 7 Application Questions 1 of 2",
+      "ariaLabel": ""
+    },
+    {
+      "id": "progressBarInactiveStep",
+      "tag": "LI",
+      "text": "step 5 of 7 Application Questions 2 of 2",
+      "ariaLabel": ""
+    },
+    {
+      "id": "progressBarInactiveStep",
+      "tag": "LI",
+      "text": "step 6 of 7 Voluntary Disclosures",
+      "ariaLabel": ""
+    },
+    {
+      "id": "progressBarInactiveStep",
+      "tag": "LI",
+      "text": "step 7 of 7 Review",
+      "ariaLabel": ""
+    },
+    {
+      "id": "applyFlowMyExpPage",
+      "tag": "DIV",
+      "text": "Work Experience Work Experience 1 Delete Job Title* Company* Location I currently work here From* cu",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-jobTitle",
+      "tag": "DIV",
+      "text": "Job Title*",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-companyName",
+      "tag": "DIV",
+      "text": "Company*",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-location",
+      "tag": "DIV",
+      "text": "Location",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-currentlyWorkHere",
+      "tag": "DIV",
+      "text": "I currently work here",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-startDate",
+      "tag": "DIV",
+      "text": "From* current value is 11/2025 11 / 2025",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateInputWrapper",
+      "tag": "DIV",
+      "text": "11 / 2025",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateSectionMonth-display",
+      "tag": "DIV",
+      "text": "11",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateSectionMonth-input",
+      "tag": "INPUT",
+      "text": "",
+      "ariaLabel": "Month"
+    },
+    {
+      "id": "dateSectionYear-display",
+      "tag": "DIV",
+      "text": "2025",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateSectionYear-input",
+      "tag": "INPUT",
+      "text": "",
+      "ariaLabel": "Year"
+    },
+    {
+      "id": "dateIcon",
+      "tag": "DIV",
+      "text": "",
+      "ariaLabel": "Calendar"
+    },
+    {
+      "id": "formField-roleDescription",
+      "tag": "DIV",
+      "text": "Role Description",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-jobTitle",
+      "tag": "DIV",
+      "text": "Job Title*",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-companyName",
+      "tag": "DIV",
+      "text": "Company*",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-location",
+      "tag": "DIV",
+      "text": "Location",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-currentlyWorkHere",
+      "tag": "DIV",
+      "text": "I currently work here",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-startDate",
+      "tag": "DIV",
+      "text": "From* current value is 6/2024 06 / 2024",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateInputWrapper",
+      "tag": "DIV",
+      "text": "06 / 2024",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateSectionMonth-display",
+      "tag": "DIV",
+      "text": "06",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateSectionMonth-input",
+      "tag": "INPUT",
+      "text": "",
+      "ariaLabel": "Month"
+    },
+    {
+      "id": "dateSectionYear-display",
+      "tag": "DIV",
+      "text": "2024",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateSectionYear-input",
+      "tag": "INPUT",
+      "text": "",
+      "ariaLabel": "Year"
+    },
+    {
+      "id": "dateIcon",
+      "tag": "DIV",
+      "text": "",
+      "ariaLabel": "Calendar"
+    },
+    {
+      "id": "formField-endDate",
+      "tag": "DIV",
+      "text": "To* current value is 10/2025 10 / 2025",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateInputWrapper",
+      "tag": "DIV",
+      "text": "10 / 2025",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateSectionMonth-display",
+      "tag": "DIV",
+      "text": "10",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateSectionMonth-input",
+      "tag": "INPUT",
+      "text": "",
+      "ariaLabel": "Month"
+    },
+    {
+      "id": "dateSectionYear-display",
+      "tag": "DIV",
+      "text": "2025",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateSectionYear-input",
+      "tag": "INPUT",
+      "text": "",
+      "ariaLabel": "Year"
+    },
+    {
+      "id": "dateIcon",
+      "tag": "DIV",
+      "text": "",
+      "ariaLabel": "Calendar"
+    },
+    {
+      "id": "formField-roleDescription",
+      "tag": "DIV",
+      "text": "Role Description",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-jobTitle",
+      "tag": "DIV",
+      "text": "Job Title*",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-companyName",
+      "tag": "DIV",
+      "text": "Company*",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-location",
+      "tag": "DIV",
+      "text": "Location",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-currentlyWorkHere",
+      "tag": "DIV",
+      "text": "I currently work here",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-startDate",
+      "tag": "DIV",
+      "text": "From* current value is 9/2022 09 / 2022",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateInputWrapper",
+      "tag": "DIV",
+      "text": "09 / 2022",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateSectionMonth-display",
+      "tag": "DIV",
+      "text": "09",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateSectionMonth-input",
+      "tag": "INPUT",
+      "text": "",
+      "ariaLabel": "Month"
+    },
+    {
+      "id": "dateSectionYear-display",
+      "tag": "DIV",
+      "text": "2022",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateSectionYear-input",
+      "tag": "INPUT",
+      "text": "",
+      "ariaLabel": "Year"
+    },
+    {
+      "id": "dateIcon",
+      "tag": "DIV",
+      "text": "",
+      "ariaLabel": "Calendar"
+    },
+    {
+      "id": "formField-endDate",
+      "tag": "DIV",
+      "text": "To* current value is 5/2024 05 / 2024",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateInputWrapper",
+      "tag": "DIV",
+      "text": "05 / 2024",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateSectionMonth-display",
+      "tag": "DIV",
+      "text": "05",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateSectionMonth-input",
+      "tag": "INPUT",
+      "text": "",
+      "ariaLabel": "Month"
+    },
+    {
+      "id": "dateSectionYear-display",
+      "tag": "DIV",
+      "text": "2024",
+      "ariaLabel": ""
+    },
+    {
+      "id": "dateSectionYear-input",
+      "tag": "INPUT",
+      "text": "",
+      "ariaLabel": "Year"
+    },
+    {
+      "id": "dateIcon",
+      "tag": "DIV",
+      "text": "",
+      "ariaLabel": "Calendar"
+    },
+    {
+      "id": "formField-roleDescription",
+      "tag": "DIV",
+      "text": "Role Description",
+      "ariaLabel": ""
+    },
+    {
+      "id": "add-button",
+      "tag": "BUTTON",
+      "text": "Add Another",
+      "ariaLabel": ""
+    },
+    {
+      "id": "smartDivider",
+      "tag": "DIV",
+      "text": "",
+      "ariaLabel": ""
+    },
+    {
+      "id": "add-button",
+      "tag": "BUTTON",
+      "text": "Add",
+      "ariaLabel": ""
+    },
+    {
+      "id": "smartDivider",
+      "tag": "DIV",
+      "text": "",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-skills",
+      "tag": "DIV",
+      "text": "Type to Add Skills 0 items selected",
+      "ariaLabel": ""
+    },
+    {
+      "id": "multiSelectContainer",
+      "tag": "DIV",
+      "text": "0 items selected",
+      "ariaLabel": ""
+    },
+    {
+      "id": "multiselectInputContainer",
+      "tag": "DIV",
+      "text": "0 items selected",
+      "ariaLabel": ""
+    },
+    {
+      "id": "promptSelectionLabel",
+      "tag": "DIV",
+      "text": "",
+      "ariaLabel": ""
+    },
+    {
+      "id": "promptAriaInstruction",
+      "tag": "DIV",
+      "text": "0 items selected",
+      "ariaLabel": ""
+    },
+    {
+      "id": "promptIcon",
+      "tag": "SPAN",
+      "text": "",
+      "ariaLabel": ""
+    },
+    {
+      "id": "smartDivider",
+      "tag": "DIV",
+      "text": "",
+      "ariaLabel": ""
+    },
+    {
+      "id": "formField-",
+      "tag": "DIV",
+      "text": "Upload a file (5MB max) Drop files here or Select files resume.pdf successfully uploaded resume.pdf ",
+      "ariaLabel": ""
+    },
+    {
+      "id": "attachments-FileUpload",
+      "tag": "DIV",
+      "text": "Drop files here or Select files resume.pdf successfully uploaded resume.pdf 36.31 KB Successfully Up",
+      "ariaLabel": ""
+    },
+    {
+      "id": "file-upload-drop-zone",
+      "tag": "DIV",
+      "text": "Drop files here or Select files",
+      "ariaLabel": ""
+    },
+    {
+      "id": "select-files",
+      "tag": "BUTTON",
+      "text": "Select files",
+      "ariaLabel": ""
+    },
+    {
+      "id": "file-upload-input-ref",
+      "tag": "INPUT",
+      "text": "",
+      "ariaLabel": ""
+    },
+    {
+      "id": "file-upload-item",
+      "tag": "DIV",
+      "text": "resume.pdf successfully uploaded resume.pdf 36.31 KB Successfully Uploaded!",
+      "ariaLabel": ""
+    },
+    {
+      "id": "ariaLive",
+      "tag": "DIV",
+      "text": "resume.pdf successfully uploaded",
+      "ariaLabel": ""
+    },
+    {
+      "id": "ariaLiveMessage",
+      "tag": "DIV",
+      "text": "resume.pdf successfully uploaded",
+      "ariaLabel": ""
+    },
+    {
+      "id": "file-upload-item-name",
+      "tag": "DIV",
+      "text": "resume.pdf",
+      "ariaLabel": ""
+    },
+    {
+      "id": "file-upload-successful",
+      "tag": "DIV",
+      "text": "Successfully Uploaded!",
+      "ariaLabel": ""
+    },
+    {
+      "id": "delete-file",
+      "tag": "BUTTON",
+      "text": "",
+      "ariaLabel": "Delete resume.pdf"
+    },
+    {
+      "id": "smartDivider",
+      "tag": "DIV",
+      "text": "",
+      "ariaLabel": ""
+    },
+    {
+      "id": "add-button",
+      "tag": "BUTTON",
+      "text": "Add",
+      "ariaLabel": ""
+    },
+    {
+      "id": "pageFooter",
+      "tag": "DIV",
+      "text": "Back Save and Continue",
+      "ariaLabel": ""
+    },
+    {
+      "id": "pageFooterBackButton",
+      "tag": "BUTTON",
+      "text": "Back",
+      "ariaLabel": ""
+    },
+    {
+      "id": "pageFooterNextButton",
+      "tag": "BUTTON",
+      "text": "Save and Continue",
+      "ariaLabel": ""
+    },
+    {
+      "id": "footerContainer",
+      "tag": "DIV",
+      "text": "Follow Us \u00a9 2026 Workday, Inc. All rights reserved.",
+      "ariaLabel": ""
+    },
+    {
+      "id": "followUs",
+      "tag": "H4",
+      "text": "Follow Us",
+      "ariaLabel": ""
+    },
+    {
+      "id": "socialIcon",
+      "tag": "A",
+      "text": "",
+      "ariaLabel": "YouTube"
+    },
+    {
+      "id": "socialIcon",
+      "tag": "A",
+      "text": "",
+      "ariaLabel": "X"
+    },
+    {
+      "id": "socialIcon",
+      "tag": "A",
+      "text": "",
+      "ariaLabel": "Facebook"
+    },
+    {
+      "id": "socialIcon",
+      "tag": "A",
+      "text": "",
+      "ariaLabel": "LinkedIn"
+    },
+    {
+      "id": "logo",
+      "tag": "DIV",
+      "text": "\u00a9 2026 Workday, Inc. All rights reserved.",
+      "ariaLabel": ""
+    }
+  ]
+}
